@@ -1,0 +1,58 @@
+# =================================================================
+# Global / 프로젝트 전체에 공통으로 적용되는 규칙
+# =================================================================
+# macOS 시스템 파일
+.DS_Store
+
+# VS Code 워크스페이스 설정
+.vscode/
+
+# 로그 파일
+*.log
+logs/
+
+
+# =================================================================
+# Backend (Spring Boot) - 'backend/' 하위 디렉토리 규칙
+# =================================================================
+### Gradle ###
+backend/.gradle/
+backend/build/
+!backend/gradle/wrapper/gradle-wrapper.jar
+
+### IntelliJ IDEA ###
+backend/.idea/
+backend/*.iml
+backend/*.iws
+backend/out/
+
+
+# =================================================================
+# Frontend (React) - 'frontend/' 하위 디렉토리 규칙
+# =================================================================
+### Dependencies ###
+# 의존성 라이브러리 폴더
+frontend/node_modules/
+frontend/.pnp
+frontend/.pnp.js
+
+### Production ###
+# 빌드 결과물
+frontend/build/
+frontend/dist/
+
+### Testing ###
+frontend/coverage/
+
+### Local Environment Variables ###
+# 민감한 API 키 등을 보관하는 로컬 환경변수 파일 (절대 올리면 안 됨)
+frontend/.env
+frontend/.env.local
+frontend/.env.development.local
+frontend/.env.test.local
+frontend/.env.production.local
+
+### Logs ###
+frontend/npm-debug.log*
+frontend/yarn-debug.log*
+frontend/yarn-error.log*
