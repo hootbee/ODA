@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import styled from 'styled-components'; // styled-components import 추가
+import styled from 'styled-components';
 import MessageList from './components/MessageList';
 import MessageForm from './components/MessageForm';
+import axios from 'axios'; // axios import 확인
 
 function App() {
     const [messages, setMessages] = useState([
@@ -9,29 +10,45 @@ function App() {
     ]);
     const [inputValue, setInputValue] = useState('');
 
-    const handleSendMessage = (e) => {
+    const handleSendMessage = async (e) => { // async 키워드 추가
         e.preventDefault();
-        if (inputValue.trim() === '') return;
+        const prompt = inputValue.trim();
+        if (prompt === '') return;
 
+        // 1. 사용자의 메시지를 화면에 먼저 표시
         const userMessage = {
-            id: messages.length + 1,
-            text: inputValue,
+            id: Date.now(), // 고유한 ID 생성을 위해 Date.now() 사용
+            text: prompt,
             sender: 'user'
         };
-
-        const updatedMessages = [...messages, userMessage];
-        setMessages(updatedMessages);
+        setMessages(prevMessages => [...prevMessages, userMessage]);
         setInputValue('');
 
-        setTimeout(() => {
+        try {
+            // 2. 백엔드로 프롬프트 전송 (POST 요청)
+            const response = await axios.post('http://localhost:8080/api/prompt', {
+                prompt: prompt // DTO의 필드 이름(prompt)과 일치해야 함
+            });
+
+            // 3. 백엔드의 응답을 받아 봇 메시지로 화면에 표시
             const botResponse = {
-                id: updatedMessages.length + 1,
-                text: `"${inputValue}"에 대해 찾아볼게요!`,
+                id: Date.now() + 1,
+                text: response.data, // Spring 서비스가 보낸 응답 메시지
                 sender: 'bot'
             };
-            setMessages(prev => [...prev, botResponse]);
-        }, 1000);
+            setMessages(prevMessages => [...prevMessages, botResponse]);
+
+        } catch (error) {
+            console.error("Error sending prompt to backend:", error);
+            const errorResponse = {
+                id: Date.now() + 1,
+                text: '백엔드와 통신 중 오류가 발생했습니다.',
+                sender: 'bot'
+            };
+            setMessages(prevMessages => [...prevMessages, errorResponse]);
+        }
     };
+
 
     return (
         <AppContainer>
