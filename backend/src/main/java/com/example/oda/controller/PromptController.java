@@ -27,4 +27,6 @@ public class PromptController {
         String response = promptService.processPrompt(prompt);
         return ResponseEntity.ok(response);
     }
+
+
 }

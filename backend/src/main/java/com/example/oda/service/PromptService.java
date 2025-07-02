@@ -1,17 +1,61 @@
 package com.example.oda.service;
 
+import com.example.oda.dto.GeminiResponse;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.web.reactive.function.client.WebClient;
+import reactor.core.publisher.Mono;
 
 @Service
 public class PromptService {
 
-    public String processPrompt(String prompt) {
-    // 여기에 실제 비즈니스 로직(LLM 연동 등)이 들어갑니다.
-    // 지금은 프롬프트가 잘 도착했는지 확인하기 위해 콘솔에 출력합니다.
-    System.out.println("Received prompt in service: " + prompt);
+    private final WebClient webClient;
 
-    // 클라이언트에게 보낼 응답을 생성합니다.
-    String responseMessage = "AI가 프롬프트: '" + prompt + "'에 대해 답변을 생성중입니다...";
-    return responseMessage;
-}
+    // application.properties 파일에서 'gemini.api-key' 값을 읽어와 apiKey 변수에 주입합니다.
+    @Value("${gemini.api-key}")
+    private String apiKey;
+
+    public PromptService() {
+        // WebClient 인스턴스를 생성합니다.
+        this.webClient = WebClient.builder()
+                .baseUrl("https://generativelanguage.googleapis.com") // Gemini API의 실제 Base URL
+                .build();
+    }
+
+    public String processPrompt(String prompt) {
+        // Gemini API를 호출하여 응답을 받아옵니다.
+        return callGeminiApi(prompt);
+    }
+
+    private String callGeminiApi(String prompt) {
+        String uri = "/v1beta/models/gemini-1.5-flash:generateContent?key=" + apiKey;
+
+        // 여기서는 간단하게 Map을 사용한 예시입니다.
+        var requestBody = java.util.Map.of(
+                "contents", java.util.List.of(
+                        java.util.Map.of(
+                                "parts", java.util.List.of(
+                                        java.util.Map.of("text", prompt)
+                                )
+                        )
+                )
+        );
+
+        Mono<GeminiResponse> responseMono = webClient.post()
+                .uri(uri)
+                .header("Content-Type", "application/json")
+                .bodyValue(requestBody)
+                .retrieve()
+                .bodyToMono(GeminiResponse.class); // String 대신 DTO 클래스로 받음
+
+        GeminiResponse response = responseMono.block();
+
+        // 안전하게 텍스트 추출
+        if (response != null && response.getCandidates() != null && !response.getCandidates().isEmpty()) {
+            return response.getCandidates().get(0).getContent().getParts().get(0).getText();
+        }
+
+        return "응답을 처리하는 데 실패했습니다.";
+
+    }
 }
