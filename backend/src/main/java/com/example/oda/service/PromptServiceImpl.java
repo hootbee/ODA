@@ -36,12 +36,23 @@ public class PromptServiceImpl implements PromptService { // PromptService 인�
                     }
 
                     // 1. 먼저 원래 검색어로 검색
-                    List<PublicData> dataList = publicDataRepository.searchByKeyword(prompt);
+                    // 수정된 코드 - 원래 검색어 사용
+                    List<PublicData> dataList = publicDataRepository
+                            .findByKeywordsContainingIgnoreCaseOrTitleContainingIgnoreCaseOrDescriptionContainingIgnoreCaseOrClassificationSystemContainingIgnoreCase(
+                                    prompt, prompt, prompt, prompt  // "광주에서 병원에 대한 데이터가 있어?"
+                            );
 
-                    // 2. 결과가 없으면 AI 분류 결과로 검색
-                    if (dataList.isEmpty()) {
-                        dataList = publicDataRepository.findByClassificationSystemContainingIgnoreCase(classificationSystem);
+// 결과가 부족하면 키워드 추출해서 재검색
+                    if (dataList.size() < 5) {
+                        String mainKeyword = extractMainKeyword(prompt); // "광주" 추출
+                        List<PublicData> additionalData = publicDataRepository
+                                .findByKeywordsContainingIgnoreCaseOrTitleContainingIgnoreCaseOrDescriptionContainingIgnoreCaseOrClassificationSystemContainingIgnoreCase(
+                                        mainKeyword, mainKeyword, mainKeyword, mainKeyword
+                                );
+                        dataList.addAll(additionalData);
+                        dataList = dataList.stream().distinct().collect(Collectors.toList());
                     }
+
 
                     // 3. 여전히 결과가 없으면 더 광범위하게 검색
                     if (dataList.isEmpty()) {
@@ -69,5 +80,20 @@ public class PromptServiceImpl implements PromptService { // PromptService 인�
                 })
                 .onErrorReturn(List.of("추천 데이터를 찾지 못했습니다."));
     }
+    private String extractMainKeyword(String prompt) {
+        // "광주에서 병원에 대한 데이터가 있어?" -> "광주"
+        String[] words = prompt.replaceAll("[에서의을를이가는\\s]+", " ")
+                .trim()
+                .split("\\s+");
+
+        // 첫 번째 의미있는 지역명이나 키워드 반환
+        for (String word : words) {
+            if (word.length() > 1 && !word.equals("데이터") && !word.equals("있어")) {
+                return word;
+            }
+        }
+        return words[0];
+    }
+
 
 }
