@@ -10,7 +10,7 @@ import org.hibernate.annotations.UpdateTimestamp;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "public_data")
+@Table(name = "FILE_data", schema = "public")
 @Setter
 @Getter
 @NoArgsConstructor
@@ -18,39 +18,36 @@ import java.time.LocalDateTime;
 public class PublicData {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
-
-    @Column(name = "file_data_name", nullable = false)
-    private String fileDataName;
-
-    @Column(name = "classification_system")
-    private String classificationSystem;
-
-    @Column(name = "provider_agency")
-    private String providerAgency;
-
-    @Column(name = "file_extension")
-    private String fileExtension;
-
-    @Column(name = "keywords")
-    private String keywords;
-
-    @Column(name = "modified_date")
-    private LocalDateTime modifiedDate;
-
-    @Column(name = "description", columnDefinition = "TEXT")
-    private String description;
-
-    @Column(name = "title", nullable = false)
+    @Column(name = "제목", nullable = false)
     private String title;
 
-    // 추가된 부분
-    @Column(name = "created_at", updatable = false)
-    @CreationTimestamp
-    private LocalDateTime createdAt;
+    @Column(name = "파일데이터명", nullable = false)
+    private String fileDataName;
 
-    @Column(name = "updated_at")
-    @UpdateTimestamp
-    private LocalDateTime updatedAt;
+    @Column(name = "분류체계")
+    private String classificationSystem;
+
+    @Column(name = "제공기관")
+    private String providerAgency;
+
+    @Column(name = "확장자")
+    private String fileExtension;
+
+    @Column(name = "키워드")
+    private String keywords;
+
+    @Column(name = "수정일")
+    private LocalDateTime modifiedDate; // String으로 변경 (테이블에서 text 타입)
+
+    @Column(name = "설명")
+    private String description;
+
+//    // 생성/수정 시간 추적용 (테이블에는 없지만 애플리케이션에서 사용)
+//    @Column(name = "created_at", updatable = false)
+//    @CreationTimestamp
+//    private LocalDateTime createdAt;
+//
+//    @Column(name = "updated_at")
+//    @UpdateTimestamp
+//    private LocalDateTime updatedAt;
 }
