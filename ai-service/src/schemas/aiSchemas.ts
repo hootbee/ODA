@@ -10,5 +10,7 @@ export const SearchParamsSchema = z.object({
 });
 
 export const RecommendationParamsSchema = z.object({
-  recommendations: z.array(z.string()).describe("추천 목록"),
+  recommendations: z
+    .array(z.string())
+    .describe("사용자 프롬프트와 가장 관련성이 높은 추천 데이터 이름 목록 (3개에서 5개 사이)"),
 });

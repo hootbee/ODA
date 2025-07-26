@@ -16,7 +16,7 @@ public interface AiModelService {
      * @param prompt 사용자의 원본 프롬프트
      * @return 추론된 카테고리 이름을 담은 Mono
      */
-    Mono<String> getCategory(String prompt);
+    Mono<String> getClassificationSystem(String prompt);
 
     /**
      * 주어진 후보 목록 내에서 사용자의 프롬프트에 가장 적합한 데이터를 추천합니다.

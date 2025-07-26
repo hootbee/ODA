@@ -5,12 +5,10 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.UpdateTimestamp;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "FILE_data", schema = "public")
+@Table(name = "file_data", schema = "public")
 @Setter
 @Getter
 @NoArgsConstructor
@@ -37,17 +35,12 @@ public class PublicData {
     private String keywords;
 
     @Column(name = "수정일")
-    private LocalDateTime modifiedDate; // String으로 변경 (테이블에서 text 타입)
+    private LocalDateTime modifiedDate;
 
-    @Column(name = "설명")
+    @Column(name = "설명", columnDefinition = "TEXT")
     private String description;
 
-//    // 생성/수정 시간 추적용 (테이블에는 없지만 애플리케이션에서 사용)
-//    @Column(name = "created_at", updatable = false)
-//    @CreationTimestamp
-//    private LocalDateTime createdAt;
-//
-//    @Column(name = "updated_at")
-//    @UpdateTimestamp
-//    private LocalDateTime updatedAt;
+    // 누락된 컬럼 추가
+    @Column(name = "수정일_backup", columnDefinition = "TEXT")
+    private String modifiedDateBackup;
 }

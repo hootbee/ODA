@@ -30,7 +30,7 @@ public class GeminiService implements AiModelService {
     }
 
     @Override
-    public Mono<String> getCategory(String prompt) {
+    public Mono<String> getClassificationSystem(String prompt) {
         Map<String, String> requestBody = Map.of("prompt", prompt);
 
         return webClient.post()
@@ -40,11 +40,26 @@ public class GeminiService implements AiModelService {
                 .retrieve()
                 .bodyToMono(JsonNode.class)
                 .flatMap(jsonNode -> {
-                    String classificationSystem = jsonNode.has("classificationSystem") ? jsonNode.get("classificationSystem").asText() : null;
+                    // ✅ 중첩된 응답 구조 처리
+                    String classificationSystem = null;
+
+                    // success와 data 구조 확인
+                    if (jsonNode.has("success") && jsonNode.get("success").asBoolean() && jsonNode.has("data")) {
+                        JsonNode dataNode = jsonNode.get("data");
+                        if (dataNode.has("classificationSystem")) {
+                            classificationSystem = dataNode.get("classificationSystem").asText();
+                        }
+                    } else if (jsonNode.has("classificationSystem")) {
+                        // 직접 구조인 경우 (fallback)
+                        classificationSystem = jsonNode.get("classificationSystem").asText();
+                    }
+
                     if (classificationSystem != null && !classificationSystem.isEmpty()) {
+                        log.info("AI service returned classificationSystem: {}", classificationSystem);
                         return Mono.just(classificationSystem);
                     } else {
-                        log.warn("AI service returned no classificationSystem for prompt: {}", prompt);
+                        log.warn("AI service returned no classificationSystem for prompt: {}, response: {}",
+                                prompt, jsonNode.toString());
                         return Mono.just(UNMATCHED_CATEGORY_SIGNAL);
                     }
                 })
@@ -67,25 +82,61 @@ public class GeminiService implements AiModelService {
                 .retrieve()
                 .bodyToMono(JsonNode.class)
                 .flatMap(jsonNode -> {
-                    if (jsonNode.has("recommendations") && jsonNode.get("recommendations").isArray()) {
+                    // ✅ 중첩된 응답 구조 처리
+                    JsonNode recommendationsNode = null;
+                    JsonNode filteringStepsNode = null;
+
+                    // success와 data 구조 확인
+                    if (jsonNode.has("success") && jsonNode.get("success").asBoolean() && jsonNode.has("data")) {
+                        JsonNode dataNode = jsonNode.get("data");
+                        if (dataNode.has("recommendations")) {
+                            recommendationsNode = dataNode.get("recommendations");
+                        }
+                        if (dataNode.has("filteringSteps")) {
+                            filteringStepsNode = dataNode.get("filteringSteps");
+                        }
+                    } else if (jsonNode.has("recommendations")) {
+                        // 직접 구조인 경우 (fallback)
+                        recommendationsNode = jsonNode.get("recommendations");
+                        if (jsonNode.has("filteringSteps")) {
+                            filteringStepsNode = jsonNode.get("filteringSteps");
+                        }
+                    }
+
+                    if (recommendationsNode != null && recommendationsNode.isArray()) {
                         try {
-                            // ✅ 명시적 타입 변수 선언으로 제네릭 문제 해결
                             List<String> recommendations = objectMapper.convertValue(
-                                    jsonNode.get("recommendations"),
+                                    recommendationsNode,
                                     new TypeReference<List<String>>() {}
                             );
+
+                            // 필터링 단계 로깅 (개선된 버전)
+                            if (filteringStepsNode != null) {
+                                log.info("AI 필터링 단계: 대분류={}, 날짜필터={}, 최종개수={}",
+                                        filteringStepsNode.path("step1_majorCategory").asText("unknown"),
+                                        filteringStepsNode.path("step2_dateFiltered").asBoolean(false),
+                                        filteringStepsNode.path("step3_finalCount").asInt(0)
+                                );
+                            }
+
+                            log.info("AI service returned {} recommendations for prompt: {}",
+                                    recommendations.size(), prompt);
                             return Mono.just(recommendations);
+
                         } catch (IllegalArgumentException e) {
                             log.error("Failed to parse recommendations JSON from AI service: {}", jsonNode, e);
                             return Mono.<List<String>>error(e);
                         }
                     } else {
-                        log.warn("AI service returned no recommendations array for prompt: {}", prompt);
+                        log.warn("AI service returned no recommendations array for prompt: {}, response: {}",
+                                prompt, jsonNode.toString());
                         return Mono.just(List.<String>of());
                     }
                 })
                 .doOnError(e -> log.error("Error calling AI service for recommendations", e))
                 .onErrorReturn(List.<String>of());
     }
+
+
 
 }

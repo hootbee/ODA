@@ -27,28 +27,47 @@ public class PromptServiceImpl implements PromptService { // PromptService 인�
         this.aiModelService = aiModelService;
     }
 
-    @Override // PromptService 인터페이스의 메소드를 구현
+    @Override
     public Mono<List<String>> processPrompt(String prompt) {
-        // 이제 aiModelService에 직접 카테고리 추론을 요청
-        return aiModelService.getCategory(prompt)
+        return aiModelService.getClassificationSystem(prompt)
                 .flatMap(classificationSystem -> {
-                    // AiModelService 구현체에서 약속된 NO_MATCH_CATEGORY를 반환했을 경우
                     if (NO_MATCH_CATEGORY_RETURNED_BY_AI.equals(classificationSystem)) {
                         return Mono.just(List.of("공공데이터와 관련된 프롬프트를 작성해주세요."));
                     }
 
-                    // DB에서 데이터 조회 (PromptService의 고유 로직)
-                    List<PublicData> dataList = publicDataRepository.findByKeywordsContainingIgnoreCaseOrTitleContainingIgnoreCaseOrDescriptionContainingIgnoreCaseOrClassificationSystemContainingIgnoreCase(classificationSystem, classificationSystem, classificationSystem, classificationSystem);
+                    // 1. 먼저 원래 검색어로 검색
+                    List<PublicData> dataList = publicDataRepository.searchByKeyword(prompt);
+
+                    // 2. 결과가 없으면 AI 분류 결과로 검색
                     if (dataList.isEmpty()) {
-                        return Mono.just(List.of("해당 카테리에 대한 데이터가 없습니다."));
+                        dataList = publicDataRepository.findByClassificationSystemContainingIgnoreCase(classificationSystem);
                     }
+
+                    // 3. 여전히 결과가 없으면 더 광범위하게 검색
+                    if (dataList.isEmpty()) {
+                        // "인천에 대한 데이터"에서 "인천" 추출해서 검색
+                        String[] keywords = prompt.split("\\s+");
+                        for (String keyword : keywords) {
+                            if (keyword.length() > 1) { // 한 글자 제외
+                                List<PublicData> tempList = publicDataRepository.searchByKeyword(keyword);
+                                dataList.addAll(tempList);
+                            }
+                        }
+                        // 중복 제거
+                        dataList = dataList.stream().distinct().collect(Collectors.toList());
+                    }
+
+                    if (dataList.isEmpty()) {
+                        return Mono.just(List.of("해당 카테고리에 대한 데이터가 없습니다."));
+                    }
+
                     List<String> candidateNames = dataList.stream()
                             .map(PublicData::getFileDataName)
                             .collect(Collectors.toList());
 
-                    // aiModelService에 최종 추천을 요청
                     return aiModelService.getRecommendations(prompt, classificationSystem, candidateNames);
                 })
-                .onErrorReturn(List.of("추천 데이터를 찾지 못했습니다.")); // 전체 처리 중 에러 발생 시
+                .onErrorReturn(List.of("추천 데이터를 찾지 못했습니다."));
     }
+
 }
