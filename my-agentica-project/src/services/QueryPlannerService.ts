@@ -29,12 +29,14 @@ export class QueryPlannerService {
     searchYear: number | null;
     providerAgency: string;
     hasDateFilter: boolean;
+    limit: number;
   } {
     const majorCategory = this.extractMajorCategory(prompt);
     const keywords = this.extractKeywords(prompt);
     const searchYear = this.extractYear(prompt);
     const providerAgency = this.extractAgency(prompt);
     const hasDateFilter = this.hasDateRelatedTerms(prompt);
+    const limit = this.extractLimit(prompt);
 
     return {
       majorCategory,
@@ -42,7 +44,35 @@ export class QueryPlannerService {
       searchYear,
       providerAgency,
       hasDateFilter,
+      limit,
     };
+  }
+
+  /**
+   * 프롬프트에서 결과 개수 제한을 추출합니다.
+   */
+  private extractLimit(prompt: string): number {
+    const lowerPrompt = prompt.toLowerCase();
+
+    // "n개" 형식 숫자 추출
+    const countMatch = prompt.match(/(\d+)\s*개/);
+    if (countMatch && countMatch[1]) {
+      const count = parseInt(countMatch[1], 10);
+      if (!isNaN(count)) {
+        return count;
+      }
+    }
+
+    if (lowerPrompt.includes("많이")) {
+      return 20;
+    }
+
+    if (lowerPrompt.includes("간단히") || lowerPrompt.includes("요약")) {
+      return 5;
+    }
+
+    // 기본값
+    return 12;
   }
 
   /**

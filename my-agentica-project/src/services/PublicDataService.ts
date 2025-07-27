@@ -30,8 +30,8 @@ export class PublicDataService {
       queryPlan.majorCategory
     );
 
-    // 최종 3-5개 추천
-    const finalRecommendations = filtered.slice(0, 5);
+    // 최종 추천
+    const finalRecommendations = filtered.slice(0, queryPlan.limit);
 
     return {
       recommendations: finalRecommendations,

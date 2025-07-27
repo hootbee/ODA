@@ -45,10 +45,12 @@ public class PromptServiceImpl implements PromptService {
                     String majorCategory = data.get("majorCategory").asText();
                     List<String> keywords = new ArrayList<>();
                     data.get("keywords").forEach(node -> keywords.add(node.asText()));
+                    int limit = data.has("limit") ? data.get("limit").asInt() : 12; // 기본값 12
 
                     log.info("원본 프롬프트: {}", prompt);
                     log.info("추출된 키워드: {}", keywords);
                     log.info("AI 분류 결과: {}", majorCategory);
+                    log.info("결과 개수 제한: {}", limit);
 
                     List<PublicData> allResults = new ArrayList<>();
 
@@ -171,6 +173,7 @@ public class PromptServiceImpl implements PromptService {
                     List<String> results = sortedResults.stream()
                             .map(PublicData::getFileDataName)
                             .filter(name -> name != null && !name.trim().isEmpty())
+                            .limit(limit)
                             .collect(Collectors.toList());
 
                     return Mono.just(results);
