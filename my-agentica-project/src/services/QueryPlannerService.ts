@@ -199,7 +199,7 @@ export class QueryPlannerService {
     const yearMatch = prompt.match(/(\d{4})/);
     const extractedYear: string | null = yearMatch ? yearMatch[1] : null;
 
-    // 3단계: 주요 키워드 추출 (데이터 제외)
+    // 3단계: 주요 키워드 추출 (데이터 제외 + 품질 검증)
     const stopWords: string[] = [
       "관련",
       "대한",
@@ -216,7 +216,7 @@ export class QueryPlannerService {
       "년",
       "데이터",
       "정보",
-      "자료", // ⭐ 너무 일반적인 단어들 추가
+      "자료",
     ];
 
     const cleanedPrompt = prompt
@@ -228,9 +228,10 @@ export class QueryPlannerService {
       .filter((word) => word.length > 1 && !stopWords.includes(word))
       .filter((word) => !foundRegions.some((region) => word.includes(region)))
       .filter((word) => !/^\d{4}$/.test(word))
+      .filter((word) => this.isValidKeyword(word)) // ⭐ 키워드 유효성 검증
       .slice(0, 2);
 
-    // 4단계: 결과 조합
+    // 4단계: 결과 조합 (누락된 부분 추가)
     const result: string[] = [];
     if (extractedYear) result.push(extractedYear);
     result.push(...foundRegions);
@@ -241,6 +242,18 @@ export class QueryPlannerService {
     console.log(`개선된 결과: ${finalResult}`);
 
     return finalResult;
+  }
+
+  /**
+   * 키워드 유효성 검증
+   */
+  private isValidKeyword(word: string): boolean {
+    // 너무 일반적인 단어 제외
+    const commonWords = ["관련", "현황", "정보", "시설", "업체", "목록"];
+    if (commonWords.includes(word)) return false;
+
+    // 의미있는 명사나 전문용어인지 확인
+    return word.length >= 2 && /[가-힣]/.test(word);
   }
 
   /**
