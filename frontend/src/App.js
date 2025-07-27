@@ -33,7 +33,7 @@ function App() {
             // 3. 백엔드의 응답을 받아 봇 메시지로 화면에 표시
             const botResponse = {
                 id: Date.now() + 1,
-                text: response.data, // Spring 서비스가 보낸 응답 메시지
+                text: Array.isArray(response.data) ? response.data.join('\n') : response.data,
                 sender: 'bot'
             };
             setMessages(prevMessages => [...prevMessages, botResponse]);
@@ -76,8 +76,8 @@ const AppContainer = styled.div`
 `;
 
 const ChatWindow = styled.div`
-  width: 400px;
-  height: 600px;
+  width: 800px;
+  height: 800px;
   border: 1px solid #ccc;
   border-radius: 8px;
   background-color: #fff;

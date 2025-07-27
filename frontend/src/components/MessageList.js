@@ -30,6 +30,7 @@ const MessageItem = styled.div`
   border-radius: 18px;
   max-width: 70%;
   word-wrap: break-word;
+  white-space: pre-wrap; // 줄바꿈을 위한 스타일 추가
   background-color: ${props => (props.sender === 'user' ? '#007bff' : '#e9e9eb')};
   color: ${props => (props.sender === 'user' ? 'white' : 'black')};
   align-self: ${props => (props.sender === 'user' ? 'flex-end' : 'flex-start')};
