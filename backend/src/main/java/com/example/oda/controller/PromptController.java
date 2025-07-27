@@ -26,4 +26,12 @@ public class PromptController {
                 .map(recommendations -> ResponseEntity.ok(recommendations))
                 .defaultIfEmpty(ResponseEntity.notFound().build()); // Mono가 비어있을 경우 (발생할 가능성 낮음)
     }
+    // ⭐ 새로 추가: 상세 정보 전용 엔드포인트
+    @CrossOrigin(origins = "http://localhost:3000")
+    @PostMapping("/api/data-details")
+    public Mono<ResponseEntity<String>> getDataDetails(@RequestBody PromptRequestDto requestDto) {
+        return promptService.getDataDetails(requestDto.getPrompt())
+                .map(details -> ResponseEntity.ok(details))
+                .defaultIfEmpty(ResponseEntity.notFound().build());
+    }
 }

@@ -5,6 +5,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import java.util.List;
+import java.util.Optional;
 
 public interface PublicDataRepository extends JpaRepository<PublicData, String> {
 
@@ -50,4 +51,10 @@ public interface PublicDataRepository extends JpaRepository<PublicData, String> 
             "키워드 ~ CONCAT('(^|,)\\s*', :searchKeyword, '\\s*(,|$)')",
             nativeQuery = true)
     List<PublicData> findByKeywordRegexMatch(@Param("searchKeyword") String searchKeyword);
+    // ⭐ 파일명으로 상세 데이터 조회
+    Optional<PublicData> findByFileDataName(String fileDataName);
+
+    // ⭐ 유사한 파일명 검색 (정확하지 않은 경우 대비)
+    @Query("SELECT p FROM PublicData p WHERE UPPER(p.fileDataName) LIKE UPPER(CONCAT('%', :fileName, '%'))")
+    List<PublicData> findByFileDataNameContaining(@Param("fileName") String fileName);
 }

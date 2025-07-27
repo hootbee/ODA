@@ -17,6 +17,9 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.function.Function;
 import java.util.Arrays;
+import java.util.Optional;
+import java.util.regex.Pattern;
+import java.util.regex.Matcher;
 
 @Service
 public class PromptServiceImpl implements PromptService {
@@ -39,13 +42,45 @@ public class PromptServiceImpl implements PromptService {
 
     @Override
     public Mono<List<String>> processPrompt(String prompt) {
+        log.info("=== 프롬프트 처리 시작 ===");
+        log.info("입력 프롬프트: '{}'", prompt);
+
+        // 중복 요청 체크 (간단한 캐시 메커니즘)
+        String requestHash = Integer.toString(prompt.hashCode());
+
+        // ⭐ 개선된 상세 조회 판단
+        boolean isDetail = isDetailRequest(prompt);
+        log.info("상세 조회 요청 판단: {}", isDetail);
+
+        if (isDetail) {
+            String fileName = extractFileNameFromPrompt(prompt);
+            log.info("상세 조회 대상 파일명: '{}'", fileName);
+
+            // 빈 파일명 체크
+            if (fileName == null || fileName.trim().isEmpty()) {
+                return Mono.just(List.of("❌ 파일명을 찾을 수 없습니다. 정확한 파일명을 입력해주세요."));
+            }
+
+            return getDataDetails(fileName)
+                    .map(details -> List.of(details))
+                    .doOnNext(result -> log.info("상세 조회 결과 반환: {} 문자", result.get(0).length()));
+        }
+
+        log.info("일반 검색 모드로 진행");
+
+        // 기존 검색 로직
         return aiModelService.getQueryPlan(prompt)
                 .flatMap(queryPlan -> {
                     JsonNode data = queryPlan.get("data");
                     String majorCategory = data.get("majorCategory").asText();
                     List<String> keywords = new ArrayList<>();
                     data.get("keywords").forEach(node -> keywords.add(node.asText()));
-                    int limit = data.has("limit") ? data.get("limit").asInt() : 12; // 기본값 12
+
+                    // ⭐ 프롬프트에서 개수 추출 (개선)
+                    int limit = extractCountFromPrompt(prompt);
+                    if (data.has("limit")) {
+                        limit = Math.min(limit, data.get("limit").asInt());
+                    }
 
                     log.info("원본 프롬프트: {}", prompt);
                     log.info("추출된 키워드: {}", keywords);
@@ -176,9 +211,183 @@ public class PromptServiceImpl implements PromptService {
                             .limit(limit)
                             .collect(Collectors.toList());
 
+                    // ⭐ 결과에 상세 조회 안내 추가 (조건부)
+                    if (!results.isEmpty() && results.size() >= 3) {
+                        results.add("💡 특정 데이터에 대한 자세한 정보가 필요하시면");
+                        results.add("'[파일명] 상세정보' 또는 '[파일명] 자세히'라고 말씀하세요.");
+                    }
+
                     return Mono.just(results);
                 })
                 .onErrorReturn(List.of("데이터를 조회하는 중 오류가 발생했습니다."));
+    }
+
+    /**
+     * ⭐ 프롬프트에서 개수 추출
+     */
+    private int extractCountFromPrompt(String prompt) {
+        Pattern countPattern = Pattern.compile("(\\d+)개");
+        Matcher matcher = countPattern.matcher(prompt);
+
+        if (matcher.find()) {
+            int count = Integer.parseInt(matcher.group(1));
+            log.info("프롬프트에서 추출된 개수: {}", count);
+            return Math.min(count, 30); // 최대 30개 제한
+        }
+
+        return 12; // 기본값
+    }
+
+    /**
+     * ⭐ 데이터 상세 정보 조회
+     */
+    @Override
+    public Mono<String> getDataDetails(String fileDataName) {
+        return Mono.fromCallable(() -> {
+            log.info("상세 정보 조회 요청: '{}'", fileDataName);
+
+            // 1단계: 정확한 파일명 매칭
+            Optional<PublicData> exactMatch = publicDataRepository.findByFileDataName(fileDataName);
+
+            if (exactMatch.isPresent()) {
+                log.info("정확한 매칭 성공: '{}'", exactMatch.get().getFileDataName());
+                return formatDataDetails(exactMatch.get());
+            }
+
+            // 2단계: 부분 매칭 (더 엄격하게)
+            List<PublicData> partialMatches = publicDataRepository.findByFileDataNameContaining(fileDataName);
+
+            if (!partialMatches.isEmpty()) {
+                // 가장 유사한 파일명 찾기
+                PublicData bestMatch = partialMatches.stream()
+                        .min((a, b) -> calculateSimilarity(fileDataName, b.getFileDataName()) -
+                                calculateSimilarity(fileDataName, a.getFileDataName()))
+                        .orElse(partialMatches.get(0));
+
+                log.info("부분 매칭 결과: 요청='{}', 찾은결과='{}'", fileDataName, bestMatch.getFileDataName());
+                return formatDataDetails(bestMatch);
+            }
+
+            log.warn("매칭 결과 없음: '{}'", fileDataName);
+            return "❌ 해당 파일명을 찾을 수 없습니다: " + fileDataName;
+        });
+    }
+
+    /**
+     * 문자열 유사도 계산 (편집 거리)
+     */
+    private int calculateSimilarity(String s1, String s2) {
+        int[][] dp = new int[s1.length() + 1][s2.length() + 1];
+
+        for (int i = 0; i <= s1.length(); i++) {
+            for (int j = 0; j <= s2.length(); j++) {
+                if (i == 0) {
+                    dp[i][j] = j;
+                } else if (j == 0) {
+                    dp[i][j] = i;
+                } else {
+                    dp[i][j] = Math.min(
+                            Math.min(dp[i-1][j] + 1, dp[i][j-1] + 1),
+                            dp[i-1][j-1] + (s1.charAt(i-1) == s2.charAt(j-1) ? 0 : 1)
+                    );
+                }
+            }
+        }
+
+        return dp[s1.length()][s2.length()];
+    }
+
+
+    /**
+     * ⭐ 상세 조회 요청인지 판단 (개선된 버전)
+     */
+    private boolean isDetailRequest(String prompt) {
+        String lowerPrompt = prompt.toLowerCase().trim();
+
+        // 명확한 상세 조회 패턴만 허용
+        return (lowerPrompt.contains("상세정보") ||
+                lowerPrompt.contains("자세히") ||
+                lowerPrompt.contains("더 알고") ||
+                (lowerPrompt.contains("상세") && !lowerPrompt.contains("데이터"))) && // "상세 데이터" 제외
+                // ⭐ 일반 검색 키워드와 구분
+                !lowerPrompt.matches(".*\\d+개.*") && // "5개만" 같은 개수 지정 제외
+                !lowerPrompt.contains("제공") &&     // "제공해줘" 제외
+                !lowerPrompt.contains("보여") &&     // "보여줘" 제외
+                !lowerPrompt.contains("검색") &&     // "검색" 제외
+                !lowerPrompt.contains("찾아");       // "찾아줘" 제외
+    }
+
+    /**
+     * ⭐ 프롬프트에서 파일명 추출 (개선된 버전)
+     */
+    /**
+     * 개선된 파일명 추출 (정확한 매칭)
+     */
+    private String extractFileNameFromPrompt(String prompt) {
+        log.info("파일명 추출 시작: '{}'", prompt);
+
+        // 1단계: 완전한 파일명 패턴 매칭 (가장 정확)
+        Pattern fullFilePattern = Pattern.compile("([가-힣a-zA-Z0-9]+광역시\\s[가-구]+_[가-힣a-zA-Z0-9\\s]+_\\d{8})");
+        Matcher fullMatcher = fullFilePattern.matcher(prompt);
+
+        if (fullMatcher.find()) {
+            String fileName = fullMatcher.group(1).trim();
+            log.info("완전한 파일명 패턴으로 추출: '{}'", fileName);
+            return fileName;
+        }
+
+        // 2단계: 부분 패턴 매칭
+        Pattern partialPattern = Pattern.compile("([가-힣a-zA-Z0-9_\\s]+_\\d{8})");
+        Matcher partialMatcher = partialPattern.matcher(prompt);
+
+        if (partialMatcher.find()) {
+            String fileName = partialMatcher.group(1).trim();
+            log.info("부분 패턴으로 추출: '{}'", fileName);
+            return fileName;
+        }
+
+        // 3단계: 기존 방식 (최후 수단)
+        String fileName = prompt
+                .replaceAll("(?i)(상세정보|자세히|더 알고|상세|에 대해|에 대한|의|을|를)", "")
+                .trim();
+
+        log.info("기존 방식으로 추출: '{}'", fileName);
+        return fileName;
+    }
+
+
+    /**
+     * ⭐ 데이터 정보를 보기 좋게 포맷팅
+     */
+    private String formatDataDetails(PublicData data) {
+        StringBuilder details = new StringBuilder();
+
+        details.append("📋 데이터 상세 정보\n");
+        details.append("═".repeat(50)).append("\n\n");
+
+        details.append("📄 파일명: ").append(data.getFileDataName() != null ? data.getFileDataName() : "정보 없음").append("\n\n");
+
+        details.append("🏷️ 제목: ").append(data.getTitle() != null ? data.getTitle() : "정보 없음").append("\n\n");
+
+        details.append("📂 분류체계: ").append(data.getClassificationSystem() != null ? data.getClassificationSystem() : "정보 없음").append("\n\n");
+
+        details.append("🏢 제공기관: ").append(data.getProviderAgency() != null ? data.getProviderAgency() : "정보 없음").append("\n\n");
+
+        details.append("📅 수정일: ").append(data.getModifiedDate() != null ? data.getModifiedDate().toString() : "정보 없음").append("\n\n");
+
+        details.append("📎 확장자: ").append(data.getFileExtension() != null ? data.getFileExtension() : "정보 없음").append("\n\n");
+
+        details.append("🔑 키워드: ").append(data.getKeywords() != null ? data.getKeywords() : "정보 없음").append("\n\n");
+
+        if (data.getDescription() != null && !data.getDescription().trim().isEmpty()) {
+            details.append("📝 상세 설명:\n");
+            details.append("-".repeat(30)).append("\n");
+            details.append(data.getDescription()).append("\n");
+        } else {
+            details.append("📝 상세 설명: 정보 없음\n");
+        }
+
+        return details.toString();
     }
 
     /**
@@ -190,7 +399,7 @@ public class PromptServiceImpl implements PromptService {
         String dataKeywords = data.getKeywords() != null ? data.getKeywords().toLowerCase() : "";
         String dataTitle = data.getTitle() != null ? data.getTitle().toLowerCase() : "";
         String providerAgency = data.getProviderAgency() != null ? data.getProviderAgency().toLowerCase() : "";
-        String description = data.getDescription() != null ? data.getDescription().toLowerCase() : ""; // ⭐ 추가
+        String description = data.getDescription() != null ? data.getDescription().toLowerCase() : "";
 
         for (String keyword : keywords) {
             String lowerKeyword = keyword.toLowerCase();
@@ -222,16 +431,16 @@ public class PromptServiceImpl implements PromptService {
                 score += 25;
             }
 
-            // ⭐ 설명 필드 매칭 (새로 추가)
+            // ⭐ 설명 필드 매칭
             if (description.contains(lowerKeyword)) {
-                score += 30; // 설명 필드는 상당히 중요한 정보이므로 높은 점수
+                score += 30;
             }
 
-            // ⭐ 설명 필드에서 복합 키워드 매칭 (추가 보너스)
+            // ⭐ 설명 필드에서 복합 키워드 매칭
             if (keywords.size() >= 2) {
                 String combinedKeywords = String.join(" ", keywords).toLowerCase();
                 if (description.contains(combinedKeywords)) {
-                    score += 50; // 여러 키워드가 함께 나타나면 높은 점수
+                    score += 50;
                 }
             }
         }
@@ -240,30 +449,26 @@ public class PromptServiceImpl implements PromptService {
         if (!keywords.isEmpty()) {
             String primaryKeyword = keywords.get(0).toLowerCase();
 
-            // 첫 번째 키워드가 지역명인 경우 더 높은 보너스
             if (isRegionKeyword(primaryKeyword)) {
                 if (providerAgency.contains(primaryKeyword)) {
-                    score += 100; // 지역 키워드 기관 매칭 대폭 보너스
+                    score += 100;
                 }
                 if (dataName.startsWith(primaryKeyword)) {
-                    score += 80; // 지역 키워드 파일명 시작 매칭 보너스
+                    score += 80;
                 }
                 if (dataName.contains(primaryKeyword)) {
-                    score += 50; // 지역 키워드 파일명 포함 보너스
+                    score += 50;
                 }
-                // ⭐ 설명에서 지역명 매칭 보너스
                 if (description.contains(primaryKeyword)) {
                     score += 40;
                 }
             } else {
-                // 일반 키워드인 경우 기존 보너스
                 if (providerAgency.contains(primaryKeyword)) {
                     score += 30;
                 }
                 if (dataName.contains(primaryKeyword)) {
                     score += 20;
                 }
-                // ⭐ 설명에서 주요 키워드 매칭
                 if (description.contains(primaryKeyword)) {
                     score += 25;
                 }
@@ -273,11 +478,11 @@ public class PromptServiceImpl implements PromptService {
         // ⭐ 설명 필드 특화 점수 추가
         score += calculateDescriptionScore(description, keywords);
 
-        // 최신 데이터 보너스 (증가)
+        // 최신 데이터 보너스
         if (data.getModifiedDate() != null) {
             try {
                 if (data.getModifiedDate().isAfter(java.time.LocalDateTime.now().minusYears(1))) {
-                    score += 20; // 15 → 20으로 증가
+                    score += 20;
                 }
             } catch (Exception e) {
                 // 날짜 처리 오류 시 무시
@@ -312,31 +517,26 @@ public class PromptServiceImpl implements PromptService {
         for (String keyword : keywords) {
             String lowerKeyword = keyword.toLowerCase();
             if (lowerDescription.contains(lowerKeyword)) {
-                score += 10; // 기본 설명 매칭 점수
+                score += 10;
             }
         }
 
-        // 전문 용어 매칭 (도시개발, 환경, 교통 등 분야별)
+        // 전문 용어 매칭
         String[] specialTerms = {
-                // 도시개발 관련
                 "도시개발", "토지구획", "재개발", "재정비", "환지", "감보율", "시행인가",
-                // 환경 관련
                 "대기오염", "수질오염", "폐기물", "배출시설", "환경영향", "오염물질",
-                // 교통 관련
                 "교통사고", "교통위반", "교통체계", "대중교통", "교통량", "신호체계",
-                // 교육 관련
                 "교육과정", "학습", "연구", "교육시설", "교육프로그램",
-                // 문화관광 관련
                 "문화재", "관광지", "문화시설", "예술", "공연", "축제"
         };
 
         for (String term : specialTerms) {
             if (lowerDescription.contains(term)) {
-                score += 25; // 전문 용어 매칭 시 높은 점수
+                score += 25;
             }
         }
 
-        // 키워드 밀도 계산 (설명 길이 대비 키워드 출현 빈도)
+        // 키워드 밀도 계산
         long keywordCount = keywords.stream()
                 .mapToLong(keyword -> {
                     String lowerKeyword = keyword.toLowerCase();
@@ -346,7 +546,7 @@ public class PromptServiceImpl implements PromptService {
                 .sum();
 
         if (keywordCount > 2) {
-            score += 20; // 키워드 밀도가 높으면 추가 점수
+            score += 20;
         }
 
         return score;
@@ -370,19 +570,16 @@ public class PromptServiceImpl implements PromptService {
     }
 
     /**
-     * 키워드 정확 매칭 헬퍼 메서드 (개선된 버전)
+     * 키워드 정확 매칭 헬퍼 메서드
      */
     private boolean isKeywordExactMatch(String dataKeywords, String searchKeyword) {
         if (dataKeywords == null || dataKeywords.isEmpty()) {
             return false;
         }
 
-        // 쉼표로 분리된 키워드들을 개별적으로 확인
         String[] keywords = dataKeywords.split(",");
         for (String keyword : keywords) {
             String trimmedKeyword = keyword.trim().toLowerCase();
-
-            // 정확한 매칭 또는 부분 매칭 확인
             if (trimmedKeyword.equals(searchKeyword) ||
                     trimmedKeyword.contains(searchKeyword)) {
                 return true;
@@ -401,7 +598,6 @@ public class PromptServiceImpl implements PromptService {
         log.debug("총 키워드 수: {}", keywords.size());
         log.debug("총 검색 결과: {}개", results.size());
 
-        // 키워드별 매칭 통계
         for (String keyword : keywords) {
             long matchCount = results.stream()
                     .filter(item -> {
@@ -414,7 +610,6 @@ public class PromptServiceImpl implements PromptService {
             log.debug("키워드 '{}': {}개 매칭", keyword, matchCount);
         }
 
-        // 분류별 분포
         results.stream()
                 .collect(Collectors.groupingBy(
                         item -> item.getClassificationSystem() != null ?
@@ -432,7 +627,6 @@ public class PromptServiceImpl implements PromptService {
             return false;
         }
 
-        // 최소한 하나의 키워드와 매칭되어야 함
         String dataText = (data.getFileDataName() + " " +
                 (data.getKeywords() != null ? data.getKeywords() : "") + " " +
                 (data.getTitle() != null ? data.getTitle() : "") + " " +

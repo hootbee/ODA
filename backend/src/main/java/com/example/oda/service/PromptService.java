@@ -6,5 +6,6 @@ import java.util.List;
 
 public interface PromptService { // PromptService 인터페이스의 메소드를 구현
     Mono<List<String>> processPrompt(String prompt);
-//    Mono<List<String>> processPrompt(String prompt);
+    Mono<String> getDataDetails(String fileDataName);
+
 }
