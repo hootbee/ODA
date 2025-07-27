@@ -39,4 +39,15 @@ public interface PublicDataRepository extends JpaRepository<PublicData, String> 
 
     // 분류체계 전용 검색
     List<PublicData> findByClassificationSystemContainingIgnoreCase(String classificationSystem);
+    @Query(value = "SELECT * FROM public.file_data WHERE " +
+            "EXISTS (SELECT 1 FROM unnest(string_to_array(키워드, ',')) AS keyword " +
+            "WHERE TRIM(keyword) ILIKE CONCAT('%', :searchKeyword, '%'))",
+            nativeQuery = true)
+    List<PublicData> findByKeywordExactMatch(@Param("searchKeyword") String searchKeyword);
+
+    // 키워드 배열 분리 후 매칭
+    @Query(value = "SELECT * FROM public.file_data WHERE " +
+            "키워드 ~ CONCAT('(^|,)\\s*', :searchKeyword, '\\s*(,|$)')",
+            nativeQuery = true)
+    List<PublicData> findByKeywordRegexMatch(@Param("searchKeyword") String searchKeyword);
 }
