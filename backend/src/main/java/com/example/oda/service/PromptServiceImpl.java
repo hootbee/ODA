@@ -3,24 +3,25 @@ package com.example.oda.service;
 
 import com.example.oda.entity.PublicData;
 import com.example.oda.repository.PublicDataRepository;
+import com.fasterxml.jackson.databind.JsonNode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
 
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.ArrayList;
 
-@Service // Spring Bean으로 등록하여 다른 곳에 주입될 수 있도록 함
-public class PromptServiceImpl implements PromptService { // PromptService 인터페이스 구현
+@Service
+public class PromptServiceImpl implements PromptService {
 
     private static final Logger log = LoggerFactory.getLogger(PromptServiceImpl.class);
 
     private final PublicDataRepository publicDataRepository;
     private final AiModelService aiModelService;
-
-    private static final String NO_MATCH_CATEGORY_RETURNED_BY_AI = "UNMATCHED_CATEGORY";
-
 
     public PromptServiceImpl(PublicDataRepository publicDataRepository, AiModelService aiModelService) {
         this.publicDataRepository = publicDataRepository;
@@ -29,70 +30,95 @@ public class PromptServiceImpl implements PromptService { // PromptService 인�
 
     @Override
     public Mono<List<String>> processPrompt(String prompt) {
-        return aiModelService.getClassificationSystem(prompt)
-                .flatMap(classificationSystem -> {
-                    if (NO_MATCH_CATEGORY_RETURNED_BY_AI.equals(classificationSystem)) {
-                        return Mono.just(List.of("공공데이터와 관련된 프롬프트를 작성해주세요."));
-                    }
+        return aiModelService.getQueryPlan(prompt)
+                .flatMap(queryPlan -> {
+                    JsonNode data = queryPlan.get("data");
+                    String majorCategory = data.get("majorCategory").asText();
+                    List<String> keywords = new ArrayList<>();
+                    data.get("keywords").forEach(node -> keywords.add(node.asText()));
 
-                    // 1. 먼저 원래 검색어로 검색
-                    // 수정된 코드 - 원래 검색어 사용
-                    List<PublicData> dataList = publicDataRepository
-                            .findByKeywordsContainingIgnoreCaseOrTitleContainingIgnoreCaseOrDescriptionContainingIgnoreCaseOrClassificationSystemContainingIgnoreCase(
-                                    prompt, prompt, prompt, prompt  // "광주에서 병원에 대한 데이터가 있어?"
-                            );
+                    log.info("원본 프롬프트: {}", prompt);
+                    log.info("추출된 키워드: {}", keywords);
 
-// 결과가 부족하면 키워드 추출해서 재검색
-                    if (dataList.size() < 5) {
-                        String mainKeyword = extractMainKeyword(prompt); // "광주" 추출
-                        List<PublicData> additionalData = publicDataRepository
-                                .findByKeywordsContainingIgnoreCaseOrTitleContainingIgnoreCaseOrDescriptionContainingIgnoreCaseOrClassificationSystemContainingIgnoreCase(
-                                        mainKeyword, mainKeyword, mainKeyword, mainKeyword
-                                );
-                        dataList.addAll(additionalData);
-                        dataList = dataList.stream().distinct().collect(Collectors.toList());
-                    }
+                    List<PublicData> allResults = new ArrayList<>();
 
+                    for (String keyword : keywords) {
+                        Set<PublicData> keywordResults = new HashSet<>();
 
-                    // 3. 여전히 결과가 없으면 더 광범위하게 검색
-                    if (dataList.isEmpty()) {
-                        // "인천에 대한 데이터"에서 "인천" 추출해서 검색
-                        String[] keywords = prompt.split("\\s+");
-                        for (String keyword : keywords) {
-                            if (keyword.length() > 1) { // 한 글자 제외
-                                List<PublicData> tempList = publicDataRepository.searchByKeyword(keyword);
-                                dataList.addAll(tempList);
-                            }
+                        // 각 필드별 검색 후 합치기
+                        keywordResults.addAll(publicDataRepository.findByKeywordsContainingIgnoreCase(keyword));
+                        keywordResults.addAll(publicDataRepository.findByTitleContainingIgnoreCase(keyword));
+                        keywordResults.addAll(publicDataRepository.findByProviderAgencyContainingIgnoreCase(keyword));
+                        keywordResults.addAll(publicDataRepository.findByFileDataNameContainingIgnoreCase(keyword));
+                        keywordResults.addAll(publicDataRepository.findByDescriptionContainingIgnoreCase(keyword));
+
+                        // 대분류 필터링 (람다 파라미터 이름 변경)
+                        if (majorCategory != null && !"일반공공행정".equals(majorCategory)) {
+                            keywordResults = keywordResults.stream()
+                                    .filter(publicData -> publicData.getClassificationSystem() != null &&  // ✅ 수정
+                                            publicData.getClassificationSystem().toUpperCase().contains(majorCategory.toUpperCase()))
+                                    .collect(Collectors.toSet());
                         }
-                        // 중복 제거
-                        dataList = dataList.stream().distinct().collect(Collectors.toList());
+
+                        allResults.addAll(keywordResults);
+                        log.info("키워드 '{}' 검색 결과: {}개", keyword, keywordResults.size());
                     }
 
-                    if (dataList.isEmpty()) {
-                        return Mono.just(List.of("해당 카테고리에 대한 데이터가 없습니다."));
+                    // 중복 제거 및 관련성 점수 정렬
+                    List<PublicData> sortedResults = allResults.stream()
+                            .distinct()
+                            .sorted((a, b) -> calculateRelevanceScore(b, keywords, prompt) -
+                                    calculateRelevanceScore(a, keywords, prompt))
+                            .collect(Collectors.toList());
+
+                    log.info("전체 검색 결과 수: {}", sortedResults.size());
+
+                    if (sortedResults.isEmpty()) {
+                        return Mono.just(List.of("해당 조건에 맞는 데이터를 찾을 수 없습니다."));
                     }
 
-                    List<String> candidateNames = dataList.stream()
+                    List<String> results = sortedResults.stream()
                             .map(PublicData::getFileDataName)
                             .collect(Collectors.toList());
 
-                    return aiModelService.getRecommendations(prompt, classificationSystem, candidateNames);
+                    return Mono.just(results);
                 })
-                .onErrorReturn(List.of("추천 데이터를 찾지 못했습니다."));
+                .onErrorReturn(List.of("데이터를 조회하는 중 오류가 발생했습니다."));
     }
-    private String extractMainKeyword(String prompt) {
-        // "광주에서 병원에 대한 데이터가 있어?" -> "광주"
-        String[] words = prompt.replaceAll("[에서의을를이가는\\s]+", " ")
-                .trim()
-                .split("\\s+");
 
-        // 첫 번째 의미있는 지역명이나 키워드 반환
-        for (String word : words) {
-            if (word.length() > 1 && !word.equals("데이터") && !word.equals("있어")) {
-                return word;
+
+    /**
+     * 관련성 점수 계산
+     */
+    private int calculateRelevanceScore(PublicData data, List<String> keywords, String originalPrompt) {
+        int score = 0;
+        String dataName = data.getFileDataName().toLowerCase();
+        String dataKeywords = data.getKeywords() != null ? data.getKeywords().toLowerCase() : "";
+        String dataTitle = data.getTitle().toLowerCase();
+
+        // 1. 키워드 매칭 점수 (각 키워드당 10점)
+        for (String keyword : keywords) {
+            String lowerKeyword = keyword.toLowerCase();
+            if (dataName.contains(lowerKeyword)) score += 10;
+            if (dataKeywords.contains(lowerKeyword)) score += 10;
+            if (dataTitle.contains(lowerKeyword)) score += 10;
+        }
+
+        // 2. 프롬프트의 첫 번째 키워드(주로 지역명) 추가 점수
+        if (!keywords.isEmpty()) {
+            String primaryKeyword = keywords.get(0).toLowerCase();
+            if (dataName.contains(primaryKeyword)) score += 20;
+        }
+
+        // 3. 최신 데이터 보너스
+        if (data.getModifiedDate() != null) {
+            // 최근 1년 데이터에 보너스 점수
+            if (data.getModifiedDate().isAfter(java.time.LocalDateTime.now().minusYears(1))) {
+                score += 5;
             }
         }
-        return words[0];
+
+        return score;
     }
 
 
