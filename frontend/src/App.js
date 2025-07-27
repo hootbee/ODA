@@ -1,70 +1,125 @@
-import React, { useState } from 'react';
-import styled from 'styled-components';
-import MessageList from './components/MessageList';
-import MessageForm from './components/MessageForm';
-import axios from 'axios'; // axios import 확인
+import React, { useState } from "react";
+import styled from "styled-components";
+import MessageList from "./components/MessageList";
+import MessageForm from "./components/MessageForm";
+import axios from "axios";
 
 function App() {
-    const [messages, setMessages] = useState([
-        { id: 1, text: '안녕하세요! 무엇을 도와드릴까요?', sender: 'bot' }
-    ]);
-    const [inputValue, setInputValue] = useState('');
+  const [messages, setMessages] = useState([
+    { id: 1, text: "안녕하세요! 무엇을 도와드릴까요?", sender: "bot" },
+  ]);
+  const [inputValue, setInputValue] = useState("");
+  const [lastBotResponse, setLastBotResponse] = useState(null);
 
-    const handleSendMessage = async (e) => { // async 키워드 추가
-        e.preventDefault();
-        const prompt = inputValue.trim();
-        if (prompt === '') return;
+  const handleSendMessage = async (e) => {
+    e.preventDefault();
+    const prompt = inputValue.trim();
+    if (prompt === "") return;
 
-        // 1. 사용자의 메시지를 화면에 먼저 표시
-        const userMessage = {
-            id: Date.now(), // 고유한 ID 생성을 위해 Date.now() 사용
-            text: prompt,
-            sender: 'user'
-        };
-        setMessages(prevMessages => [...prevMessages, userMessage]);
-        setInputValue('');
-
-        try {
-            // 2. 백엔드로 프롬프트 전송 (POST 요청)
-            const response = await axios.post('http://localhost:8080/api/prompt', {
-                prompt: prompt // DTO의 필드 이름(prompt)과 일치해야 함
-            });
-
-            // 3. 백엔드의 응답을 받아 봇 메시지로 화면에 표시
-            const botResponse = {
-                id: Date.now() + 1,
-                text: Array.isArray(response.data) ? response.data.join('\n') : response.data,
-                sender: 'bot'
-            };
-            setMessages(prevMessages => [...prevMessages, botResponse]);
-
-        } catch (error) {
-            console.error("Error sending prompt to backend:", error);
-            const errorResponse = {
-                id: Date.now() + 1,
-                text: '백엔드와 통신 중 오류가 발생했습니다.',
-                sender: 'bot'
-            };
-            setMessages(prevMessages => [...prevMessages, errorResponse]);
-        }
+    const userMessage = {
+      id: Date.now(),
+      text: prompt,
+      sender: "user",
     };
+    setMessages((prevMessages) => [...prevMessages, userMessage]);
+    setInputValue("");
 
+    // 사용자가 이전에 제안된 데이터에 대해 질문하는지 확인
+    if (lastBotResponse && lastBotResponse.includes(prompt)) {
+      try {
+        const response = await axios.get(
+          `http://localhost:8080/api/data/${prompt}`
+        );
+        const data = response.data;
+        let detailsText = `**${prompt} 상세 정보**\n`;
+        for (const [key, value] of Object.entries(data)) {
+          if (value) {
+            detailsText += `* **${key}**: ${value}\n`;
+          }
+        }
 
-    return (
-        <AppContainer>
-            <ChatWindow>
-                <MessageList messages={messages} />
-                <MessageForm
-                    inputValue={inputValue}
-                    setInputValue={setInputValue}
-                    handleSendMessage={handleSendMessage}
-                />
-            </ChatWindow>
-        </AppContainer>
-    );
+        const botMessage = {
+          id: Date.now() + 1,
+          text: detailsText,
+          sender: "bot",
+        };
+        setMessages((prevMessages) => [...prevMessages, botMessage]);
+        setLastBotResponse(null);
+      } catch (error) {
+        console.error("Error fetching data details:", error);
+        const errorMessage = {
+          id: Date.now() + 1,
+          text: "상세 정보를 가져오는 데 실패했습니다.",
+          sender: "bot",
+        };
+        setMessages((prevMessages) => [...prevMessages, errorMessage]);
+      }
+    } else {
+      // 일반적인 프롬프트 처리
+      try {
+        const response = await axios.post("http://localhost:8080/api/prompt", {
+          prompt: prompt,
+        });
+
+        const responseData = response.data;
+        const isDataArray =
+          Array.isArray(responseData) && responseData.length > 0;
+        const botResponseText = isDataArray
+          ? responseData.join("\n")
+          : responseData;
+
+        const botMessage = {
+          id: Date.now() + 1,
+          text: botResponseText,
+          sender: "bot",
+        };
+
+        // ⭐ 수정된 부분: 조건에 따라 메시지 추가 방식 분리
+        if (isDataArray) {
+          const followUpMessage = {
+            id: Date.now() + 2,
+            text: "더 자세히 보고싶은 데이터가 있나요?",
+            sender: "bot",
+          };
+          // 한 번에 두 메시지 모두 추가
+          setMessages((prevMessages) => [
+            ...prevMessages,
+            botMessage,
+            followUpMessage,
+          ]);
+          setLastBotResponse(responseData);
+        } else {
+          // 봇 메시지만 추가
+          setMessages((prevMessages) => [...prevMessages, botMessage]);
+          setLastBotResponse(null);
+        }
+      } catch (error) {
+        console.error("Error sending prompt to backend:", error);
+        const errorResponse = {
+          id: Date.now() + 1,
+          text: "백엔드와 통신 중 오류가 발생했습니다.",
+          sender: "bot",
+        };
+        setMessages((prevMessages) => [...prevMessages, errorResponse]);
+      }
+    }
+  };
+
+  return (
+    <AppContainer>
+      <ChatWindow>
+        <MessageList messages={messages} />
+        <MessageForm
+          inputValue={inputValue}
+          setInputValue={setInputValue}
+          handleSendMessage={handleSendMessage}
+        />
+      </ChatWindow>
+    </AppContainer>
+  );
 }
 
-// ============== Styled Components ==============
+// ============== Styled Components ===============
 
 const AppContainer = styled.div`
   display: flex;
