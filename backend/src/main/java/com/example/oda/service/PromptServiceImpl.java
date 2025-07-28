@@ -242,43 +242,18 @@ public class PromptServiceImpl implements PromptService {
      * ⭐ 데이터 상세 정보 조회
      */
     @Override
-    public Mono<String> getDataDetails(String fileDataName) {
+    public Mono<String> getDataDetails(String prompt) {
         return Mono.fromCallable(() -> {
+            String fileDataName = extractFileNameFromPrompt(prompt);
             log.info("상세 정보 조회 요청: '{}'", fileDataName);
-            
-            // 기존 데이터 조회 로직...
             Optional<PublicData> exactMatch = publicDataRepository.findByFileDataName(fileDataName);
-            
             if (exactMatch.isPresent()) {
-                PublicData data = exactMatch.get();
-                String basicDetails = formatDataDetails(data);
-                
-                // ⭐ 활용 추천 추가
-                try {
-                    JsonNode utilizationResponse = aiModelService.getUtilizationRecommendations(data).block();
-                    String utilizations = formatUtilizationRecommendations(utilizationResponse);
-                    return basicDetails + "\n\n" + utilizations;
-                } catch (Exception e) {
-                    log.warn("활용 추천 추가 실패, 기본 정보만 반환", e);
-                    return basicDetails + "\n\n" + getDefaultUtilizationRecommendations(data);
-                }
+                return formatDataDetails(exactMatch.get());
             }
-            
-            // 부분 매칭 로직도 동일하게 수정...
             List<PublicData> partialMatches = publicDataRepository.findByFileDataNameContaining(fileDataName);
             if (!partialMatches.isEmpty()) {
-                PublicData bestMatch = partialMatches.get(0);
-                String basicDetails = formatDataDetails(bestMatch);
-                
-                try {
-                    JsonNode utilizationResponse = aiModelService.getUtilizationRecommendations(bestMatch).block();
-                    String utilizations = formatUtilizationRecommendations(utilizationResponse);
-                    return basicDetails + "\n\n" + utilizations;
-                } catch (Exception e) {
-                    return basicDetails + "\n\n" + getDefaultUtilizationRecommendations(bestMatch);
-                }
+                return formatDataDetails(partialMatches.get(0));
             }
-            
             return "❌ 해당 파일명을 찾을 수 없습니다: " + fileDataName;
         });
     }

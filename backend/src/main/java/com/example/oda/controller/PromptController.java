@@ -35,6 +35,15 @@ public class PromptController {
                 .map(details -> ResponseEntity.ok(details))
                 .defaultIfEmpty(ResponseEntity.notFound().build());
     }
+
+    // ⭐ 새로 추가: 데이터 활용 방안 전용 엔드포인트
+    @CrossOrigin(origins = "http://localhost:3000")
+    @PostMapping("/api/data-utilization")
+    public Mono<ResponseEntity<String>> getUtilization(@RequestBody PromptRequestDto requestDto) {
+        return promptService.getUtilizationRecommendations(requestDto.getPrompt())
+                .map(recommendations -> ResponseEntity.ok(recommendations))
+                .defaultIfEmpty(ResponseEntity.notFound().build());
+    }
     private String formatUtilizationRecommendations(JsonNode response) {
         StringBuilder utilization = new StringBuilder();
         

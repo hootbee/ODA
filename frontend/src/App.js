@@ -9,7 +9,7 @@ function App() {
     { id: 1, text: "안녕하세요! 무엇을 도와드릴까요?", sender: "bot" },
   ]);
   const [inputValue, setInputValue] = useState("");
-  const [lastBotResponse, setLastBotResponse] = useState(null);
+  const [lastDataName, setLastDataName] = useState(null); // 마지막으로 조회한 데이터 파일명 저장
 
   const handleSendMessage = async (e) => {
     e.preventDefault();
@@ -24,27 +24,59 @@ function App() {
     setMessages((prevMessages) => [...prevMessages, userMessage]);
     setInputValue("");
 
-    // 사용자가 이전에 제안된 데이터에 대해 질문하는지 확인
-    if (lastBotResponse && lastBotResponse.includes(prompt)) {
+    // 1. 활용 방안 요청 확인 ("네", "예" 등)
+    if (lastDataName && (prompt.includes("네") || prompt.includes("예"))) {
       try {
-        const response = await axios.get(
-          `http://localhost:8080/api/data/${prompt}`
+        const response = await axios.post(
+          "http://localhost:8080/api/data-utilization",
+          { prompt: lastDataName } // 저장해둔 파일명으로 요청
         );
-        const data = response.data;
-        let detailsText = `**${prompt} 상세 정보**\n`;
-        for (const [key, value] of Object.entries(data)) {
-          if (value) {
-            detailsText += `* **${key}**: ${value}\n`;
-          }
-        }
-
         const botMessage = {
           id: Date.now() + 1,
-          text: detailsText,
+          text: response.data,
           sender: "bot",
         };
         setMessages((prevMessages) => [...prevMessages, botMessage]);
-        setLastBotResponse(null);
+        setLastDataName(null); // 초기화
+      } catch (error) {
+        console.error("Error fetching utilization data:", error);
+        const errorMessage = {
+          id: Date.now() + 1,
+          text: "활용 방안을 가져오는 데 실패했습니다.",
+          sender: "bot",
+        };
+        setMessages((prevMessages) => [...prevMessages, errorMessage]);
+      }
+      return;
+    }
+
+    // 2. 상세 정보 요청 확인 (키워드 기반)
+    const isDetailRequest = prompt.includes("상세") || prompt.includes("자세히");
+
+    if (isDetailRequest) {
+      try {
+        const response = await axios.post(
+          "http://localhost:8080/api/data-details",
+          { prompt: prompt }
+        );
+        const botMessage = {
+          id: Date.now() + 1,
+          text: response.data,
+          sender: "bot",
+        };
+        const followUpMessage = {
+          id: Date.now() + 2,
+          text: "이 데이터의 활용 방안이 필요하신가요?",
+          sender: "bot",
+        };
+        setMessages((prevMessages) => [
+          ...prevMessages,
+          botMessage,
+          followUpMessage,
+        ]);
+        // 파일명을 추출하여 저장
+        const fileName = prompt.replace(/상세|자세히/g, "").trim();
+        setLastDataName(fileName);
       } catch (error) {
         console.error("Error fetching data details:", error);
         const errorMessage = {
@@ -55,16 +87,14 @@ function App() {
         setMessages((prevMessages) => [...prevMessages, errorMessage]);
       }
     } else {
-      // 일반적인 프롬프트 처리
+      // 3. 일반 데이터 추천 요청
       try {
         const response = await axios.post("http://localhost:8080/api/prompt", {
           prompt: prompt,
         });
 
         const responseData = response.data;
-        const isDataArray =
-          Array.isArray(responseData) && responseData.length > 0;
-        const botResponseText = isDataArray
+        const botResponseText = Array.isArray(responseData)
           ? responseData.join("\n")
           : responseData;
 
@@ -74,25 +104,8 @@ function App() {
           sender: "bot",
         };
 
-        // ⭐ 수정된 부분: 조건에 따라 메시지 추가 방식 분리
-        if (isDataArray) {
-          const followUpMessage = {
-            id: Date.now() + 2,
-            text: "더 자세히 보고싶은 데이터가 있나요?",
-            sender: "bot",
-          };
-          // 한 번에 두 메시지 모두 추가
-          setMessages((prevMessages) => [
-            ...prevMessages,
-            botMessage,
-            followUpMessage,
-          ]);
-          setLastBotResponse(responseData);
-        } else {
-          // 봇 메시지만 추가
-          setMessages((prevMessages) => [...prevMessages, botMessage]);
-          setLastBotResponse(null);
-        }
+        setMessages((prevMessages) => [...prevMessages, botMessage]);
+        setLastDataName(null); // 상세 조회 아니므로 초기화
       } catch (error) {
         console.error("Error sending prompt to backend:", error);
         const errorResponse = {
