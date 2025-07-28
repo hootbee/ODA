@@ -1,6 +1,7 @@
 // backend/src/main/java/com/example/oda/service/GeminiService.java
 package com.example.oda.service;
 
+import com.example.oda.entity.PublicData;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
@@ -37,6 +38,26 @@ public class GeminiService implements AiModelService {
                 .retrieve()
                 .bodyToMono(JsonNode.class)
                 .doOnError(e -> log.error("Error calling AI service for query plan", e));
+    }
+    public Mono<JsonNode> getUtilizationRecommendations(PublicData data) {
+        Map<String, Object> dataInfo = Map.of(
+            "fileName", data.getFileDataName() != null ? data.getFileDataName() : "",
+            "title", data.getTitle() != null ? data.getTitle() : "",
+            "category", data.getClassificationSystem() != null ? data.getClassificationSystem() : "",
+            "keywords", data.getKeywords() != null ? data.getKeywords() : "",
+            "description", data.getDescription() != null ? data.getDescription() : "",
+            "providerAgency", data.getProviderAgency() != null ? data.getProviderAgency() : ""
+        );
+        
+        Map<String, Object> requestBody = Map.of("dataInfo", dataInfo);
+
+        return webClient.post()
+                .uri("/api/ai/data/utilization") // AI 서비스의 새 엔드포인트
+                .header("Content-Type", "application/json")
+                .bodyValue(requestBody)
+                .retrieve()
+                .bodyToMono(JsonNode.class)
+                .doOnError(e -> log.error("Error calling AI service for utilization recommendations", e));
     }
 
     // getClassificationSystem and getRecommendations methods are now obsolete

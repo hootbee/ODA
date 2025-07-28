@@ -8,4 +8,5 @@ public interface PromptService { // PromptService 인터페이스의 메소드�
     Mono<List<String>> processPrompt(String prompt);
     Mono<String> getDataDetails(String fileDataName);
 
+    Mono<String> getUtilizationRecommendations(String fileDataName);
 }

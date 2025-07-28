@@ -1,10 +1,11 @@
-import { QueryPlannerService } from './QueryPlannerService';
-
+import { QueryPlannerService } from "./QueryPlannerService";
+import { DataUtilizationService } from "./DataUtilizationService";
 /**
  * 공공데이터 추천 서비스
  */
 export class PublicDataService {
   private readonly queryPlanner = new QueryPlannerService();
+  private readonly utilizationService = new DataUtilizationService();
 
   /**
    * 프롬프트를 분석하여 DB 쿼리 계획을 생성합니다.
@@ -114,5 +115,15 @@ export class PublicDataService {
     });
 
     return Math.max(0, score); // 음수 점수 방지
+  }
+  public async generateUtilizationRecommendations(input: {
+    fileName: string;
+    title: string;
+    category: string;
+    keywords: string;
+    description: string;
+    providerAgency: string;
+  }) {
+    return this.utilizationService.generateRecommendations(input);
   }
 }

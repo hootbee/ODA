@@ -245,30 +245,40 @@ public class PromptServiceImpl implements PromptService {
     public Mono<String> getDataDetails(String fileDataName) {
         return Mono.fromCallable(() -> {
             log.info("상세 정보 조회 요청: '{}'", fileDataName);
-
-            // 1단계: 정확한 파일명 매칭
+            
+            // 기존 데이터 조회 로직...
             Optional<PublicData> exactMatch = publicDataRepository.findByFileDataName(fileDataName);
-
+            
             if (exactMatch.isPresent()) {
-                log.info("정확한 매칭 성공: '{}'", exactMatch.get().getFileDataName());
-                return formatDataDetails(exactMatch.get());
+                PublicData data = exactMatch.get();
+                String basicDetails = formatDataDetails(data);
+                
+                // ⭐ 활용 추천 추가
+                try {
+                    JsonNode utilizationResponse = aiModelService.getUtilizationRecommendations(data).block();
+                    String utilizations = formatUtilizationRecommendations(utilizationResponse);
+                    return basicDetails + "\n\n" + utilizations;
+                } catch (Exception e) {
+                    log.warn("활용 추천 추가 실패, 기본 정보만 반환", e);
+                    return basicDetails + "\n\n" + getDefaultUtilizationRecommendations(data);
+                }
             }
-
-            // 2단계: 부분 매칭 (더 엄격하게)
+            
+            // 부분 매칭 로직도 동일하게 수정...
             List<PublicData> partialMatches = publicDataRepository.findByFileDataNameContaining(fileDataName);
-
             if (!partialMatches.isEmpty()) {
-                // 가장 유사한 파일명 찾기
-                PublicData bestMatch = partialMatches.stream()
-                        .min((a, b) -> calculateSimilarity(fileDataName, b.getFileDataName()) -
-                                calculateSimilarity(fileDataName, a.getFileDataName()))
-                        .orElse(partialMatches.get(0));
-
-                log.info("부분 매칭 결과: 요청='{}', 찾은결과='{}'", fileDataName, bestMatch.getFileDataName());
-                return formatDataDetails(bestMatch);
+                PublicData bestMatch = partialMatches.get(0);
+                String basicDetails = formatDataDetails(bestMatch);
+                
+                try {
+                    JsonNode utilizationResponse = aiModelService.getUtilizationRecommendations(bestMatch).block();
+                    String utilizations = formatUtilizationRecommendations(utilizationResponse);
+                    return basicDetails + "\n\n" + utilizations;
+                } catch (Exception e) {
+                    return basicDetails + "\n\n" + getDefaultUtilizationRecommendations(bestMatch);
+                }
             }
-
-            log.warn("매칭 결과 없음: '{}'", fileDataName);
+            
             return "❌ 해당 파일명을 찾을 수 없습니다: " + fileDataName;
         });
     }
@@ -634,5 +644,143 @@ public class PromptServiceImpl implements PromptService {
 
         return keywords.stream()
                 .anyMatch(keyword -> dataText.contains(keyword.toLowerCase()));
+    }
+    @Override
+    public Mono<String> getUtilizationRecommendations(String fileDataName) {
+        return Mono.fromCallable(() -> {
+            log.info("활용 추천 요청: '{}'", fileDataName);
+            
+            // 데이터 조회
+            Optional<PublicData> exactMatch = publicDataRepository.findByFileDataName(fileDataName);
+            
+            if (exactMatch.isPresent()) {
+                PublicData data = exactMatch.get();
+                
+                // AI 서비스에 활용 추천 요청
+                try {
+                    JsonNode response = aiModelService.getUtilizationRecommendations(data).block();
+                    return formatUtilizationRecommendations(response);
+                } catch (Exception e) {
+                    log.error("활용 추천 생성 실패", e);
+                    return getDefaultUtilizationRecommendations(data);
+                }
+            }
+            
+            // 부분 매칭 시도
+            List<PublicData> partialMatches = publicDataRepository.findByFileDataNameContaining(fileDataName);
+            if (!partialMatches.isEmpty()) {
+                PublicData bestMatch = partialMatches.get(0);
+                try {
+                    JsonNode response = aiModelService.getUtilizationRecommendations(bestMatch).block();
+                    return formatUtilizationRecommendations(response);
+                } catch (Exception e) {
+                    return getDefaultUtilizationRecommendations(bestMatch);
+                }
+            }
+            
+            return "❌ 해당 파일명을 찾을 수 없습니다: " + fileDataName;
+        });
+    }
+    private String formatUtilizationRecommendations(JsonNode response) {
+        StringBuilder utilization = new StringBuilder();
+        
+        utilization.append("💡 데이터 활용 추천\n");
+        utilization.append("═".repeat(50)).append("\n\n");
+        
+        JsonNode data = response.get("data");
+        if (data != null) {
+            // 비즈니스 활용
+            utilization.append("🏢 비즈니스 활용 방안:\n");
+            JsonNode businessApps = data.get("businessApplications");
+            if (businessApps != null && businessApps.isArray()) {
+                businessApps.forEach(app -> 
+                    utilization.append("  • ").append(app.asText()).append("\n"));
+            }
+            utilization.append("\n");
+            
+            // 연구 활용
+            utilization.append("🔬 연구 활용 방안:\n");
+            JsonNode researchApps = data.get("researchApplications");
+            if (researchApps != null && researchApps.isArray()) {
+                researchApps.forEach(app -> 
+                    utilization.append("  • ").append(app.asText()).append("\n"));
+            }
+            utilization.append("\n");
+            
+            // 정책 활용
+            utilization.append("🏛️ 정책 활용 방안:\n");
+            JsonNode policyApps = data.get("policyApplications");
+            if (policyApps != null && policyApps.isArray()) {
+                policyApps.forEach(app -> 
+                    utilization.append("  • ").append(app.asText()).append("\n"));
+            }
+            utilization.append("\n");
+            
+            // 데이터 결합 제안
+            utilization.append("🔗 데이터 결합 제안:\n");
+            JsonNode combinations = data.get("combinationSuggestions");
+            if (combinations != null && combinations.isArray()) {
+                combinations.forEach(suggestion -> 
+                    utilization.append("  • ").append(suggestion.asText()).append("\n"));
+            }
+            utilization.append("\n");
+            
+            // 분석 도구
+            utilization.append("🛠️ 추천 분석 도구:\n");
+            JsonNode tools = data.get("analysisTools");
+            if (tools != null && tools.isArray()) {
+                tools.forEach(tool -> 
+                    utilization.append("  • ").append(tool.asText()).append("\n"));
+            }
+        }
+        
+        return utilization.toString();
+    }
+    private String getDefaultUtilizationRecommendations(PublicData data) {
+        StringBuilder utilization = new StringBuilder();
+
+        utilization.append("💡 데이터 활용 추천\n");
+        utilization.append("═".repeat(50)).append("\n\n");
+
+        // 분류에 따른 기본 추천
+        String category = data.getClassificationSystem() != null ? data.getClassificationSystem().toLowerCase() : "";
+
+        utilization.append("🏢 비즈니스 활용 방안:\n");
+        if (category.contains("환경")) {
+            utilization.append("  • 환경 컨설팅 서비스 개발\n");
+            utilization.append("  • 환경 모니터링 솔루션 구축\n");
+            utilization.append("  • 친환경 제품 개발 근거 자료\n");
+        } else if (category.contains("교통")) {
+            utilization.append("  • 교통 최적화 서비스 개발\n");
+            utilization.append("  • 스마트 시티 솔루션 구축\n");
+            utilization.append("  • 교통 안전 컨설팅 서비스\n");
+        } else {
+            utilization.append("  • 데이터 기반 서비스 개발\n");
+            utilization.append("  • 관련 분야 컨설팅 서비스\n");
+            utilization.append("  • 정부 사업 입찰 시 활용\n");
+        }
+        utilization.append("\n");
+
+        utilization.append("🔬 연구 활용 방안:\n");
+        utilization.append("  • 현황 분석 및 트렌드 연구\n");
+        utilization.append("  • 정책 효과성 분석 연구\n");
+        utilization.append("  • 지역별 비교 연구\n\n");
+
+        utilization.append("🏛️ 정책 활용 방안:\n");
+        utilization.append("  • 정책 수립 근거 자료로 활용\n");
+        utilization.append("  • 예산 배분 참고 자료\n");
+        utilization.append("  • 성과 평가 지표 개발\n\n");
+
+        utilization.append("🔗 데이터 결합 제안:\n");
+        utilization.append("  • 인구 통계 데이터와 결합\n");
+        utilization.append("  • 경제 지표와 상관관계 분석\n");
+        utilization.append("  • 지리 정보와 공간 분석\n\n");
+
+        utilization.append("🛠️ 추천 분석 도구:\n");
+        utilization.append("  • Excel 및 Google Sheets\n");
+        utilization.append("  • Python pandas 및 matplotlib\n");
+        utilization.append("  • R 통계 분석 및 시각화\n");
+
+        return utilization.toString();
     }
 }
