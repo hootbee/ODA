@@ -81,6 +81,29 @@ export class QueryPlannerService {
   private extractMajorCategory(prompt: string): string {
     const lowerPrompt = prompt.toLowerCase();
     const categoryKeywords = {
+      교통및물류: [
+        "교통",
+        "도로",
+        "지하철",
+        "버스",
+        "물류",
+        "주차",
+        "교통사고",
+        "신호등",
+        "교통안전",
+        "도로안전",
+        "사고예방",
+      ],
+      공공질서및안전: [
+        "안전",
+        "보안",
+        "방범",
+        "치안",
+        "안전사고",
+        "시민안전",
+        "공공안전",
+        "생활안전",
+      ],
       문화체육관광: [
         "문화재",
         "관광",
@@ -92,16 +115,6 @@ export class QueryPlannerService {
         "예술",
       ],
       환경: ["환경", "대기", "수질", "폐기물", "오염", "녹지", "생태", "기후"],
-      교통및물류: [
-        "교통",
-        "도로",
-        "지하철",
-        "버스",
-        "물류",
-        "주차",
-        "교통사고",
-        "신호등",
-      ],
       교육: ["교육", "학교", "대학", "학습", "도서관", "연구", "학생", "교사"],
       보건: ["보건", "병원", "의료", "건강", "질병", "의약", "코로나", "백신"],
       사회복지: [
@@ -174,62 +187,167 @@ export class QueryPlannerService {
   }
 
   /**
-   * 프롬프트에서 키워드를 추출합니다. (최종 개선된 버전)
+   * 프롬프트에서 키워드를 추출합니다. (개선된 버전)
    */
   private extractKeywords(prompt: string): string[] {
-    // 1단계: 지역명 우선 추출
-    const regions: string[] = [
-      "서울",
-      "서울특별시",
-      "부산",
-      "부산광역시",
-      "대구",
-      "대구광역시",
-      "인천",
-      "인천광역시",
-      "광주",
-      "광주광역시",
-      "대전",
-      "대전광역시",
-      "울산",
-      "울산광역시",
-      "세종",
-      "세종특별자치시",
-      "경기",
-      "경기도",
-      "강원",
-      "강원도",
-      "충북",
-      "충청북도",
-      "충남",
-      "충청남도",
-      "전북",
-      "전라북도",
-      "전남",
-      "전라남도",
-      "경북",
-      "경상북도",
-      "경남",
-      "경상남도",
-      "제주",
-      "제주특별자치도",
+    console.log(`🔍 원본 프롬프트: "${prompt}"`);
+
+    // 1단계: 도메인 특화 키워드 우선 추출
+    const domainKeywords = this.extractDomainKeywords(prompt);
+    console.log(`🎯 도메인 키워드: ${domainKeywords}`);
+
+    // 2단계: 지역명 추출
+    const regions = this.extractRegions(prompt);
+    console.log(`📍 지역명: ${regions}`);
+
+    // 3단계: 연도 추출
+    const years = this.extractYears(prompt);
+    console.log(`📅 연도: ${years}`);
+
+    // 4단계: 일반 키워드 추출 (도메인 키워드가 부족할 때만)
+    let generalKeywords: string[] = [];
+    if (domainKeywords.length < 2) {
+      generalKeywords = this.extractGeneralKeywords(prompt, [
+        ...domainKeywords,
+        ...regions,
+      ]);
+      console.log(`💭 일반 키워드: ${generalKeywords}`);
+    }
+
+    // 5단계: 우선순위별 결합
+    const result: string[] = [];
+    result.push(...domainKeywords.slice(0, 2)); // 도메인 키워드 최우선
+    result.push(...years.slice(0, 1)); // 연도 1개
+    result.push(...regions.slice(0, 1)); // 지역 1개
+    result.push(...generalKeywords.slice(0, 1)); // 일반 키워드 1개
+
+    const finalResult = result.slice(0, 4);
+    console.log(`✅ 최종 키워드: ${finalResult}`);
+
+    return finalResult;
+  }
+
+  /**
+   * 도메인 특화 키워드 추출 (새로 추가)
+   */
+  private extractDomainKeywords(prompt: string): string[] {
+    const domainPatterns = [
+      // 교통 관련
+      {
+        keywords: ["교통", "교통사고", "교통안전", "도로안전", "사고예방"],
+        category: "교통",
+      },
+      // 안전 관련
+      {
+        keywords: ["안전", "보안", "방범", "치안", "안전사고"],
+        category: "안전",
+      },
+      // 프로젝트/연구 관련
+      {
+        keywords: ["프로젝트", "연구", "분석", "조사", "개발"],
+        category: "연구",
+      },
+      // 시민/공공 관련
+      {
+        keywords: ["시민", "주민", "시민안전", "공공안전", "생활안전"],
+        category: "시민",
+      },
+      // 환경 관련
+      {
+        keywords: ["환경", "대기질", "수질", "오염", "기후"],
+        category: "환경",
+      },
+      // 문화/관광 관련
+      {
+        keywords: ["문화", "관광", "축제", "문화재", "박물관"],
+        category: "문화",
+      },
+      // 복지 관련
+      {
+        keywords: ["복지", "돌봄", "보육", "노인", "장애인"],
+        category: "복지",
+      },
+      // 공공데이터 관련
+      {
+        keywords: ["공공데이터", "데이터", "정보", "자료"],
+        category: "데이터",
+      },
     ];
 
-    const foundRegions: string[] = [];
-    for (const region of regions) {
-      if (prompt.includes(region)) {
-        const shortName = region.replace(/(광역시|특별시|특별자치시|도)$/, "");
-        if (!foundRegions.includes(shortName)) {
-          foundRegions.push(shortName);
+    const found: string[] = [];
+    const lowerPrompt = prompt.toLowerCase();
+
+    for (const pattern of domainPatterns) {
+      for (const keyword of pattern.keywords) {
+        if (lowerPrompt.includes(keyword.toLowerCase())) {
+          if (!found.includes(keyword)) {
+            found.push(keyword);
+          }
         }
       }
     }
 
-    // 2단계: 연도 추출
-    const yearMatch = prompt.match(/(\d{4})/);
-    const extractedYear: string | null = yearMatch ? yearMatch[1] : null;
+    return found;
+  }
 
-    // 3단계: 주요 키워드 추출 (데이터 제외 + 품질 검증)
+  /**
+   * 지역명 추출 (기존 로직 분리)
+   */
+  private extractRegions(prompt: string): string[] {
+    const regions: string[] = [
+      "서울",
+      "부산",
+      "대구",
+      "인천",
+      "광주",
+      "대전",
+      "울산",
+      "세종",
+      "경기",
+      "강원",
+      "충북",
+      "충남",
+      "전북",
+      "전남",
+      "경북",
+      "경남",
+      "제주",
+    ];
+
+    const found: string[] = [];
+    for (const region of regions) {
+      if (prompt.includes(region)) {
+        if (!found.includes(region)) {
+          found.push(region);
+        }
+      }
+    }
+
+    return found;
+  }
+
+  /**
+   * 연도 추출 (기존 로직 분리)
+   */
+  private extractYears(prompt: string): string[] {
+    const yearMatch = prompt.match(/(\d{4})/g);
+    if (yearMatch) {
+      return yearMatch.filter((year) => {
+        const y = parseInt(year);
+        return y >= 2000 && y <= 2030;
+      });
+    }
+    return [];
+  }
+
+  /**
+   * 일반 키워드 추출 (개선된 버전)
+   */
+  private extractGeneralKeywords(
+    prompt: string,
+    excludeWords: string[]
+  ): string[] {
+    // 개선된 불용어 리스트
     const stopWords: string[] = [
       "관련",
       "대한",
@@ -247,31 +365,37 @@ export class QueryPlannerService {
       "데이터",
       "정보",
       "자료",
+      "나는",
+      "내가",
+      "우리",
+      "어떤",
+      "어느",
+      "무엇",
+      "뭐",
+      "하기",
+      "위해서",
+      "하려면",
+      "하고있어",
+      "찾고있어",
+      "좋을까",
+      "것이",
+      "것을",
     ];
 
     const cleanedPrompt = prompt
       .replace(/[의가을를에서와과년]/g, " ")
       .replace(/[^\w\s가-힣]/g, " ");
 
-    const mainKeywords: string[] = cleanedPrompt
+    const words = cleanedPrompt
       .split(/\s+/)
-      .filter((word) => word.length > 1 && !stopWords.includes(word))
-      .filter((word) => !foundRegions.some((region) => word.includes(region)))
-      .filter((word) => !/^\d{4}$/.test(word))
-      .filter((word) => this.isValidKeyword(word)) // ⭐ 키워드 유효성 검증
-      .slice(0, 2);
+      .filter((word) => word.length >= 2)
+      .filter((word) => !stopWords.includes(word))
+      .filter(
+        (word) => !excludeWords.some((excluded) => word.includes(excluded))
+      )
+      .filter((word) => this.isValidKeyword(word));
 
-    // 4단계: 결과 조합 (누락된 부분 추가)
-    const result: string[] = [];
-    if (extractedYear) result.push(extractedYear);
-    result.push(...foundRegions);
-    result.push(...mainKeywords);
-
-    const finalResult = result.slice(0, 3);
-
-    console.log(`개선된 결과: ${finalResult}`);
-
-    return finalResult;
+    return words.slice(0, 3);
   }
 
   /**

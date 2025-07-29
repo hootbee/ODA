@@ -60,21 +60,45 @@ export class HybridQueryPlannerService {
   }
 
   /**
-   * 하이브리드 쿼리 계획 생성
-   * 1단계: 규칙 기반으로 빠른 기본 계획 생성
-   * 2단계: 복잡한 경우에만 AI로 보완
+   * 하이브리드 쿼리 계획 생성 (상세 로깅 추가)
    */
   public async createQueryPlan(prompt: string) {
+    console.log(`\n🔍 하이브리드 쿼리 분석 시작: "${prompt}"`);
+    console.log("=".repeat(60));
+
     // 1단계: 규칙 기반 빠른 처리
     const ruleBasedPlan = this.ruleBasedPlanner.createQueryPlan(prompt);
+    console.log(`\n📊 규칙 기반 분석 결과:`);
+    console.log(`   카테고리: ${ruleBasedPlan.majorCategory}`);
+    console.log(`   키워드: [${ruleBasedPlan.keywords.join(", ")}]`);
+    console.log(`   키워드 수: ${ruleBasedPlan.keywords.length}`);
 
-    // 2단계: AI 보완이 필요한지 판단
-    if (this.needsAIEnhancement(prompt, ruleBasedPlan)) {
-      console.log("🤖 복잡한 쿼리 감지 - AI 보완 적용");
-      return await this.enhanceWithAI(prompt, ruleBasedPlan);
+    // 2단계: AI 보완 필요성 판단
+    const needsAI = this.needsAIEnhancement(prompt, ruleBasedPlan);
+    console.log(
+      `\n🤖 AI 보완 필요성 판단: ${needsAI ? "✅ 필요" : "❌ 불필요"}`
+    );
+
+    if (needsAI) {
+      const reasons = this.getAIEnhancementReasons(prompt, ruleBasedPlan);
+      console.log(`   보완 이유: ${reasons.join(", ")}`);
+
+      console.log("🧠 AI 보완 진행 중...");
+      const enhanced = await this.enhanceWithAI(prompt, ruleBasedPlan);
+
+      console.log(`\n✨ AI 보완 완료:`);
+      console.log(`   개선된 카테고리: ${enhanced.majorCategory}`);
+      console.log(`   개선된 키워드: [${enhanced.keywords.join(", ")}]`);
+      console.log(
+        `   키워드 수 변화: ${ruleBasedPlan.keywords.length} → ${enhanced.keywords.length}`
+      );
+
+      console.log("=".repeat(60));
+      return enhanced;
     }
 
-    console.log("⚡ 규칙 기반 처리 완료");
+    console.log("⚡ 규칙 기반 처리로 충분함");
+    console.log("=".repeat(60));
     return ruleBasedPlan;
   }
 
@@ -105,7 +129,41 @@ export class HybridQueryPlannerService {
   }
 
   /**
-   * AI로 쿼리 계획 보완
+   * AI 보완 이유 상세 분석
+   */
+  private getAIEnhancementReasons(
+    prompt: string,
+    ruleBasedPlan: any
+  ): string[] {
+    const reasons: string[] = [];
+
+    if (ruleBasedPlan.keywords.length < 2) {
+      reasons.push(`키워드 부족 (${ruleBasedPlan.keywords.length}개)`);
+    }
+
+    if (prompt.length > 50) {
+      reasons.push(`긴 쿼리 (${prompt.length}자)`);
+    }
+
+    const complexPatterns = [
+      { pattern: /(?:관련.*있는|연관.*된|비슷한|유사한)/, name: "관련성 표현" },
+      { pattern: /(?:아닌|제외|빼고|말고)/, name: "부정 표현" },
+      { pattern: /(?:만약|경우|때|상황)/, name: "조건부 표현" },
+      { pattern: /(?:비교|대비|차이|vs)/, name: "비교 표현" },
+      { pattern: /(?:효과적|최적|개선|혁신|트렌드)/, name: "추상적 개념" },
+    ];
+
+    complexPatterns.forEach(({ pattern, name }) => {
+      if (pattern.test(prompt)) {
+        reasons.push(name);
+      }
+    });
+
+    return reasons;
+  }
+
+  /**
+   * AI로 쿼리 계획 보완 (개선된 프롬프트)
    */
   private async enhanceWithAI(prompt: string, ruleBasedPlan: any) {
     try {
@@ -114,9 +172,22 @@ export class HybridQueryPlannerService {
 규칙 기반 분석 결과: ${JSON.stringify(ruleBasedPlan)}
 
 위 규칙 기반 결과를 enhance_query_plan 함수를 호출하여 다음 관점에서 개선해주세요:
-1. 동의어/유의어를 고려한 키워드 확장
-2. 문맥을 고려한 카테고리 재분류  
-3. 의도 파악을 통한 검색 전략 개선
+
+1. 키워드 확장 및 보완:
+   - 원본 프롬프트에서 누락된 핵심 키워드 추출
+   - 동의어/유의어 추가 (예: "교통안전" → "도로안전", "사고예방")
+   - 불필요한 키워드 제거 ("나는", "시민" 등 일반적 용어)
+
+2. 카테고리 정확도 개선:
+   - 프롬프트의 실제 의도에 맞는 대분류 재검토
+   - 예: "교통안전 프로젝트" → "교통및물류" 또는 "공공질서및안전"
+
+3. 검색 전략 최적화:
+   - 키워드 우선순위 조정
+   - 검색 범위 및 필터 개선
+
+특히 다음 키워드들이 누락되었는지 확인해주세요:
+- "교통", "안전", "프로젝트", "공공데이터" 등 핵심 용어
       `;
 
       const result = await this.model.generateContent(enhancementPrompt);
@@ -149,6 +220,22 @@ ${JSON.stringify(ruleBasedPlan)}
 - 카테고리 정확도 향상
 - 검색 의도 반영
 
+사용 가능한 대분류:
+- 교통및물류
+- 공공질서및안전
+- 일반공공행정
+- 사회복지
+- 문화체육관광
+- 교육
+- 환경
+- 산업·통상·중소기업
+- 보건
+- 농림
+- 지역개발
+- 재정·세제·금융
+- 과학기술
+- 통신
+
 JSON 형식으로만 응답해주세요.
     `;
 
@@ -161,7 +248,7 @@ JSON 형식으로만 응답해주세요.
       model: "gemini-2.0-flash-lite",
       generationConfig: {
         temperature: 0.3,
-        responseMimeType: "application/json", // ✅ 수정: response_mime_type → responseMimeType
+        responseMimeType: "application/json",
       },
     });
 
@@ -189,5 +276,17 @@ JSON 형식으로만 응답해주세요.
       console.error("AI 응답 파싱 실패:", error);
       return { ...fallback, isAIEnhanced: false };
     }
+  }
+
+  private getDefaultPlan() {
+    return {
+      majorCategory: "일반공공행정",
+      keywords: ["기본"],
+      searchYear: null,
+      providerAgency: "기타기관",
+      hasDateFilter: false,
+      limit: 10,
+      isAIEnhanced: false,
+    };
   }
 }

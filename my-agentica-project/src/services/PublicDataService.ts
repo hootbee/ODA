@@ -14,7 +14,7 @@ export class PublicDataService {
   }
 
   /**
-   * 후보 데이터를 추천합니다. ✅ async 추가
+   * 후보 데이터를 추천합니다.
    */
   public async recommendData(input: {
     prompt: string;
@@ -25,7 +25,7 @@ export class PublicDataService {
     // await 추가 - Promise 해결
     const queryPlan = await this.queryPlanner.createQueryPlan(prompt);
 
-    // ✅ await 추가 - filterByRelevance도 Promise를 반환하므로
+    // await 추가 - filterByRelevance도 Promise를 반환하므로
     const filtered = await this.filterByRelevance(
       prompt,
       candidates,
@@ -41,7 +41,7 @@ export class PublicDataService {
   }
 
   /**
-   * AI 기반 관련성 필터링 ✅ async 추가
+   * AI 기반 관련성 필터링
    */
   private async filterByRelevance(
     prompt: string,
@@ -50,7 +50,7 @@ export class PublicDataService {
   ): Promise<string[]> {
     const lowerPrompt = prompt.toLowerCase();
 
-    // ✅ await 추가 - Promise 해결
+    // await 추가 - Promise 해결
     const queryPlan = await this.queryPlanner.createQueryPlan(prompt);
     const promptTokens = queryPlan.keywords;
 
@@ -69,7 +69,7 @@ export class PublicDataService {
   }
 
   /**
-   * 관련성 점수 계산 (개선된 버전) - 변경사항 없음
+   * 관련성 점수 계산 (개선된 버전)
    */
   private calculateRelevanceScore(
     candidate: string,
@@ -122,7 +122,7 @@ export class PublicDataService {
   }
 
   /**
-   * 데이터 활용 추천 생성 - 변경사항 없음
+   * 데이터 활용 추천 생성
    */
   public async generateUtilizationRecommendations(input: {
     fileName: string;
