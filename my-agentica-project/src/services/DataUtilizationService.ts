@@ -1,26 +1,62 @@
 // services/DataUtilizationService.ts
-import {
-  GoogleGenerativeAI,
-  HarmCategory,
-  HarmBlockThreshold,
-} from "@google/generative-ai";
-
-const MODEL_NAME = "gemini-2.0-flash-lite";
+import { GoogleGenerativeAI, SchemaType } from "@google/generative-ai";
 
 export class DataUtilizationService {
   private genAI: GoogleGenerativeAI;
+  private model: any;
 
   constructor() {
-    if (!process.env.GEMINI_API_KEY) {
-      throw new Error(
-        "GEMINI_API_KEY is not set in the environment variables."
-      );
-    }
-    this.genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+    this.genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
+
+    // Gemini Function Calling 설정
+    this.model = this.genAI.getGenerativeModel({
+      model: "gemini-2.0-flash-lite",
+      tools: [
+        {
+          functionDeclarations: [
+            {
+              name: "analyze_data_utilization",
+              description: "공공데이터의 활용방안을 종합적으로 분석합니다",
+              parameters: {
+                type: SchemaType.OBJECT,
+                properties: {
+                  analysisType: {
+                    type: SchemaType.STRING,
+                    enum: [
+                      "business",
+                      "research",
+                      "policy",
+                      "combination",
+                      "tools",
+                    ],
+                    description: "분석 유형",
+                    format: "enum",
+                  },
+                  dataInfo: {
+                    type: SchemaType.OBJECT,
+                    properties: {
+                      fileName: { type: SchemaType.STRING },
+                      title: { type: SchemaType.STRING },
+                      category: { type: SchemaType.STRING },
+                      keywords: { type: SchemaType.STRING },
+                      description: { type: SchemaType.STRING },
+                      providerAgency: { type: SchemaType.STRING },
+                    },
+                    required: ["title", "category"],
+                  },
+                  focusArea: { type: SchemaType.STRING, description: "집중 분석 영역" },
+                },
+                required: ["analysisType", "dataInfo"],
+              },
+            },
+          ],
+        },
+      ],
+    });
   }
 
   /**
-   * 데이터 활용 방안 생성
+   * Agentica와 호환되는 데이터 활용 방안 생성
    */
   public async generateRecommendations(dataInfo: {
     fileName: string;
@@ -36,155 +72,186 @@ export class DataUtilizationService {
     combinationSuggestions: string[];
     analysisTools: string[];
   }> {
-    console.log(`🔍 AI 활용 추천 생성 중: ${dataInfo.fileName}`);
-
-    const prompt = this.buildUtilizationPrompt(dataInfo);
+    console.log(
+      `🔍 Agentica + Gemini Function Calling 활용 추천 생성: ${dataInfo.fileName}`
+    );
 
     try {
-      const aiResponse = await this.callGenerativeAI(prompt);
-      const recommendations = this.parseRecommendations(aiResponse);
-      return recommendations;
+      // Function Calling을 통한 단계별 분석
+      const results = await this.executeAgenticAnalysis(dataInfo);
+      return this.formatResults(results);
     } catch (error) {
-      console.error("AI 응답 생성 중 오류 발생:", error);
-      // 오류 발생 시 기본 추천값 반환
+      console.error("Agentica 분석 중 오류:", error);
       return this.getDefaultRecommendations();
     }
   }
 
   /**
-   * 프롬프트 구성
+   * Agentica 스타일의 단계별 분석 실행
    */
-  private buildUtilizationPrompt(dataInfo: any): string {
-    return `
-다음 공공데이터의 활용 방안을 분석하고, 지정된 JSON 형식에 맞춰 구체적이고 창의적인 아이디어를 제시해주세요.
+  private async executeAgenticAnalysis(dataInfo: any) {
+    const analysisTypes = [
+      "business",
+      "research",
+      "policy",
+      "combination",
+      "tools",
+    ];
+    const results: any = {};
 
-### 데이터 정보
-- **파일명**: ${dataInfo.fileName}
-- **제목**: ${dataInfo.title}
-- **분류**: ${dataInfo.category}
-- **키워드**: ${dataInfo.keywords}
-- **제공기관**: ${dataInfo.providerAgency}
-- **설명**: ${dataInfo.description}
+    for (const type of analysisTypes) {
+      const prompt = `
+데이터 정보:
+${JSON.stringify(dataInfo)}
 
-### 요청사항
-1.  **비즈니스 활용 방안 (businessApplications)**: 이 데이터를 활용하여 수익을 창출할 수 있는 구체적인 사업 아이템 3가지를 제안해주세요. (예: '빅데이터 기반 상권 분석 서비스', '맞춤형 광고 플랫폼')
-2.  **연구 활용 방안 (researchApplications)**: 학술적 또는 기술적 관점에서 이 데이터를 활용할 수 있는 연구 주제 3가지를 제안해주세요. (예: '기계학습을 이용한 교통량 예측 모델 개발', '사회적 약자 이동 패턴 분석')
-3.  **정책 활용 방안 (policyApplications)**: 정부나 공공기관이 이 데이터를 활용하여 사회 문제를 해결하거나 행정 효율을 높일 수 있는 정책 아이디어 3가지를 제안해주세요. (예: '데이터 기반의 교통 신호 최적화', '범죄 취약 지역 순찰 강화')
-4.  **데이터 결합 제안 (combinationSuggestions)**: 이 데이터의 가치를 높이기 위해 함께 활용하면 시너지를 낼 수 있는 다른 종류의 데이터 3가지를 제안해주세요. (예: '유동인구 데이터', '소셜 미디어 데이터', '기상 데이터')
-5.  **추천 분석 도구 (analysisTools)**: 이 데이터를 분석하고 시각화하는 데 가장 적합한 도구나 기술 3가지를 추천해주세요. (예: 'Python (Pandas, Geopandas)', 'Tableau', 'QGIS')
+${type} 관점에서 analyze_data_utilization 함수를 호출하여 분석해주세요.
+집중 분야: ${this.getFocusArea(type, dataInfo.category)}
+      `;
 
-### 출력 형식 (JSON)
-반드시 다음의 JSON 형식으로만 응답해주세요. 다른 설명은 포함하지 마세요.
-\`\`\`json
-{
-  "businessApplications": ["아이디어 1", "아이디어 2", "아이디어 3"],
-  "researchApplications": ["연구 주제 1", "연구 주제 2", "연구 주제 3"],
-  "policyApplications": ["정책 아이디어 1", "정책 아이디어 2", "정책 아이디어 3"],
-  "combinationSuggestions": ["데이터 종류 1", "데이터 종류 2", "데이터 종류 3"],
-  "analysisTools": ["도구 1", "도구 2", "도구 3"]
-}
-\`\`\`
-`;
-  }
+      const result = await this.model.generateContent(prompt);
+      const response = result.response;
 
-  /**
-   * Generative AI 호출 (재시도 및 백오프 로직 추가)
-   */
-  private async callGenerativeAI(
-    prompt: string,
-    maxRetries = 3,
-    initialDelay = 2000
-  ): Promise<string> {
-    console.log("🤖 Gemini AI 모델 호출 중...");
-    let lastError: any;
-
-    for (let i = 0; i < maxRetries; i++) {
-      try {
-        const generationConfig = {
-          temperature: 0.4,
-          topK: 32,
-          topP: 1,
-          maxOutputTokens: 4096,
-          response_mime_type: "application/json",
-        };
-
-        const safetySettings = [
-          {
-            category: HarmCategory.HARM_CATEGORY_HARASSMENT,
-            threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
-          },
-          // ... (다른 안전 설정 추가 가능)
-        ];
-
-        const model = this.genAI.getGenerativeModel({
-          model: MODEL_NAME,
-          generationConfig,
-          safetySettings,
-        });
-
-        const result = await model.generateContent(prompt);
-        const responseText = result.response.text();
-        console.log("✅ Gemini AI 응답 수신");
-        return responseText;
-      } catch (error: any) {
-        lastError = error;
-        if (error.status === 429) {
-          const retryDelayStr = error.errorDetails?.find(
-            (d: any) =>
-              d["@type"] === "type.googleapis.com/google.rpc.RetryInfo"
-          )?.retryDelay;
-
-          let delay = initialDelay * Math.pow(2, i);
-
-          if (retryDelayStr) {
-            const seconds = parseInt(retryDelayStr.replace("s", ""), 10);
-            if (!isNaN(seconds)) {
-              delay = seconds * 1000;
-            }
-          }
-
-          console.warn(
-            `🚦 429 Too Many Requests. ${
-              i + 1
-            }번째 재시도... ${delay}ms 후 다시 시도합니다.`
-          );
-          await new Promise((resolve) => setTimeout(resolve, delay));
-        } else {
-          // 429가 아닌 다른 오류는 즉시 throw
-          throw error;
-        }
+      if (response.functionCalls && response.functionCalls().length > 0) {
+        results[type] = await this.processFunctionCall(
+          response.functionCalls()[0],
+          type,
+          dataInfo
+        );
       }
     }
-    // 모든 재시도 실패 시 마지막 오류 throw
-    console.error("모든 재시도 실패. 마지막 오류:", lastError);
-    throw lastError;
+
+    return results;
   }
 
   /**
-   * AI 응답 파싱
+   * Function Call 처리
    */
-  private parseRecommendations(aiResponse: string): any {
+  private async processFunctionCall(
+    functionCall: any,
+    analysisType: string,
+    dataInfo: any
+  ) {
+    const { args } = functionCall;
+
+    const detailedPrompt = this.buildDetailedPrompt(analysisType, dataInfo);
+    const result = await this.callGenerativeAI(detailedPrompt);
+
+    return this.parseSpecificAnalysis(result, analysisType);
+  }
+
+  /**
+   * 분석 유형별 상세 프롬프트 생성
+   */
+  private buildDetailedPrompt(analysisType: string, dataInfo: any): string {
+    const typePrompts = {
+      business: `비즈니스 활용방안 3가지를 JSON 배열로 제시해주세요: ${JSON.stringify(
+        dataInfo
+      )}`,
+      research: `연구 활용방안 3가지를 JSON 배열로 제시해주세요: ${JSON.stringify(
+        dataInfo
+      )}`,
+      policy: `정책 활용방안 3가지를 JSON 배열로 제시해주세요: ${JSON.stringify(
+        dataInfo
+      )}`,
+      combination: `데이터 결합 제안 3가지를 JSON 배열로 제시해주세요: ${JSON.stringify(
+        dataInfo
+      )}`,
+      tools: `분석 도구 추천 3가지를 JSON 배열로 제시해주세요: ${JSON.stringify(
+        dataInfo
+      )}`,
+    };
+
+    return typePrompts[analysisType as keyof typeof typePrompts] || "";
+  }
+
+  private getFocusArea(type: string, category: string): string {
+    const focusMap = {
+      business: `${category} 분야의 수익 창출`,
+      research: `${category} 관련 학술 연구`,
+      policy: `${category} 정책 개선`,
+      combination: `${category} 데이터 융합`,
+      tools: `${category} 데이터 분석`,
+    };
+    return focusMap[type as keyof typeof focusMap] || category;
+  }
+
+  // 기존 메서드들 유지...
+  private async callGenerativeAI(prompt: string): Promise<string> {
+    const generationConfig = {
+      temperature: 0.4,
+      topK: 32,
+      topP: 1,
+      maxOutputTokens: 4096,
+      response_mime_type: "application/json",
+    };
+
+    const simpleModel = this.genAI.getGenerativeModel({
+      model: "gemini-2.0-flash-lite",
+      generationConfig,
+    });
+
+    const result = await simpleModel.generateContent(prompt);
+    return result.response.text();
+  }
+
+  private parseSpecificAnalysis(response: string, type: string): string[] {
     try {
-      // JSON 형식의 문자열을 직접 파싱
-      const cleanedResponse = aiResponse
-        .replace(/```json/g, "")
-        .replace(/```/g, "")
-        .trim();
-      const parsed = JSON.parse(cleanedResponse);
-      console.log("✅ JSON 파싱 성공");
-      return parsed;
+      console.log(`Raw response for ${type}:`, response);
+      const cleaned = response.replace(/``````/g, "").trim();
+      const parsed = JSON.parse(cleaned);
+      console.log(`Parsed result for ${type}:`, parsed);
+
+      if (!Array.isArray(parsed)) {
+        return [];
+      }
+
+      switch (type) {
+        case "business":
+          const businessResult = parsed.map((item: any) => item.business_application || "");
+          console.log(`Final business result:`, businessResult);
+          return businessResult;
+        case "research":
+          const researchResult = parsed.map((item: any) => item["연구 활용 방안"] || item["연구_활용_방안"] || "");
+          console.log(`Final research result:`, researchResult);
+          return researchResult;
+        case "policy":
+          const policyResult = parsed.map((item: any) => item.활용방안 || "");
+          console.log(`Final policy result:`, policyResult);
+          return policyResult;
+        case "combination":
+          const combinationResult = parsed.map((item: any) => item.suggestion || "");
+          console.log(`Final combination result:`, combinationResult);
+          return combinationResult;
+        case "tools":
+          const toolsResult = parsed.map((item: any) => item.toolName || item.tool_name || "");
+          console.log(`Final tools result:`, toolsResult);
+          return toolsResult;
+        default:
+          const defaultResult = parsed.map((item: any) => item || "");
+          console.log(`Final default result:`, defaultResult);
+          return defaultResult;
+      }
     } catch (error) {
-      console.error("AI 응답 파싱 실패:", error);
-      console.log("원본 응답:", aiResponse);
-      // 파싱 실패 시 기본값 반환
-      return this.getDefaultRecommendations();
+      console.error(`Error parsing ${type} analysis:`, error);
+      return [
+        `${type} 분석 결과 1`,
+        `${type} 분석 결과 2`,
+        `${type} 분석 결과 3`,
+      ];
     }
   }
 
-  /**
-   * 기본 추천값 반환 (오류 발생 시)
-   */
-  private getDefaultRecommendations(): any {
+  private formatResults(results: any) {
+    return {
+      businessApplications: results.business || [],
+      researchApplications: results.research || [],
+      policyApplications: results.policy || [],
+      combinationSuggestions: results.combination || [],
+      analysisTools: results.tools || [],
+    };
+  }
+
+  private getDefaultRecommendations() {
     return {
       businessApplications: [
         "데이터 기반 비즈니스 모델 개발",

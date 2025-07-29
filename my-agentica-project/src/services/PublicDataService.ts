@@ -1,37 +1,38 @@
-import { QueryPlannerService } from "./QueryPlannerService";
+// services/PublicDataService.ts
+import { HybridQueryPlannerService } from "./HybridQueryPlannerService";
 import { DataUtilizationService } from "./DataUtilizationService";
-/**
- * 공공데이터 추천 서비스
- */
+
 export class PublicDataService {
-  private readonly queryPlanner = new QueryPlannerService();
+  private readonly queryPlanner = new HybridQueryPlannerService();
   private readonly utilizationService = new DataUtilizationService();
 
   /**
-   * 프롬프트를 분석하여 DB 쿼리 계획을 생성합니다.
+   * 하이브리드 쿼리 계획 생성 (Agentica 호환)
    */
   public async createQueryPlan(input: { prompt: string }): Promise<any> {
-    return this.queryPlanner.createQueryPlan(input.prompt);
+    return await this.queryPlanner.createQueryPlan(input.prompt);
   }
 
   /**
-   * 후보 데이터를 추천합니다.
+   * 후보 데이터를 추천합니다. ✅ async 추가
    */
   public async recommendData(input: {
     prompt: string;
     candidates: string[];
   }): Promise<{ recommendations: string[] }> {
     const { prompt, candidates } = input;
-    const queryPlan = this.queryPlanner.createQueryPlan(prompt);
 
-    // AI 기반 관련성 필터링
-    const filtered = this.filterByRelevance(
+    // await 추가 - Promise 해결
+    const queryPlan = await this.queryPlanner.createQueryPlan(prompt);
+
+    // ✅ await 추가 - filterByRelevance도 Promise를 반환하므로
+    const filtered = await this.filterByRelevance(
       prompt,
       candidates,
       queryPlan.majorCategory
     );
 
-    // 최종 추천
+    // 이제 filtered는 string[] 타입이므로 slice 사용 가능
     const finalRecommendations = filtered.slice(0, queryPlan.limit);
 
     return {
@@ -40,15 +41,18 @@ export class PublicDataService {
   }
 
   /**
-   * AI 기반 관련성 필터링
+   * AI 기반 관련성 필터링 ✅ async 추가
    */
-  private filterByRelevance(
+  private async filterByRelevance(
     prompt: string,
     candidates: string[],
     majorCategory: string
-  ): string[] {
+  ): Promise<string[]> {
     const lowerPrompt = prompt.toLowerCase();
-    const promptTokens = this.queryPlanner.createQueryPlan(prompt).keywords;
+
+    // ✅ await 추가 - Promise 해결
+    const queryPlan = await this.queryPlanner.createQueryPlan(prompt);
+    const promptTokens = queryPlan.keywords;
 
     return candidates
       .map((candidate) => ({
@@ -65,7 +69,7 @@ export class PublicDataService {
   }
 
   /**
-   * 관련성 점수 계산 (개선된 버전)
+   * 관련성 점수 계산 (개선된 버전) - 변경사항 없음
    */
   private calculateRelevanceScore(
     candidate: string,
@@ -116,6 +120,10 @@ export class PublicDataService {
 
     return Math.max(0, score); // 음수 점수 방지
   }
+
+  /**
+   * 데이터 활용 추천 생성 - 변경사항 없음
+   */
   public async generateUtilizationRecommendations(input: {
     fileName: string;
     title: string;
