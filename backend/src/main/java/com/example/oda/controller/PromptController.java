@@ -2,7 +2,9 @@
 package com.example.oda.controller;
 
 import com.example.oda.dto.PromptRequestDto;
+import com.example.oda.dto.QueryPlanDto;
 import com.example.oda.service.PromptService; // 인터페이스 import
+import com.example.oda.service.QueryPlannerService; // QueryPlannerService import
 import com.fasterxml.jackson.databind.JsonNode;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -14,10 +16,19 @@ import java.util.List;
 public class PromptController {
 
     private final PromptService promptService; // 인터페이스 타입으로 주입
+    private final QueryPlannerService queryPlannerService; // QueryPlannerService 주입
 
     @Autowired
-    public PromptController(PromptService promptService) {
+    public PromptController(PromptService promptService, QueryPlannerService queryPlannerService) {
         this.promptService = promptService;
+        this.queryPlannerService = queryPlannerService;
+    }
+
+    @CrossOrigin(origins = "http://localhost:3000")
+    @PostMapping("/api/query-plan")
+    public ResponseEntity<QueryPlanDto> getQueryPlan(@RequestBody PromptRequestDto requestDto) {
+        QueryPlanDto queryPlan = queryPlannerService.createQueryPlan(requestDto.getPrompt());
+        return ResponseEntity.ok(queryPlan);
     }
 
     @CrossOrigin(origins = "http://localhost:3000")

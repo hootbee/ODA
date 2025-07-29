@@ -1,9 +1,8 @@
 // services/HybridQueryPlannerService.ts
 import { GoogleGenerativeAI, SchemaType } from "@google/generative-ai";
-import { QueryPlannerService } from "./QueryPlannerService";
-
 export class HybridQueryPlannerService {
-  private ruleBasedPlanner = new QueryPlannerService();
+  // QueryPlannerService는 이제 백엔드에서 처리합니다.
+
   private genAI: GoogleGenerativeAI;
   private model: any;
 
@@ -66,8 +65,8 @@ export class HybridQueryPlannerService {
     console.log(`\n🔍 하이브리드 쿼리 분석 시작: "${prompt}"`);
     console.log("=".repeat(60));
 
-    // 1단계: 규칙 기반 빠른 처리
-    const ruleBasedPlan = this.ruleBasedPlanner.createQueryPlan(prompt);
+    // 1단계: 규칙 기반 빠른 처리 (스프링 백엔드 호출)
+    const ruleBasedPlan = await this.fetchRuleBasedPlan(prompt);
     console.log(`\n📊 규칙 기반 분석 결과:`);
     console.log(`   카테고리: ${ruleBasedPlan.majorCategory}`);
     console.log(`   키워드: [${ruleBasedPlan.keywords.join(", ")}]`);
@@ -275,6 +274,28 @@ JSON 형식으로만 응답해주세요.
     } catch (error) {
       console.error("AI 응답 파싱 실패:", error);
       return { ...fallback, isAIEnhanced: false };
+    }
+  }
+
+  private async fetchRuleBasedPlan(prompt: string): Promise<any> {
+    try {
+      const response = await fetch('http://localhost:8080/api/query-plan', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ prompt: prompt }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      return await response.json();
+    } catch (error) {
+      console.error("규칙 기반 쿼리 계획을 가져오는 데 실패했습니다:", error);
+      // 에러 발생 시 기본 계획 반환 또는 에러 처리
+      return this.getDefaultPlan();
     }
   }
 
