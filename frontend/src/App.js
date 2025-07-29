@@ -24,28 +24,46 @@ function App() {
     setMessages((prevMessages) => [...prevMessages, userMessage]);
     setInputValue("");
 
-    // 1. 활용 방안 요청 확인 ("네", "예" 등)
-    if (lastDataName && (prompt.includes("네") || prompt.includes("예"))) {
-      try {
-        const response = await axios.post(
-          "http://localhost:8080/api/data-utilization",
-          { prompt: lastDataName } // 저장해둔 파일명으로 요청
-        );
-        const botMessage = {
+    // 1. 활용 방안 요청 확인
+    const isUtilizationRequest = ["활용", "방안", "비즈니스", "연구", "정책"].some((keyword) =>
+      prompt.includes(keyword)
+    );
+
+    if (lastDataName && isUtilizationRequest) {
+      let analysisType = "";
+      if (prompt.includes("비즈니스")) analysisType = "business";
+      else if (prompt.includes("연구")) analysisType = "research";
+      else if (prompt.includes("정책")) analysisType = "policy";
+
+      if (analysisType) {
+        try {
+          const response = await axios.post(
+            "http://localhost:8080/api/data-utilization/single",
+            { dataInfo: { fileName: lastDataName }, analysisType } // 단일 API 호출
+          );
+          const botMessage = {
+            id: Date.now() + 1,
+            text: response.data.join("\n"), // 배열을 문자열로 변환
+            sender: "bot",
+          };
+          setMessages((prevMessages) => [...prevMessages, botMessage]);
+          setLastDataName(null); // 초기화
+        } catch (error) {
+          console.error("Error fetching single utilization data:", error);
+          const errorMessage = {
+            id: Date.now() + 1,
+            text: "활용 방안을 가져오는 데 실패했습니다.",
+            sender: "bot",
+          };
+          setMessages((prevMessages) => [...prevMessages, errorMessage]);
+        }
+      } else {
+        const clarificationMessage = {
           id: Date.now() + 1,
-          text: response.data,
+          text: "어떤 측면의 활용 방안이 궁금하신가요? (비즈니스, 연구, 정책)",
           sender: "bot",
         };
-        setMessages((prevMessages) => [...prevMessages, botMessage]);
-        setLastDataName(null); // 초기화
-      } catch (error) {
-        console.error("Error fetching utilization data:", error);
-        const errorMessage = {
-          id: Date.now() + 1,
-          text: "활용 방안을 가져오는 데 실패했습니다.",
-          sender: "bot",
-        };
-        setMessages((prevMessages) => [...prevMessages, errorMessage]);
+        setMessages((prevMessages) => [...prevMessages, clarificationMessage]);
       }
       return;
     }
@@ -66,7 +84,7 @@ function App() {
         };
         const followUpMessage = {
           id: Date.now() + 2,
-          text: "이 데이터의 활용 방안이 필요하신가요?",
+          text: "이 데이터에 대해 더 궁금한 점이 있으신가요? 어떤 측면의 활용 방안(비즈니스, 연구, 정책)이 궁금하신가요?",
           sender: "bot",
         };
         setMessages((prevMessages) => [

@@ -59,36 +59,71 @@ app.post("/api/ai/query-plan", async (req: Request, res: Response) => {
 });
 
 // ⭐ 새로 추가: 데이터 활용 추천 엔드포인트
-app.post("/api/ai/data/utilization", async (req: Request, res: Response) => {
-  const { dataInfo } = req.body;
+// app.post("/api/ai/data/utilization", async (req: Request, res: Response) => {
+//   const { dataInfo } = req.body;
 
-  if (!dataInfo) {
-    return res.status(400).json({
-      error: "dataInfo is required",
-      code: "MISSING_DATA_INFO",
-    });
+//   if (!dataInfo) {
+//     return res.status(400).json({
+//       error: "dataInfo is required",
+//       code: "MISSING_DATA_INFO",
+//     });
+//   }
+
+//   try {
+//     console.log("📊 데이터 활용 추천 요청:", dataInfo.fileName);
+
+//     const result = await publicDataService.generateUtilizationRecommendations(
+//       dataInfo
+//     );
+
+//     res.json({
+//       success: true,
+//       data: result,
+//     });
+//   } catch (error) {
+//     console.error("데이터 활용 추천 생성 오류:", error);
+//     res.status(500).json({
+//       error: "Failed to generate utilization recommendations",
+//       code: "UTILIZATION_ERROR",
+//       message: getErrorMessage(error), // ⭐ 타입 안전한 에러 메시지
+//     });
+//   }
+// });
+
+// ⭐ 새로 추가: 단일 데이터 활용 추천 엔드포인트
+app.post(
+  "/api/ai/data/utilization/single",
+  async (req: Request, res: Response) => {
+    const { dataInfo, analysisType } = req.body;
+
+    if (!dataInfo || !analysisType) {
+      return res.status(400).json({
+        error: "dataInfo and analysisType are required",
+        code: "MISSING_PARAMETERS",
+      });
+    }
+
+    try {
+      console.log(
+        `📊 단일 데이터 활용 추천 요청: ${dataInfo.fileName} (${analysisType})`
+      );
+
+      const result =
+        await publicDataService.generateSingleUtilizationRecommendation({
+          dataInfo,
+          analysisType,
+        });
+
+      // ✅ 수정: 직접 배열로 응답
+      res.json(result);
+    } catch (error) {
+      console.error("단일 데이터 활용 추천 생성 오류:", error);
+
+      // 오류 시에도 배열 형태로 응답
+      res.status(500).json(["오류가 발생했습니다: " + getErrorMessage(error)]);
+    }
   }
-
-  try {
-    console.log("📊 데이터 활용 추천 요청:", dataInfo.fileName);
-
-    const result = await publicDataService.generateUtilizationRecommendations(
-      dataInfo
-    );
-
-    res.json({
-      success: true,
-      data: result,
-    });
-  } catch (error) {
-    console.error("데이터 활용 추천 생성 오류:", error);
-    res.status(500).json({
-      error: "Failed to generate utilization recommendations",
-      code: "UTILIZATION_ERROR",
-      message: getErrorMessage(error), // ⭐ 타입 안전한 에러 메시지
-    });
-  }
-});
+);
 
 // ⭐ 헬스 체크 엔드포인트 (선택사항)
 app.get("/health", (req: Request, res: Response) => {
@@ -104,6 +139,9 @@ app.listen(port, () => {
   console.log(`📋 Available endpoints:`);
   console.log(`   POST /api/ai/query-plan - 쿼리 플랜 생성`);
   console.log(`   POST /api/ai/data/utilization - 데이터 활용 추천`);
+  console.log(
+    `   POST /api/ai/data/utilization/single - 단일 데이터 활용 추천`
+  );
   console.log(`   GET  /health - 헬스 체크`);
 });
 

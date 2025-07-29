@@ -20,6 +20,7 @@ import java.util.Arrays;
 import java.util.Optional;
 import java.util.regex.Pattern;
 import java.util.regex.Matcher;
+import com.example.oda.dto.SingleUtilizationRequestDto;
 
 @Service
 public class PromptServiceImpl implements PromptService {
@@ -576,50 +577,50 @@ public class PromptServiceImpl implements PromptService {
     /**
      * 키워드별 검색 결과 통계 로깅 (디버깅용)
      */
-    private void logSearchStatistics(List<String> keywords, List<PublicData> results) {
-        if (!log.isDebugEnabled()) return;
-
-        log.debug("=== 검색 통계 ===");
-        log.debug("총 키워드 수: {}", keywords.size());
-        log.debug("총 검색 결과: {}개", results.size());
-
-        for (String keyword : keywords) {
-            long matchCount = results.stream()
-                    .filter(item -> {
-                        String lowerKeyword = keyword.toLowerCase();
-                        String dataName = item.getFileDataName() != null ? item.getFileDataName().toLowerCase() : "";
-                        String dataKeywords = item.getKeywords() != null ? item.getKeywords().toLowerCase() : "";
-                        return dataName.contains(lowerKeyword) || dataKeywords.contains(lowerKeyword);
-                    })
-                    .count();
-            log.debug("키워드 '{}': {}개 매칭", keyword, matchCount);
-        }
-
-        results.stream()
-                .collect(Collectors.groupingBy(
-                        item -> item.getClassificationSystem() != null ?
-                                item.getClassificationSystem().split(" - ")[0] : "기타",
-                        Collectors.counting()))
-                .forEach((category, count) ->
-                        log.debug("분류 '{}': {}개", category, count));
-    }
+//    private void logSearchStatistics(List<String> keywords, List<PublicData> results) {
+//        if (!log.isDebugEnabled()) return;
+//
+//        log.debug("=== 검색 통계 ===");
+//        log.debug("총 키워드 수: {}", keywords.size());
+//        log.debug("총 검색 결과: {}개", results.size());
+//
+//        for (String keyword : keywords) {
+//            long matchCount = results.stream()
+//                    .filter(item -> {
+//                        String lowerKeyword = keyword.toLowerCase();
+//                        String dataName = item.getFileDataName() != null ? item.getFileDataName().toLowerCase() : "";
+//                        String dataKeywords = item.getKeywords() != null ? item.getKeywords().toLowerCase() : "";
+//                        return dataName.contains(lowerKeyword) || dataKeywords.contains(lowerKeyword);
+//                    })
+//                    .count();
+//            log.debug("키워드 '{}': {}개 매칭", keyword, matchCount);
+//        }
+//
+//        results.stream()
+//                .collect(Collectors.groupingBy(
+//                        item -> item.getClassificationSystem() != null ?
+//                                item.getClassificationSystem().split(" - ")[0] : "기타",
+//                        Collectors.counting()))
+//                .forEach((category, count) ->
+//                        log.debug("분류 '{}': {}개", category, count));
+//    }
 
     /**
      * 검색 결과 품질 검증
      */
-    private boolean isQualityResult(PublicData data, List<String> keywords) {
-        if (data.getFileDataName() == null || data.getFileDataName().trim().isEmpty()) {
-            return false;
-        }
-
-        String dataText = (data.getFileDataName() + " " +
-                (data.getKeywords() != null ? data.getKeywords() : "") + " " +
-                (data.getTitle() != null ? data.getTitle() : "") + " " +
-                (data.getDescription() != null ? data.getDescription() : "")).toLowerCase();
-
-        return keywords.stream()
-                .anyMatch(keyword -> dataText.contains(keyword.toLowerCase()));
-    }
+//    private boolean isQualityResult(PublicData data, List<String> keywords) {
+//        if (data.getFileDataName() == null || data.getFileDataName().trim().isEmpty()) {
+//            return false;
+//        }
+//
+//        String dataText = (data.getFileDataName() + " " +
+//                (data.getKeywords() != null ? data.getKeywords() : "") + " " +
+//                (data.getTitle() != null ? data.getTitle() : "") + " " +
+//                (data.getDescription() != null ? data.getDescription() : "")).toLowerCase();
+//
+//        return keywords.stream()
+//                .anyMatch(keyword -> dataText.contains(keyword.toLowerCase()));
+//    }
     @Override
     public Mono<String> getUtilizationRecommendations(String fileDataName) {
         return Mono.fromCallable(() -> {
@@ -656,61 +657,56 @@ public class PromptServiceImpl implements PromptService {
             return "❌ 해당 파일명을 찾을 수 없습니다: " + fileDataName;
         });
     }
+
+    @Override
+    public Mono<List<String>> getSingleUtilizationRecommendation(SingleUtilizationRequestDto requestDto) {
+        return Mono.fromCallable(() -> {
+            String fileName = requestDto.getDataInfo().getFileName();
+            String analysisType = requestDto.getAnalysisType();
+            log.info("단일 활용 추천 요청: 파일명='{}', 분석유형='{}'", fileName, analysisType);
+
+            Optional<PublicData> exactMatch = publicDataRepository.findByFileDataName(fileName);
+
+            if (exactMatch.isPresent()) {
+                PublicData data = exactMatch.get();
+                try {
+                    return aiModelService.getSingleUtilizationRecommendation(data, analysisType).block();
+                } catch (Exception e) {
+                    log.error("단일 활용 추천 생성 실패", e);
+                    return List.of("단일 활용 방안을 가져오는 데 실패했습니다.");
+                }
+            }
+            return List.of("❌ 해당 파일명을 찾을 수 없습니다: " + fileName);
+        });
+    }
+
     private String formatUtilizationRecommendations(JsonNode response) {
         StringBuilder utilization = new StringBuilder();
-        
-        utilization.append("💡 데이터 활용 추천\n");
-        utilization.append("═".repeat(50)).append("\n\n");
-        
+
+        utilization.append("💡 데이터 활용 추천\n")
+                   .append("═".repeat(50)).append("\n\n");
+
         JsonNode data = response.get("data");
         if (data != null) {
-            // 비즈니스 활용
-            utilization.append("🏢 비즈니스 활용 방안:\n");
-            JsonNode businessApps = data.get("businessApplications");
-            if (businessApps != null && businessApps.isArray()) {
-                businessApps.forEach(app -> 
-                    utilization.append("  • ").append(app.asText()).append("\n"));
-            }
-            utilization.append("\n");
-            
-            // 연구 활용
-            utilization.append("🔬 연구 활용 방안:\n");
-            JsonNode researchApps = data.get("researchApplications");
-            if (researchApps != null && researchApps.isArray()) {
-                researchApps.forEach(app -> 
-                    utilization.append("  • ").append(app.asText()).append("\n"));
-            }
-            utilization.append("\n");
-            
-            // 정책 활용
-            utilization.append("🏛️ 정책 활용 방안:\n");
-            JsonNode policyApps = data.get("policyApplications");
-            if (policyApps != null && policyApps.isArray()) {
-                policyApps.forEach(app -> 
-                    utilization.append("  • ").append(app.asText()).append("\n"));
-            }
-            utilization.append("\n");
-            
-            // 데이터 결합 제안
-            utilization.append("🔗 데이터 결합 제안:\n");
-            JsonNode combinations = data.get("combinationSuggestions");
-            if (combinations != null && combinations.isArray()) {
-                combinations.forEach(suggestion -> 
-                    utilization.append("  • ").append(suggestion.asText()).append("\n"));
-            }
-            utilization.append("\n");
-            
-            // 분석 도구
-            utilization.append("🛠️ 추천 분석 도구:\n");
-            JsonNode tools = data.get("analysisTools");
-            if (tools != null && tools.isArray()) {
-                tools.forEach(tool -> 
-                    utilization.append("  • ").append(tool.asText()).append("\n"));
-            }
+            // 공통 메서드를 사용하여 각 섹션 처리
+            appendSection(utilization, "🏢 비즈니스 활용 방안", data.get("businessApplications"));
+            appendSection(utilization, "🔬 연구 활용 방안", data.get("researchApplications"));
+            appendSection(utilization, "🏛️ 정책 활용 방안", data.get("policyApplications"));
         }
-        
+
         return utilization.toString();
     }
+
+    private void appendSection(StringBuilder builder, String title, JsonNode applications) {
+        builder.append(title).append(":\n");
+        if (applications != null && applications.isArray()) {
+            applications.forEach(app -> builder.append("  • ").append(app.asText()).append("\n"));
+        } else {
+            builder.append("  • 관련 데이터 없음\n");
+        }
+        builder.append("\n");
+    }
+
     private String getDefaultUtilizationRecommendations(PublicData data) {
         StringBuilder utilization = new StringBuilder();
 

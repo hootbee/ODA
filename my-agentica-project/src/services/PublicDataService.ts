@@ -1,4 +1,6 @@
 // services/PublicDataService.ts
+import * as fs from "fs";
+import * as path from "path";
 import { HybridQueryPlannerService } from "./HybridQueryPlannerService";
 import { DataUtilizationService } from "./DataUtilizationService";
 
@@ -133,5 +135,18 @@ export class PublicDataService {
     providerAgency: string;
   }) {
     return this.utilizationService.generateRecommendations(input);
+  }
+
+  /**
+   * 단일 데이터 활용 추천 생성
+   */
+  public async generateSingleUtilizationRecommendation(input: {
+    dataInfo: any;
+    analysisType: string;
+  }) {
+    return this.utilizationService.generateSingleRecommendation(
+      input.dataInfo,
+      input.analysisType
+    );
   }
 }

@@ -5,8 +5,10 @@ import com.example.oda.entity.PublicData;
 import com.fasterxml.jackson.databind.JsonNode;
 import reactor.core.publisher.Mono;
 
+import java.util.List;
+
 public interface AiModelService {
     Mono<JsonNode> getQueryPlan(String prompt);
-        Mono<JsonNode> getUtilizationRecommendations(PublicData data);
-
+    Mono<JsonNode> getUtilizationRecommendations(PublicData data);
+    Mono<List<String>> getSingleUtilizationRecommendation(PublicData data, String analysisType);
 }

@@ -44,7 +44,10 @@ export class DataUtilizationService {
                     },
                     required: ["title", "category"],
                   },
-                  focusArea: { type: SchemaType.STRING, description: "집중 분석 영역" },
+                  focusArea: {
+                    type: SchemaType.STRING,
+                    description: "집중 분석 영역",
+                  },
                 },
                 required: ["analysisType", "dataInfo"],
               },
@@ -87,6 +90,58 @@ export class DataUtilizationService {
   }
 
   /**
+   * 단일 데이터 활용 방안 생성 ✅ 수정됨
+   */
+  public async generateSingleRecommendation(
+    dataInfo: any,
+    analysisType: string
+  ): Promise<string[]> {
+    console.log(
+      `🔍 Agentica + Gemini Function Calling 단일 활용 추천 생성: ${dataInfo.fileName} (${analysisType})`
+    );
+
+    try {
+      // ✅ 파일 시스템 조회 로직 제거, 직접 데이터 사용
+      const result = await this.executeSingleAgenticAnalysis(
+        dataInfo,
+        analysisType
+      );
+      return result;
+    } catch (error) {
+      console.error("Agentica 단일 분석 중 오류:", error);
+      return [`${analysisType} 분석 중 오류가 발생했습니다.`];
+    }
+  }
+
+  /**
+   * Agentica 스타일의 단일 분석 실행
+   */
+  private async executeSingleAgenticAnalysis(
+    dataInfo: any,
+    analysisType: string
+  ): Promise<string[]> {
+    const prompt = `
+데이터 정보:
+${JSON.stringify(dataInfo)}
+
+${analysisType} 관점에서 analyze_data_utilization 함수를 호출하여 분석해주세요.
+집중 분야: ${this.getFocusArea(analysisType, dataInfo.category)}
+    `;
+
+    const result = await this.model.generateContent(prompt);
+    const response = result.response;
+
+    if (response.functionCalls && response.functionCalls().length > 0) {
+      return await this.processFunctionCall(
+        response.functionCalls()[0],
+        analysisType,
+        dataInfo
+      );
+    }
+    return [];
+  }
+
+  /**
    * Agentica 스타일의 단계별 분석 실행
    */
   private async executeAgenticAnalysis(dataInfo: any) {
@@ -100,24 +155,7 @@ export class DataUtilizationService {
     const results: any = {};
 
     for (const type of analysisTypes) {
-      const prompt = `
-데이터 정보:
-${JSON.stringify(dataInfo)}
-
-${type} 관점에서 analyze_data_utilization 함수를 호출하여 분석해주세요.
-집중 분야: ${this.getFocusArea(type, dataInfo.category)}
-      `;
-
-      const result = await this.model.generateContent(prompt);
-      const response = result.response;
-
-      if (response.functionCalls && response.functionCalls().length > 0) {
-        results[type] = await this.processFunctionCall(
-          response.functionCalls()[0],
-          type,
-          dataInfo
-        );
-      }
+      results[type] = await this.executeSingleAgenticAnalysis(dataInfo, type);
     }
 
     return results;
@@ -144,21 +182,40 @@ ${type} 관점에서 analyze_data_utilization 함수를 호출하여 분석해�
    */
   private buildDetailedPrompt(analysisType: string, dataInfo: any): string {
     const typePrompts = {
-      business: `비즈니스 활용방안 3가지를 JSON 배열로 제시해주세요: ${JSON.stringify(
-        dataInfo
-      )}`,
-      research: `연구 활용방안 3가지를 JSON 배열로 제시해주세요: ${JSON.stringify(
-        dataInfo
-      )}`,
-      policy: `정책 활용방안 3가지를 JSON 배열로 제시해주세요: ${JSON.stringify(
-        dataInfo
-      )}`,
-      combination: `데이터 결합 제안 3가지를 JSON 배열로 제시해주세요: ${JSON.stringify(
-        dataInfo
-      )}`,
-      tools: `분석 도구 추천 3가지를 JSON 배열로 제시해주세요: ${JSON.stringify(
-        dataInfo
-      )}`,
+      business: `다음 공공데이터의 비즈니스 활용방안 3가지를 JSON 배열 형식으로 제시해주세요.
+각 항목은 구체적이고 실현 가능한 비즈니스 아이디어여야 합니다.
+
+데이터 정보: ${JSON.stringify(dataInfo)}
+
+응답 형식: ["비즈니스 아이디어 1", "비즈니스 아이디어 2", "비즈니스 아이디어 3"]`,
+
+      research: `다음 공공데이터의 연구 활용방안 3가지를 JSON 배열 형식으로 제시해주세요.
+각 항목은 학술적 가치가 있는 연구 주제여야 합니다.
+
+데이터 정보: ${JSON.stringify(dataInfo)}
+
+응답 형식: ["연구 주제 1", "연구 주제 2", "연구 주제 3"]`,
+
+      policy: `다음 공공데이터의 정책 활용방안 3가지를 JSON 배열 형식으로 제시해주세요.
+각 항목은 정부나 공공기관에서 활용할 수 있는 정책 아이디어여야 합니다.
+
+데이터 정보: ${JSON.stringify(dataInfo)}
+
+응답 형식: ["정책 아이디어 1", "정책 아이디어 2", "정책 아이디어 3"]`,
+
+      combination: `다음 공공데이터와 결합하면 시너지를 낼 수 있는 다른 데이터 3가지를 JSON 배열 형식으로 제시해주세요.
+각 항목은 구체적인 데이터 종류와 결합 효과를 포함해야 합니다.
+
+데이터 정보: ${JSON.stringify(dataInfo)}
+
+응답 형식: ["결합 데이터 1", "결합 데이터 2", "결합 데이터 3"]`,
+
+      tools: `다음 공공데이터를 분석하고 시각화하는데 적합한 도구 3가지를 JSON 배열 형식으로 제시해주세요.
+각 항목은 구체적인 도구명과 활용 방법을 포함해야 합니다.
+
+데이터 정보: ${JSON.stringify(dataInfo)}
+
+응답 형식: ["분석 도구 1", "분석 도구 2", "분석 도구 3"]`,
     };
 
     return typePrompts[analysisType as keyof typeof typePrompts] || "";
@@ -175,14 +232,16 @@ ${type} 관점에서 analyze_data_utilization 함수를 호출하여 분석해�
     return focusMap[type as keyof typeof focusMap] || category;
   }
 
-  // 기존 메서드들 유지...
+  /**
+   * Generative AI 호출
+   */
   private async callGenerativeAI(prompt: string): Promise<string> {
     const generationConfig = {
       temperature: 0.4,
       topK: 32,
       topP: 1,
       maxOutputTokens: 4096,
-      response_mime_type: "application/json",
+      responseMimeType: "application/json", // ✅ 수정: response_mime_type → responseMimeType
     };
 
     const simpleModel = this.genAI.getGenerativeModel({
@@ -194,51 +253,141 @@ ${type} 관점에서 analyze_data_utilization 함수를 호출하여 분석해�
     return result.response.text();
   }
 
+  /**
+   * ✅ 방법 2: 유연하고 강력한 응답 파싱 로직
+   */
   private parseSpecificAnalysis(response: string, type: string): string[] {
     try {
-      console.log(`Raw response for ${type}:`, response);
+      console.log(`🔍 Raw response for ${type}:`, response);
+
+      // JSON 정리
       const cleaned = response.replace(/``````/g, "").trim();
-      const parsed = JSON.parse(cleaned);
-      console.log(`Parsed result for ${type}:`, parsed);
+      let parsed;
 
+      // JSON 파싱 시도
+      try {
+        parsed = JSON.parse(cleaned);
+      } catch (jsonError) {
+        console.error(`❌ JSON parsing error for ${type}:`, jsonError);
+
+        // JSON 파싱 실패 시 배열 패턴 추출 시도
+        const arrayMatch = cleaned.match(/\[[\s\S]*?\]/);
+        if (arrayMatch && arrayMatch[0]) {
+          try {
+            parsed = JSON.parse(arrayMatch[0]);
+          } catch (innerJsonError) {
+            console.error(
+              `❌ Inner JSON parsing error for ${type}:`,
+              innerJsonError
+            );
+            return [`${type} 분석 중 파싱 오류가 발생했습니다.`];
+          }
+        } else {
+          return [`${type} 분석 중 JSON 형식을 찾을 수 없습니다.`];
+        }
+      }
+
+      console.log(`✅ Parsed result for ${type}:`, parsed);
+
+      // 배열이 아닌 경우 처리
       if (!Array.isArray(parsed)) {
-        return [];
+        if (typeof parsed === "object" && parsed !== null) {
+          // 객체 내부에서 배열 찾기
+          for (const key in parsed) {
+            if (Array.isArray(parsed[key])) {
+              parsed = parsed[key];
+              break;
+            }
+          }
+
+          // 여전히 배열이 아니면 객체를 배열로 변환
+          if (!Array.isArray(parsed)) {
+            return [`${type} 분석: ${JSON.stringify(parsed)}`];
+          }
+        } else {
+          return [`${type} 분석 결과를 배열로 변환할 수 없습니다.`];
+        }
       }
 
-      switch (type) {
-        case "business":
-          const businessResult = parsed.map((item: any) => item.business_application || "");
-          console.log(`Final business result:`, businessResult);
-          return businessResult;
-        case "research":
-          const researchResult = parsed.map((item: any) => item["연구 활용 방안"] || item["연구_활용_방안"] || "");
-          console.log(`Final research result:`, researchResult);
-          return researchResult;
-        case "policy":
-          const policyResult = parsed.map((item: any) => item.활용방안 || "");
-          console.log(`Final policy result:`, policyResult);
-          return policyResult;
-        case "combination":
-          const combinationResult = parsed.map((item: any) => item.suggestion || "");
-          console.log(`Final combination result:`, combinationResult);
-          return combinationResult;
-        case "tools":
-          const toolsResult = parsed.map((item: any) => item.toolName || item.tool_name || "");
-          console.log(`Final tools result:`, toolsResult);
-          return toolsResult;
-        default:
-          const defaultResult = parsed.map((item: any) => item || "");
-          console.log(`Final default result:`, defaultResult);
-          return defaultResult;
+      // ✅ 유연한 매핑: 객체의 모든 값을 조합하여 의미있는 문자열 생성
+      const results = parsed.map((item: any, index: number) => {
+        // 이미 문자열인 경우
+        if (typeof item === "string" && item.trim().length > 0) {
+          return item.trim();
+        }
+
+        // 객체인 경우 값들을 조합
+        if (typeof item === "object" && item !== null) {
+          const values = Object.values(item)
+            .filter((val) => typeof val === "string" && val.trim().length > 0)
+            .map((val) => (val as string).trim());
+
+          if (values.length >= 2) {
+            // "활용분야: 세부내용" 형식으로 조합
+            return `${values[0]}: ${values.slice(1).join(" ")}`;
+          } else if (values.length === 1) {
+            return values[0];
+          } else {
+            // 값이 없으면 키-값 쌍을 문자열로 변환
+            const keyValuePairs = Object.entries(item)
+              .filter(
+                ([key, value]) =>
+                  typeof value === "string" && value.trim().length > 0
+              )
+              .map(([key, value]) => `${key}: ${value}`)
+              .join(", ");
+
+            return keyValuePairs || JSON.stringify(item);
+          }
+        }
+
+        // 기타 타입의 경우
+        if (item !== null && item !== undefined) {
+          return String(item);
+        }
+
+        // 마지막 폴백
+        return `${this.getAnalysisTypeKorean(type)} ${index + 1}`;
+      });
+
+      // 빈 결과 필터링 및 최종 검증
+      const filteredResults = results.filter(
+        (result) =>
+          result && typeof result === "string" && result.trim().length > 0
+      );
+
+      if (filteredResults.length === 0) {
+        return [
+          `${this.getAnalysisTypeKorean(type)} 1`,
+          `${this.getAnalysisTypeKorean(type)} 2`,
+          `${this.getAnalysisTypeKorean(type)} 3`,
+        ];
       }
+
+      console.log(`🎯 Final ${type} result:`, filteredResults);
+      return filteredResults;
     } catch (error) {
-      console.error(`Error parsing ${type} analysis:`, error);
+      console.error(`💥 Error parsing ${type} analysis:`, error);
       return [
-        `${type} 분석 결과 1`,
-        `${type} 분석 결과 2`,
-        `${type} 분석 결과 3`,
+        `${this.getAnalysisTypeKorean(type)} 분석 중 오류 발생`,
+        `오류 내용: ${error instanceof Error ? error.message : String(error)}`,
+        `기본 ${this.getAnalysisTypeKorean(type)} 방안`,
       ];
     }
+  }
+
+  /**
+   * 분석 타입을 한국어로 변환
+   */
+  private getAnalysisTypeKorean(type: string): string {
+    const typeMap = {
+      business: "비즈니스 활용방안",
+      research: "연구 활용방안",
+      policy: "정책 활용방안",
+      combination: "데이터 결합 제안",
+      tools: "분석 도구 추천",
+    };
+    return typeMap[type as keyof typeof typeMap] || `${type} 분석`;
   }
 
   private formatResults(results: any) {
