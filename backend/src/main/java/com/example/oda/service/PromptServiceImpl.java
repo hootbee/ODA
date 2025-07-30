@@ -1,6 +1,7 @@
 // backend/src/main/java/com/example/oda/service/PromptServiceImpl.java
 package com.example.oda.service;
 
+import com.example.oda.dto.QueryPlanDto;
 import com.example.oda.entity.PublicData;
 import com.example.oda.repository.PublicDataRepository;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -32,6 +33,7 @@ public class PromptServiceImpl implements PromptService {
 
     private final PublicDataRepository publicDataRepository;
     private final AiModelService aiModelService;
+    private final QueryPlannerService queryPlannerService; // QueryPlannerService 주입
 
     // 지역명 목록 (지역 키워드 식별용)
     private static final String[] REGION_KEYWORDS = {
@@ -39,9 +41,10 @@ public class PromptServiceImpl implements PromptService {
             "경기", "강원", "충북", "충남", "전북", "전남", "경북", "경남", "제주"
     };
 
-    public PromptServiceImpl(PublicDataRepository publicDataRepository, AiModelService aiModelService) {
+    public PromptServiceImpl(PublicDataRepository publicDataRepository, AiModelService aiModelService, QueryPlannerService queryPlannerService) {
         this.publicDataRepository = publicDataRepository;
         this.aiModelService = aiModelService;
+        this.queryPlannerService = queryPlannerService;
     }
 
     @Override
@@ -72,19 +75,15 @@ public class PromptServiceImpl implements PromptService {
 
         log.info("일반 검색 모드로 진행");
 
-        // 기존 검색 로직
-        return aiModelService.getQueryPlan(prompt)
-                .flatMap(queryPlan -> {
-                    JsonNode data = queryPlan.get("data");
-                    String majorCategory = data.get("majorCategory").asText();
-                    List<String> keywords = new ArrayList<>();
-                    data.get("keywords").forEach(node -> keywords.add(node.asText()));
+        // AI 모델을 통한 쿼리 플랜 생성 대신 로컬 QueryPlannerService 사용
+        QueryPlanDto queryPlan = queryPlannerService.createQueryPlan(prompt);
 
-                    // ⭐ 프롬프트에서 개수 추출 (개선)
-                    int limit = extractCountFromPrompt(prompt);
-                    if (data.has("limit")) {
-                        limit = Math.min(limit, data.get("limit").asInt());
-                    }
+        // 기존 검색 로직
+        return Mono.just(queryPlan)
+                .flatMap(plan -> {
+                    String majorCategory = plan.getMajorCategory();
+                    List<String> keywords = plan.getKeywords();
+                    int limit = plan.getLimit();
 
                     log.info("원본 프롬프트: {}", prompt);
                     log.info("추출된 키워드: {}", keywords);

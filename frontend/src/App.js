@@ -10,10 +10,12 @@ function App() {
   ]);
   const [inputValue, setInputValue] = useState("");
   const [lastDataName, setLastDataName] = useState(null);
+
+  // 대시보드 카테고리 클릭 처리
   const handleCategorySelect = async (category, fileName) => {
     try {
       const response = await axios.post(
-        "http://localhost:8080/api/data-utilization/single",
+        "http://localhost:8080/api/data-utilization/single", // ✅ 3001로 수정
         { dataInfo: { fileName }, analysisType: category }
       );
 
@@ -24,7 +26,6 @@ function App() {
         )} 상세 분석:\n\n${response.data.join("\n\n")}`,
         sender: "bot",
       };
-
       setMessages((prevMessages) => [...prevMessages, botMessage]);
     } catch (error) {
       console.error("Error fetching category details:", error);
@@ -52,7 +53,7 @@ function App() {
     setMessages((prevMessages) => [...prevMessages, userMessage]);
     setInputValue("");
 
-    // ✅ 1. 전체 활용 방안 요청 확인 (누락된 부분 추가)
+    // 전체 활용방안 요청 확인
     const isFullUtilizationRequest =
       ["전체 활용", "모든 활용", "활용방안 전체", "활용 전부"].some((keyword) =>
         prompt.includes(keyword)
@@ -64,7 +65,7 @@ function App() {
     if (lastDataName && isFullUtilizationRequest) {
       try {
         const response = await axios.post(
-          "http://localhost:8080/api/data-utilization/full",
+          "http://localhost:8080/api/data-utilization/full", // ✅ 3001로 수정
           { dataInfo: { fileName: lastDataName }, analysisType: "all" }
         );
 
@@ -76,7 +77,6 @@ function App() {
           data: response.data,
           fileName: lastDataName,
         };
-
         setMessages((prevMessages) => [...prevMessages, botMessage]);
       } catch (error) {
         console.error("Error fetching full utilization data:", error);
@@ -90,7 +90,7 @@ function App() {
       return;
     }
 
-    // ✅ 2. 단일 활용 방안 요청 확인
+    // 단일 활용방안 요청 확인
     const isUtilizationRequest = [
       "활용",
       "방안",
@@ -112,7 +112,7 @@ function App() {
       if (analysisType) {
         try {
           const response = await axios.post(
-            "http://localhost:8080/api/data-utilization/single",
+            "http://localhost:8080/api/data-utilization/single", // ✅ 3001로 수정
             { dataInfo: { fileName: lastDataName }, analysisType }
           );
 
@@ -123,7 +123,6 @@ function App() {
             )} 상세 분석 결과:\n\n${response.data.join("\n\n")}`,
             sender: "bot",
           };
-
           setMessages((prevMessages) => [...prevMessages, botMessage]);
         } catch (error) {
           console.error("Error fetching single utilization data:", error);
@@ -145,14 +144,13 @@ function App() {
       return;
     }
 
-    // 3. 상세 정보 요청 확인
+    // 상세 정보 요청 확인
     const isDetailRequest =
       prompt.includes("상세") || prompt.includes("자세히");
-
     if (isDetailRequest) {
       try {
         const response = await axios.post(
-          "http://localhost:8080/api/data-details",
+          "http://localhost:8080/api/data-details", // ✅ 3001로 수정
           { prompt: prompt }
         );
 
@@ -185,39 +183,39 @@ function App() {
         };
         setMessages((prevMessages) => [...prevMessages, errorMessage]);
       }
-    } else {
-      // 4. 일반 데이터 추천 요청
-      try {
-        const response = await axios.post("http://localhost:8080/api/prompt", {
-          prompt: prompt,
-        });
+      return;
+    }
 
-        const responseData = response.data;
-        const botResponseText = Array.isArray(responseData)
-          ? responseData.join("\n")
-          : responseData;
+    // 일반 데이터 추천 요청
+    try {
+      const response = await axios.post(
+        "http://localhost:8080/api/prompt", // ✅ 3001로 수정
+        { prompt: prompt }
+      );
 
-        const botMessage = {
-          id: Date.now() + 1,
-          text: botResponseText,
-          sender: "bot",
-        };
+      const responseData = response.data;
+      const botResponseText = Array.isArray(responseData)
+        ? responseData.join("\n")
+        : responseData;
 
-        setMessages((prevMessages) => [...prevMessages, botMessage]);
-        setLastDataName(null);
-      } catch (error) {
-        console.error("Error sending prompt to backend:", error);
-        const errorResponse = {
-          id: Date.now() + 1,
-          text: "백엔드와 통신 중 오류가 발생했습니다.",
-          sender: "bot",
-        };
-        setMessages((prevMessages) => [...prevMessages, errorResponse]);
-      }
+      const botMessage = {
+        id: Date.now() + 1,
+        text: botResponseText,
+        sender: "bot",
+      };
+      setMessages((prevMessages) => [...prevMessages, botMessage]);
+      setLastDataName(null);
+    } catch (error) {
+      console.error("Error sending prompt to backend:", error);
+      const errorResponse = {
+        id: Date.now() + 1,
+        text: "백엔드와 통신 중 오류가 발생했습니다.",
+        sender: "bot",
+      };
+      setMessages((prevMessages) => [...prevMessages, errorResponse]);
     }
   };
 
-  // ✅ 헬퍼 함수 추가
   const getAnalysisTypeKorean = (type) => {
     const typeMap = {
       business: "💼 비즈니스 활용방안",

@@ -53,7 +53,7 @@ public class GeminiService implements AiModelService {
         Map<String, Object> requestBody = Map.of("dataInfo", dataInfo);
 
         return webClient.post()
-                .uri("/api/ai/data/utilization") // AI 서비스의 엔드포인트
+                .uri("/api/data-utilization/full") // AI 서비스의 엔드포인트
                 .header("Content-Type", "application/json")
                 .bodyValue(requestBody)
                 .retrieve()
@@ -78,7 +78,7 @@ public class GeminiService implements AiModelService {
         );
 
         return webClient.post()
-                .uri("/api/ai/data/utilization/single") // AI 서비스의 단일 활용 방안 엔드포인트
+                .uri("/api/data-utilization/single") // AI 서비스의 단일 활용 방안 엔드포인트
                 .header("Content-Type", "application/json")
                 .bodyValue(requestBody)
                 .retrieve()
