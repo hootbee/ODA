@@ -15,7 +15,7 @@ function App() {
   const handleCategorySelect = async (category, fileName) => {
     try {
       const response = await axios.post(
-        "http://localhost:8080/api/data-utilization/single", // ✅ 3001로 수정
+        "http://localhost:8080/api/data-utilization/single",
         { dataInfo: { fileName }, analysisType: category }
       );
 
@@ -53,6 +53,57 @@ function App() {
     setMessages((prevMessages) => [...prevMessages, userMessage]);
     setInputValue("");
 
+    // ✅ CSV 조회 요청 확인 (새로 추가)
+    const isCsvRequest = [
+      "CSV 조회",
+      "csv",
+      "실제 데이터",
+      "데이터 조회",
+      "원본 데이터",
+    ].some((keyword) => prompt.toLowerCase().includes(keyword.toLowerCase()));
+
+    if (lastDataName && isCsvRequest) {
+      try {
+        const loadingMessage = {
+          id: Date.now() + 1,
+          text: "📊 공공데이터 포털에서 실제 데이터를 가져오고 있습니다...",
+          sender: "bot",
+        };
+        setMessages((prevMessages) => [...prevMessages, loadingMessage]);
+
+        const response = await axios.post(
+          "http://localhost:8080/api/data-access/real",
+          { fileName: lastDataName }
+        );
+
+        const csvMessage = {
+          id: Date.now() + 2,
+          text: "✅ 실제 데이터를 성공적으로 가져왔습니다!",
+          sender: "bot",
+          type: "csv-viewer",
+          data: response.data,
+          fileName: lastDataName,
+        };
+
+        setMessages((prevMessages) => [
+          ...prevMessages.slice(0, -1),
+          csvMessage,
+        ]);
+      } catch (error) {
+        console.error("Error fetching CSV data:", error);
+        const errorMessage = {
+          id: Date.now() + 2,
+          text: "❌ 실제 데이터를 가져오는 데 실패했습니다. 공공데이터 포털 접근 문제일 수 있습니다.",
+          sender: "bot",
+        };
+        setMessages((prevMessages) => [
+          ...prevMessages.slice(0, -1),
+          errorMessage,
+        ]);
+      }
+      return;
+    }
+
     // 전체 활용방안 요청 확인
     const isFullUtilizationRequest =
       ["전체 활용", "모든 활용", "활용방안 전체", "활용 전부"].some((keyword) =>
@@ -65,7 +116,7 @@ function App() {
     if (lastDataName && isFullUtilizationRequest) {
       try {
         const response = await axios.post(
-          "http://localhost:8080/api/data-utilization/full", // ✅ 3001로 수정
+          "http://localhost:8080/api/data-utilization/full",
           { dataInfo: { fileName: lastDataName }, analysisType: "all" }
         );
 
@@ -112,7 +163,7 @@ function App() {
       if (analysisType) {
         try {
           const response = await axios.post(
-            "http://localhost:8080/api/data-utilization/single", // ✅ 3001로 수정
+            "http://localhost:8080/api/data-utilization/single",
             { dataInfo: { fileName: lastDataName }, analysisType }
           );
 
@@ -150,7 +201,7 @@ function App() {
     if (isDetailRequest) {
       try {
         const response = await axios.post(
-          "http://localhost:8080/api/data-details", // ✅ 3001로 수정
+          "http://localhost:8080/api/data-details",
           { prompt: prompt }
         );
 
@@ -160,16 +211,17 @@ function App() {
           sender: "bot",
         };
 
-        const followUpMessage = {
+        // ✅ CSV 조회 제안 메시지 추가
+        const csvSuggestionMessage = {
           id: Date.now() + 2,
-          text: `💡 이 데이터에 대해 더 알고 싶으시다면:\n\n• "전체 활용" - 모든 활용방안 대시보드\n• "비즈니스 활용" - 수익 창출 아이디어\n• "연구 활용" - 학술 연구 방향\n• "정책 활용" - 공공 정책 제안`,
+          text: `💡 더 자세한 분석을 원하신다면:\n\n📊 **해당 CSV를 조회하시겠어요?**\n공공데이터 포털에서 실제 데이터를 가져와서 구체적인 분석이 가능합니다.\n\n• "CSV 조회" - 실제 데이터 테이블 보기 📋\n• "전체 활용" - 모든 활용방안 대시보드 🔍\n• "비즈니스 활용" - 수익 창출 아이디어 💼\n• "연구 활용" - 학술 연구 방향 🔬\n• "정책 활용" - 공공 정책 제안 🏛️`,
           sender: "bot",
         };
 
         setMessages((prevMessages) => [
           ...prevMessages,
           botMessage,
-          followUpMessage,
+          csvSuggestionMessage, // ✅ 자연스럽게 CSV 조회 제안
         ]);
 
         const fileName = prompt.replace(/상세|자세히/g, "").trim();
@@ -188,10 +240,9 @@ function App() {
 
     // 일반 데이터 추천 요청
     try {
-      const response = await axios.post(
-        "http://localhost:8080/api/prompt", // ✅ 3001로 수정
-        { prompt: prompt }
-      );
+      const response = await axios.post("http://localhost:8080/api/prompt", {
+        prompt: prompt,
+      });
 
       const responseData = response.data;
       const botResponseText = Array.isArray(responseData)
