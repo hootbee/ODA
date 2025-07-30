@@ -11,6 +11,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Mono;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @CrossOrigin(origins = {"http://localhost:3000", "http://localhost:3001"}) // React 앱과 Node.js 프록시 모두 허용
@@ -64,5 +65,30 @@ public class PromptController {
         return promptService.getFullUtilizationRecommendations(requestDto)
                 .map(recommendations -> ResponseEntity.ok(recommendations))
                 .defaultIfEmpty(ResponseEntity.notFound().build());
+    }
+
+    /**
+     * ✅ 새로 추가: CSV 실제 데이터 조회 (MCP 연동)
+     * 팀원이 구현할 부분: MCP를 통한 공공데이터 포털 연동
+     */
+    public Mono<JsonNode> getRealCSVData(String fileName) {
+        Map<String, String> requestBody = Map.of("fileName", fileName);
+
+        return null;
+    }
+
+    /**
+     * ✅ 새로 추가: CSV 데이터 분석
+     * 팀원이 구현할 부분: 실제 CSV 데이터 기반 AI 분석
+     */
+    @PostMapping("/api/data-analysis/csv")
+    public Mono<ResponseEntity<JsonNode>> analyzeCSVData(@RequestBody Map<String, Object> request) {
+        String fileName = (String) request.get("fileName");
+        JsonNode csvData = (JsonNode) request.get("csvData");
+        String analysisType = (String) request.get("analysisType");
+
+        // TODO: 팀원이 구현 - 요청 파라미터 검증
+
+        return null;
     }
 }
