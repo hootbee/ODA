@@ -23,7 +23,7 @@ const MainPage = () => {
   const handleStartChat = () => {
     // App.js가 챗봇 메인 화면이라고 가정하고, App.js가 있는 기본 경로로 이동합니다.
     // 만약 챗봇 페이지가 별도의 경로(예: /chat)에 있다면 그에 맞게 수정해야 합니다.
-    navigate('/');
+    navigate('/chat');
   };
 
   const togglePopup = () => {

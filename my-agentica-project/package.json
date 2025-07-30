@@ -67,7 +67,8 @@
     "@wrtnlabs/connector-youtube-search": "^0.1.506",
     "@wrtnlabs/connector-youtube-transcript": "^0.1.506",
     "@wrtnlabs/connector-zoom": "^0.1.506",
-    "dotenv": "^16.4.7",
+    "axios": "^1.11.0",
+    "dotenv": "^16.6.1",
     "express": "^5.1.0",
     "openai": "^5.10.2",
     "typia": "^9.6.0"

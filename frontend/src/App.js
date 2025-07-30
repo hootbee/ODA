@@ -1,14 +1,13 @@
 import React from 'react';
 import { Routes, Route } from 'react-router-dom';
-import styled from 'styled-components';
 import MainPage from './pages/MainPage';
-import ChatComponent from './components/ChatComponent'; // 기존 App.js 내용을 옮길 컴포넌트
+import ChatPage from './pages/ChatPage'; // 경로 및 이름 변경
 
 function App() {
   return (
     <Routes>
-      <Route path="/" element={<ChatComponent />} />
-      <Route path="/main" element={<MainPage />} />
+      <Route path="/" element={<MainPage />} />      {/* 기본 경로를 MainPage로 */}
+      <Route path="/chat" element={<ChatPage />} />  {/* /chat 경로를 ChatPage로 */}
     </Routes>
   );
 }

@@ -1,10 +1,10 @@
 import React, { useState } from "react";
 import styled from "styled-components";
-import MessageList from "./MessageList";
-import MessageForm from "./MessageForm";
+import MessageList from "../components/MessageList.js";
+import MessageForm from "../components/MessageForm.js";
 import axios from "axios";
 
-const ChatComponent = () => {
+const ChatPage = () => {
   const [messages, setMessages] = useState([
     { id: 1, text: "안녕하세요! 무엇을 도와드릴까요?", sender: "bot" },
   ]);
@@ -293,7 +293,7 @@ const ChatComponent = () => {
       </ChatWindow>
     </AppContainer>
   );
-}
+};
 
 // ============== Styled Components ===============
 
@@ -317,4 +317,4 @@ const ChatWindow = styled.div`
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
 `;
 
-export default ChatComponent;
+export default ChatPage;
