@@ -4,6 +4,9 @@ package com.example.oda.service;
 import com.example.oda.entity.PublicData;
 import com.example.oda.repository.PublicDataRepository;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -573,54 +576,6 @@ public class PromptServiceImpl implements PromptService {
         }
         return false;
     }
-
-    /**
-     * 키워드별 검색 결과 통계 로깅 (디버깅용)
-     */
-//    private void logSearchStatistics(List<String> keywords, List<PublicData> results) {
-//        if (!log.isDebugEnabled()) return;
-//
-//        log.debug("=== 검색 통계 ===");
-//        log.debug("총 키워드 수: {}", keywords.size());
-//        log.debug("총 검색 결과: {}개", results.size());
-//
-//        for (String keyword : keywords) {
-//            long matchCount = results.stream()
-//                    .filter(item -> {
-//                        String lowerKeyword = keyword.toLowerCase();
-//                        String dataName = item.getFileDataName() != null ? item.getFileDataName().toLowerCase() : "";
-//                        String dataKeywords = item.getKeywords() != null ? item.getKeywords().toLowerCase() : "";
-//                        return dataName.contains(lowerKeyword) || dataKeywords.contains(lowerKeyword);
-//                    })
-//                    .count();
-//            log.debug("키워드 '{}': {}개 매칭", keyword, matchCount);
-//        }
-//
-//        results.stream()
-//                .collect(Collectors.groupingBy(
-//                        item -> item.getClassificationSystem() != null ?
-//                                item.getClassificationSystem().split(" - ")[0] : "기타",
-//                        Collectors.counting()))
-//                .forEach((category, count) ->
-//                        log.debug("분류 '{}': {}개", category, count));
-//    }
-
-    /**
-     * 검색 결과 품질 검증
-     */
-//    private boolean isQualityResult(PublicData data, List<String> keywords) {
-//        if (data.getFileDataName() == null || data.getFileDataName().trim().isEmpty()) {
-//            return false;
-//        }
-//
-//        String dataText = (data.getFileDataName() + " " +
-//                (data.getKeywords() != null ? data.getKeywords() : "") + " " +
-//                (data.getTitle() != null ? data.getTitle() : "") + " " +
-//                (data.getDescription() != null ? data.getDescription() : "")).toLowerCase();
-//
-//        return keywords.stream()
-//                .anyMatch(keyword -> dataText.contains(keyword.toLowerCase()));
-//    }
     @Override
     public Mono<String> getUtilizationRecommendations(String fileDataName) {
         return Mono.fromCallable(() -> {
@@ -678,6 +633,74 @@ public class PromptServiceImpl implements PromptService {
             }
             return List.of("❌ 해당 파일명을 찾을 수 없습니다: " + fileName);
         });
+    }
+    @Override
+    public Mono<JsonNode> getFullUtilizationRecommendations(SingleUtilizationRequestDto requestDto) {
+        return Mono.fromCallable(() -> {
+            String fileName = requestDto.getDataInfo().getFileName();
+            log.info("전체 활용 추천 요청: 파일명='{}'", fileName);
+
+            Optional<PublicData> exactMatch = publicDataRepository.findByFileDataName(fileName);
+
+            if (exactMatch.isPresent()) {
+                PublicData data = exactMatch.get();
+                try {
+                    // AI 서비스의 전체 추천 엔드포인트 호출
+                    return aiModelService.getUtilizationRecommendations(data).block();
+                } catch (Exception e) {
+                    log.error("전체 활용 추천 생성 실패", e);
+                    return createDefaultFullRecommendations(data);
+                }
+            }
+
+            // 파일을 찾을 수 없는 경우 에러 응답
+            ObjectMapper mapper = new ObjectMapper();
+            ObjectNode errorNode = mapper.createObjectNode();
+            errorNode.put("error", "파일을 찾을 수 없습니다: " + fileName);
+            return errorNode;
+        });
+    }
+    private JsonNode createDefaultFullRecommendations(PublicData data) {
+        ObjectMapper mapper = new ObjectMapper();
+        ObjectNode result = mapper.createObjectNode();
+        ObjectNode dataNode = mapper.createObjectNode();
+
+        // 기본 추천사항들을 JSON으로 구성
+        ArrayNode businessApps = mapper.createArrayNode();
+        businessApps.add("데이터 기반 비즈니스 서비스 개발");
+        businessApps.add("관련 분야 컨설팅 사업");
+        businessApps.add("정부 사업 입찰 참여");
+
+        ArrayNode researchApps = mapper.createArrayNode();
+        researchApps.add("현황 분석 및 트렌드 연구");
+        researchApps.add("정책 효과성 분석");
+        researchApps.add("지역별 비교 연구");
+
+        ArrayNode policyApps = mapper.createArrayNode();
+        policyApps.add("정책 수립 근거 자료");
+        policyApps.add("예산 배분 참고");
+        policyApps.add("성과 평가 지표");
+
+        ArrayNode combinations = mapper.createArrayNode();
+        combinations.add("인구 통계 데이터");
+        combinations.add("경제 지표 데이터");
+        combinations.add("지리 정보 데이터");
+
+        ArrayNode tools = mapper.createArrayNode();
+        tools.add("Excel/Google Sheets");
+        tools.add("Python pandas");
+        tools.add("R 통계 분석");
+
+        dataNode.set("businessApplications", businessApps);
+        dataNode.set("researchApplications", researchApps);
+        dataNode.set("policyApplications", policyApps);
+        dataNode.set("combinationSuggestions", combinations);
+        dataNode.set("analysisTools", tools);
+
+        result.set("data", dataNode);
+        result.put("success", true);
+
+        return result;
     }
 
     private String formatUtilizationRecommendations(JsonNode response) {

@@ -58,37 +58,68 @@ app.post("/api/ai/query-plan", async (req: Request, res: Response) => {
   }
 });
 
-// ⭐ 새로 추가: 데이터 활용 추천 엔드포인트
-// app.post("/api/ai/data/utilization", async (req: Request, res: Response) => {
-//   const { dataInfo } = req.body;
+// server.ts에 추가
+app.post("/api/ai/data/utilization", async (req: Request, res: Response) => {
+  const { dataInfo } = req.body;
 
-//   if (!dataInfo) {
-//     return res.status(400).json({
-//       error: "dataInfo is required",
-//       code: "MISSING_DATA_INFO",
-//     });
-//   }
+  if (!dataInfo) {
+    return res.status(400).json({
+      error: "dataInfo is required",
+      code: "MISSING_DATA_INFO",
+    });
+  }
 
-//   try {
-//     console.log("📊 데이터 활용 추천 요청:", dataInfo.fileName);
+  try {
+    console.log("📊 전체 데이터 활용 추천 요청:", dataInfo.fileName);
 
-//     const result = await publicDataService.generateUtilizationRecommendations(
-//       dataInfo
-//     );
+    const result = await publicDataService.generateUtilizationRecommendations(
+      dataInfo
+    );
 
-//     res.json({
-//       success: true,
-//       data: result,
-//     });
-//   } catch (error) {
-//     console.error("데이터 활용 추천 생성 오류:", error);
-//     res.status(500).json({
-//       error: "Failed to generate utilization recommendations",
-//       code: "UTILIZATION_ERROR",
-//       message: getErrorMessage(error), // ⭐ 타입 안전한 에러 메시지
-//     });
-//   }
-// });
+    // ✅ 전체 구조화된 응답
+    res.json({
+      success: true,
+      data: result,
+      meta: {
+        fileName: dataInfo.fileName,
+        generatedAt: new Date().toISOString(),
+        totalCategories: 5,
+      },
+    });
+  } catch (error) {
+    console.error("전체 데이터 활용 추천 생성 오류:", error);
+    res.status(500).json({
+      error: "Failed to generate utilization recommendations",
+      code: "UTILIZATION_ERROR",
+      message: getErrorMessage(error),
+    });
+  }
+});
+
+app.post("/api/data-utilization/full", async (req, res) => {
+  const { dataInfo } = req.body;
+  if (!dataInfo) {
+    return res.status(400).json({
+      error: "dataInfo is required",
+      code: "MISSING_DATA_INFO",
+    });
+  }
+  try {
+    const result = await publicDataService.generateUtilizationRecommendations(
+      dataInfo
+    );
+    res.json({
+      success: true,
+      data: result,
+    });
+  } catch (error) {
+    res.status(500).json({
+      error: "Failed to generate utilization recommendations",
+      code: "UTILIZATION_ERROR",
+      message: getErrorMessage(error),
+    });
+  }
+});
 
 // ⭐ 새로 추가: 단일 데이터 활용 추천 엔드포인트
 app.post(
