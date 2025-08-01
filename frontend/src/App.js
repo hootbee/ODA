@@ -1,14 +1,25 @@
 import React from 'react';
 import { Routes, Route } from 'react-router-dom';
+import { AuthProvider } from './context/AuthContext';
 import MainPage from './pages/MainPage';
-import ChatPage from './pages/ChatPage'; // 경로 및 이름 변경
+import ChatPage from './pages/ChatPage';
+import LoginPage from './pages/LoginPage';
+import AuthCallback from './pages/AuthCallback';
+import ProfilePage from './pages/ProfilePage';
+import Navbar from './components/Navbar';
 
 function App() {
   return (
-    <Routes>
-      <Route path="/" element={<MainPage />} />      {/* 기본 경로를 MainPage로 */}
-      <Route path="/chat" element={<ChatPage />} />  {/* /chat 경로를 ChatPage로 */}
-    </Routes>
+    <AuthProvider>
+      <Navbar />
+      <Routes>
+        <Route path="/" element={<MainPage />} />
+        <Route path="/chat" element={<ChatPage />} />
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/auth/callback" element={<AuthCallback />} />
+        <Route path="/profile" element={<ProfilePage />} />
+      </Routes>
+    </AuthProvider>
   );
 }
 
