@@ -7,6 +7,11 @@ import axios from "axios";
 const ChatPage = () => {
   const [messages, setMessages] = useState([
     { id: 1, text: "안녕하세요! 무엇을 도와드릴까요?", sender: "bot" },
+    {
+      id: 2,
+      text: "저는 공공 데이터를 쉽게 찾고 활용할 수 있도록 돕는 AI 챗봇입니다.\n\n예를 들어, '부산시 주차장 데이터 보여줘' 또는 '서울시 미세먼지 관련 데이터 찾아줘' 와 같이 질문해보세요.",
+      sender: "bot",
+    },
   ]);
   const [inputValue, setInputValue] = useState("");
   const [lastDataName, setLastDataName] = useState(null);
@@ -105,9 +110,12 @@ const ChatPage = () => {
     }
 
     // 전체 활용방안 요청 확인 (조건 강화)
-    const isFullUtilizationRequest = ["전체 활용", "모든 활용", "활용방안 전체", "활용 전부"].some((keyword) =>
-      prompt.includes(keyword)
-    );
+    const isFullUtilizationRequest = [
+      "전체 활용",
+      "모든 활용",
+      "활용방안 전체",
+      "활용 전부",
+    ].some((keyword) => prompt.includes(keyword));
 
     if (lastDataName && isFullUtilizationRequest) {
       try {
@@ -189,7 +197,18 @@ const ChatPage = () => {
         // ✅ CSV 조회 제안 메시지 추가
         const csvSuggestionMessage = {
           id: Date.now() + 2,
-          text: `💡 더 자세한 분석을 원하신다면:\n\n📊 **해당 CSV를 조회하시겠어요?**\n공공데이터 포털에서 실제 데이터를 가져와서 구체적인 분석이 가능합니다.\n\n• "CSV 조회" - 실제 데이터 테이블 보기 📋\n• "전체 활용" - 모든 활용방안 대시보드 🔍\n• "비즈니스 활용" - 수익 창출 아이디어 💼\n• "연구 활용" - 학술 연구 방향 🔬\n• "정책 활용" - 공공 정책 제안 🏛️`,
+          text: `💡 더 자세한 분석을 원하신다면:
+
+📊 **해당 CSV를 조회하시겠어요?**
+공공데이터 포털에서 실제 데이터를 가져와서 구체적인 분석이 가능합니다.
+
+• "CSV 조회" - 실제 데이터 접근하기 📋
+• "전체 활용" - 모든 활용방안 대시보드 🔍
+• "비즈니스 활용" - 수익 창출 아이디어 💼
+• "연구 활용" - 학술 연구 방향 🔬
+• "정책 활용" - 공공 정책 제안 🏛️
+
+💬 또는, "이 데이터를 우리 동네 마케팅에 어떻게 활용할 수 있을까?" 와 같이 자유롭게 질문해보세요!`,
           sender: "bot",
         };
 
