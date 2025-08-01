@@ -228,18 +228,18 @@ public class PromptServiceImpl implements PromptService {
     /**
      * ⭐ 프롬프트에서 개수 추출
      */
-    private int extractCountFromPrompt(String prompt) {
-        Pattern countPattern = Pattern.compile("(\\d+)개");
-        Matcher matcher = countPattern.matcher(prompt);
-
-        if (matcher.find()) {
-            int count = Integer.parseInt(matcher.group(1));
-            log.info("프롬프트에서 추출된 개수: {}", count);
-            return Math.min(count, 30); // 최대 30개 제한
-        }
-
-        return 12; // 기본값
-    }
+//    private int extractCountFromPrompt(String prompt) {
+//        Pattern countPattern = Pattern.compile("(\\d+)개");
+//        Matcher matcher = countPattern.matcher(prompt);
+//
+//        if (matcher.find()) {
+//            int count = Integer.parseInt(matcher.group(1));
+//            log.info("프롬프트에서 추출된 개수: {}", count);
+//            return Math.min(count, 30); // 최대 30개 제한
+//        }
+//
+//        return 12; // 기본값
+//    }
 
     /**
      * ⭐ 데이터 상세 정보 조회
@@ -264,26 +264,26 @@ public class PromptServiceImpl implements PromptService {
     /**
      * 문자열 유사도 계산 (편집 거리)
      */
-    private int calculateSimilarity(String s1, String s2) {
-        int[][] dp = new int[s1.length() + 1][s2.length() + 1];
-
-        for (int i = 0; i <= s1.length(); i++) {
-            for (int j = 0; j <= s2.length(); j++) {
-                if (i == 0) {
-                    dp[i][j] = j;
-                } else if (j == 0) {
-                    dp[i][j] = i;
-                } else {
-                    dp[i][j] = Math.min(
-                            Math.min(dp[i-1][j] + 1, dp[i][j-1] + 1),
-                            dp[i-1][j-1] + (s1.charAt(i-1) == s2.charAt(j-1) ? 0 : 1)
-                    );
-                }
-            }
-        }
-
-        return dp[s1.length()][s2.length()];
-    }
+//    private int calculateSimilarity(String s1, String s2) {
+//        int[][] dp = new int[s1.length() + 1][s2.length() + 1];
+//
+//        for (int i = 0; i <= s1.length(); i++) {
+//            for (int j = 0; j <= s2.length(); j++) {
+//                if (i == 0) {
+//                    dp[i][j] = j;
+//                } else if (j == 0) {
+//                    dp[i][j] = i;
+//                } else {
+//                    dp[i][j] = Math.min(
+//                            Math.min(dp[i-1][j] + 1, dp[i][j-1] + 1),
+//                            dp[i-1][j-1] + (s1.charAt(i-1) == s2.charAt(j-1) ? 0 : 1)
+//                    );
+//                }
+//            }
+//        }
+//
+//        return dp[s1.length()][s2.length()];
+//    }
 
 
     /**
@@ -575,42 +575,42 @@ public class PromptServiceImpl implements PromptService {
         }
         return false;
     }
-    @Override
-    public Mono<String> getUtilizationRecommendations(String fileDataName) {
-        return Mono.fromCallable(() -> {
-            log.info("활용 추천 요청: '{}'", fileDataName);
-            
-            // 데이터 조회
-            Optional<PublicData> exactMatch = publicDataRepository.findByFileDataName(fileDataName);
-            
-            if (exactMatch.isPresent()) {
-                PublicData data = exactMatch.get();
-                
-                // AI 서비스에 활용 추천 요청
-                try {
-                    JsonNode response = aiModelService.getUtilizationRecommendations(data).block();
-                    return formatUtilizationRecommendations(response);
-                } catch (Exception e) {
-                    log.error("활용 추천 생성 실패", e);
-                    return getDefaultUtilizationRecommendations(data);
-                }
-            }
-            
-            // 부분 매칭 시도
-            List<PublicData> partialMatches = publicDataRepository.findByFileDataNameContaining(fileDataName);
-            if (!partialMatches.isEmpty()) {
-                PublicData bestMatch = partialMatches.get(0);
-                try {
-                    JsonNode response = aiModelService.getUtilizationRecommendations(bestMatch).block();
-                    return formatUtilizationRecommendations(response);
-                } catch (Exception e) {
-                    return getDefaultUtilizationRecommendations(bestMatch);
-                }
-            }
-            
-            return "❌ 해당 파일명을 찾을 수 없습니다: " + fileDataName;
-        });
-    }
+//    @Override
+//    public Mono<String> getUtilizationRecommendations(String fileDataName) {
+//        return Mono.fromCallable(() -> {
+//            log.info("활용 추천 요청: '{}'", fileDataName);
+//
+//            // 데이터 조회
+//            Optional<PublicData> exactMatch = publicDataRepository.findByFileDataName(fileDataName);
+//
+//            if (exactMatch.isPresent()) {
+//                PublicData data = exactMatch.get();
+//
+//                // AI 서비스에 활용 추천 요청
+//                try {
+//                    JsonNode response = aiModelService.getUtilizationRecommendations(data).block();
+//                    return formatUtilizationRecommendations(response);
+//                } catch (Exception e) {
+//                    log.error("활용 추천 생성 실패", e);
+//                    return getDefaultUtilizationRecommendations(data);
+//                }
+//            }
+//
+//            // 부분 매칭 시도
+//            List<PublicData> partialMatches = publicDataRepository.findByFileDataNameContaining(fileDataName);
+//            if (!partialMatches.isEmpty()) {
+//                PublicData bestMatch = partialMatches.get(0);
+//                try {
+//                    JsonNode response = aiModelService.getUtilizationRecommendations(bestMatch).block();
+//                    return formatUtilizationRecommendations(response);
+//                } catch (Exception e) {
+//                    return getDefaultUtilizationRecommendations(bestMatch);
+//                }
+//            }
+//
+//            return "❌ 해당 파일명을 찾을 수 없습니다: " + fileDataName;
+//        });
+//    }
 
     @Override
     public Mono<List<String>> getSingleUtilizationRecommendation(SingleUtilizationRequestDto requestDto) {
@@ -703,22 +703,22 @@ public class PromptServiceImpl implements PromptService {
         return result;
     }
 
-    private String formatUtilizationRecommendations(JsonNode response) {
-        StringBuilder utilization = new StringBuilder();
-
-        utilization.append("💡 데이터 활용 추천\n")
-                   .append("═".repeat(50)).append("\n\n");
-
-        JsonNode data = response.get("data");
-        if (data != null) {
-            // 공통 메서드를 사용하여 각 섹션 처리
-            appendSection(utilization, "🏢 비즈니스 활용 방안", data.get("businessApplications"));
-            appendSection(utilization, "🔬 연구 활용 방안", data.get("researchApplications"));
-            appendSection(utilization, "🏛️ 정책 활용 방안", data.get("policyApplications"));
-        }
-
-        return utilization.toString();
-    }
+//    private String formatUtilizationRecommendations(JsonNode response) {
+//        StringBuilder utilization = new StringBuilder();
+//
+//        utilization.append("💡 데이터 활용 추천\n")
+//                   .append("═".repeat(50)).append("\n\n");
+//
+//        JsonNode data = response.get("data");
+//        if (data != null) {
+//            // 공통 메서드를 사용하여 각 섹션 처리
+//            appendSection(utilization, "🏢 비즈니스 활용 방안", data.get("businessApplications"));
+//            appendSection(utilization, "🔬 연구 활용 방안", data.get("researchApplications"));
+//            appendSection(utilization, "🏛️ 정책 활용 방안", data.get("policyApplications"));
+//        }
+//
+//        return utilization.toString();
+//    }
 
     private void appendSection(StringBuilder builder, String title, JsonNode applications) {
         builder.append(title).append(":\n");
@@ -730,51 +730,51 @@ public class PromptServiceImpl implements PromptService {
         builder.append("\n");
     }
 
-    private String getDefaultUtilizationRecommendations(PublicData data) {
-        StringBuilder utilization = new StringBuilder();
-
-        utilization.append("💡 데이터 활용 추천\n");
-        utilization.append("═".repeat(50)).append("\n\n");
-
-        // 분류에 따른 기본 추천
-        String category = data.getClassificationSystem() != null ? data.getClassificationSystem().toLowerCase() : "";
-
-        utilization.append("🏢 비즈니스 활용 방안:\n");
-        if (category.contains("환경")) {
-            utilization.append("  • 환경 컨설팅 서비스 개발\n");
-            utilization.append("  • 환경 모니터링 솔루션 구축\n");
-            utilization.append("  • 친환경 제품 개발 근거 자료\n");
-        } else if (category.contains("교통")) {
-            utilization.append("  • 교통 최적화 서비스 개발\n");
-            utilization.append("  • 스마트 시티 솔루션 구축\n");
-            utilization.append("  • 교통 안전 컨설팅 서비스\n");
-        } else {
-            utilization.append("  • 데이터 기반 서비스 개발\n");
-            utilization.append("  • 관련 분야 컨설팅 서비스\n");
-            utilization.append("  • 정부 사업 입찰 시 활용\n");
-        }
-        utilization.append("\n");
-
-        utilization.append("🔬 연구 활용 방안:\n");
-        utilization.append("  • 현황 분석 및 트렌드 연구\n");
-        utilization.append("  • 정책 효과성 분석 연구\n");
-        utilization.append("  • 지역별 비교 연구\n\n");
-
-        utilization.append("🏛️ 정책 활용 방안:\n");
-        utilization.append("  • 정책 수립 근거 자료로 활용\n");
-        utilization.append("  • 예산 배분 참고 자료\n");
-        utilization.append("  • 성과 평가 지표 개발\n\n");
-
-        utilization.append("🔗 데이터 결합 제안:\n");
-        utilization.append("  • 인구 통계 데이터와 결합\n");
-        utilization.append("  • 경제 지표와 상관관계 분석\n");
-        utilization.append("  • 지리 정보와 공간 분석\n\n");
-
-        utilization.append("🛠️ 추천 분석 도구:\n");
-        utilization.append("  • Excel 및 Google Sheets\n");
-        utilization.append("  • Python pandas 및 matplotlib\n");
-        utilization.append("  • R 통계 분석 및 시각화\n");
-
-        return utilization.toString();
-    }
+//    private String getDefaultUtilizationRecommendations(PublicData data) {
+//        StringBuilder utilization = new StringBuilder();
+//
+//        utilization.append("💡 데이터 활용 추천\n");
+//        utilization.append("═".repeat(50)).append("\n\n");
+//
+//        // 분류에 따른 기본 추천
+//        String category = data.getClassificationSystem() != null ? data.getClassificationSystem().toLowerCase() : "";
+//
+//        utilization.append("🏢 비즈니스 활용 방안:\n");
+//        if (category.contains("환경")) {
+//            utilization.append("  • 환경 컨설팅 서비스 개발\n");
+//            utilization.append("  • 환경 모니터링 솔루션 구축\n");
+//            utilization.append("  • 친환경 제품 개발 근거 자료\n");
+//        } else if (category.contains("교통")) {
+//            utilization.append("  • 교통 최적화 서비스 개발\n");
+//            utilization.append("  • 스마트 시티 솔루션 구축\n");
+//            utilization.append("  • 교통 안전 컨설팅 서비스\n");
+//        } else {
+//            utilization.append("  • 데이터 기반 서비스 개발\n");
+//            utilization.append("  • 관련 분야 컨설팅 서비스\n");
+//            utilization.append("  • 정부 사업 입찰 시 활용\n");
+//        }
+//        utilization.append("\n");
+//
+//        utilization.append("🔬 연구 활용 방안:\n");
+//        utilization.append("  • 현황 분석 및 트렌드 연구\n");
+//        utilization.append("  • 정책 효과성 분석 연구\n");
+//        utilization.append("  • 지역별 비교 연구\n\n");
+//
+//        utilization.append("🏛️ 정책 활용 방안:\n");
+//        utilization.append("  • 정책 수립 근거 자료로 활용\n");
+//        utilization.append("  • 예산 배분 참고 자료\n");
+//        utilization.append("  • 성과 평가 지표 개발\n\n");
+//
+//        utilization.append("🔗 데이터 결합 제안:\n");
+//        utilization.append("  • 인구 통계 데이터와 결합\n");
+//        utilization.append("  • 경제 지표와 상관관계 분석\n");
+//        utilization.append("  • 지리 정보와 공간 분석\n\n");
+//
+//        utilization.append("🛠️ 추천 분석 도구:\n");
+//        utilization.append("  • Excel 및 Google Sheets\n");
+//        utilization.append("  • Python pandas 및 matplotlib\n");
+//        utilization.append("  • R 통계 분석 및 시각화\n");
+//
+//        return utilization.toString();
+//    }
 }
