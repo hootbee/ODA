@@ -90,26 +90,29 @@ export class DataUtilizationService {
   }
 
   /**
-   * 단일 데이터 활용 방안 생성 ✅ 수정됨
+   * 단일 데이터 활용 방안 생성 ✅ 수정됨: 유연한 프롬프트 및 카테고리 기반 분기 처리
    */
   public async generateSingleRecommendation(
     dataInfo: any,
-    analysisType: string
+    analysisTypeOrPrompt: string // "business" 같은 카테고리 또는 사용자 전체 프롬프트
   ): Promise<string[]> {
-    console.log(
-      `🔍 Agentica + Gemini Function Calling 단일 활용 추천 생성: ${dataInfo.fileName} (${analysisType})`
-    );
+    const predefinedTypes = ["business", "research", "policy", "combination", "tools"];
 
-    try {
-      // ✅ 파일 시스템 조회 로직 제거, 직접 데이터 사용
-      const result = await this.executeSingleAgenticAnalysis(
-        dataInfo,
-        analysisType
+    // 입력이 미리 정의된 카테고리 중 하나인지 확인
+    if (predefinedTypes.includes(analysisTypeOrPrompt)) {
+      // 기존 로직: 카테고리 기반 분석 (전체 활용방안 기능에 필요)
+      console.log(
+        `[DataUtilizationService] 카테고리 기반 단일 활용 추천 생성: ${dataInfo.fileName} (${analysisTypeOrPrompt})`
       );
-      return result;
-    } catch (error) {
-      console.error("Agentica 단일 분석 중 오류:", error);
-      return [`${analysisType} 분석 중 오류가 발생했습니다.`];
+      return this.executeSingleAgenticAnalysis(dataInfo, analysisTypeOrPrompt);
+    } else {
+      // 새로운 로직: 사용자 프롬프트 기반의 유연한 분석
+      console.log(
+        `[DataUtilizationService] 유연한 단일 활용 추천 생성: ${dataInfo.fileName}`
+      );
+      const detailedPrompt = this.buildFlexibleDetailedPrompt(dataInfo, analysisTypeOrPrompt);
+      const result = await this.callGenerativeAI(detailedPrompt);
+      return this.parseSpecificAnalysis(result, "사용자 맞춤 활용 방안");
     }
   }
 
@@ -219,6 +222,40 @@ ${analysisType} 관점에서 analyze_data_utilization 함수를 호출하여 분
     };
 
     return typePrompts[analysisType as keyof typeof typePrompts] || "";
+  }
+
+  /**
+   * ✅ 새로 추가된 유연한 프롬프트 빌더
+   */
+  private buildFlexibleDetailedPrompt(dataInfo: any, userPrompt: string): string {
+    const prompt = `
+당신은 데이터 분석 및 활용 전략 전문가입니다. 주어진 공공데이터 정보와 사용자의 구체적인 요청을 바탕으로, 실행 가능하고 창의적인 데이터 활용 방안 3가지를 제안해주세요.
+
+### 공공데이터 정보:
+- **데이터명**: ${dataInfo.title || dataInfo.fileName}
+- **제공 기관**: ${dataInfo.providerAgency || '정보 없음'}
+- **데이터 분류**: ${dataInfo.category || '정보 없음'}
+- **키워드**: ${dataInfo.keywords || '정보 없음'}
+- **상세 설명**: ${dataInfo.description || '정보 없음'}
+
+### 사용자의 구체적인 요청:
+"${userPrompt}"
+
+### 지시사항:
+1.  사용자의 요청을 깊이 이해하고, 요청의 핵심 의도에 정확히 부합하는 답변을 생성하세요.
+2.  제안하는 아이디어는 구체적이고, 현실적으로 실행 가능해야 합니다.
+3.  각 아이디어는 2-3문장으로 상세히 설명해주세요.
+4.  결과는 반드시 JSON 문자열 배열(string array) 형식으로 반환해주세요.
+
+### 응답 형식 예시:
+[
+  "첫 번째 활용 방안: (구체적인 설명)",
+  "두 번째 활용 방안: (구체적인 설명)",
+  "세 번째 활용 방안: (구체적인 설명)"
+]
+`;
+    console.log("[DataUtilizationService] 생성된 유연한 상세 프롬프트:", prompt);
+    return prompt;
   }
 
   private getFocusArea(type: string, category: string): string {

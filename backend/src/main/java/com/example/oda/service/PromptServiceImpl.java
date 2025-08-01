@@ -616,15 +616,16 @@ public class PromptServiceImpl implements PromptService {
     public Mono<List<String>> getSingleUtilizationRecommendation(SingleUtilizationRequestDto requestDto) {
         return Mono.fromCallable(() -> {
             String fileName = requestDto.getDataInfo().getFileName();
-            String analysisType = requestDto.getAnalysisType();
-            log.info("단일 활용 추천 요청: 파일명='{}', 분석유형='{}'", fileName, analysisType);
+            String userPrompt = requestDto.getAnalysisType(); // 이제 analysisType은 사용자의 전체 프롬프트가 될 수 있습니다.
+            log.info("단일 활용 추천 요청: 파일명='{}', 사용자 프롬프트='{}'", fileName, userPrompt);
 
             Optional<PublicData> exactMatch = publicDataRepository.findByFileDataName(fileName);
 
             if (exactMatch.isPresent()) {
                 PublicData data = exactMatch.get();
                 try {
-                    return aiModelService.getSingleUtilizationRecommendation(data, analysisType).block();
+                    // userPrompt를 그대로 analysisType으로 전달합니다.
+                    return aiModelService.getSingleUtilizationRecommendation(data, userPrompt).block();
                 } catch (Exception e) {
                     log.error("단일 활용 추천 생성 실패", e);
                     return List.of("단일 활용 방안을 가져오는 데 실패했습니다.");

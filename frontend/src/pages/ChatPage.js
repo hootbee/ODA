@@ -104,14 +104,10 @@ const ChatPage = () => {
       return;
     }
 
-    // 전체 활용방안 요청 확인
-    const isFullUtilizationRequest =
-      ["전체 활용", "모든 활용", "활용방안 전체", "활용 전부"].some((keyword) =>
-        prompt.includes(keyword)
-      ) ||
-      (lastDataName &&
-        prompt.includes("활용") &&
-        !["비즈니스", "연구", "정책"].some((k) => prompt.includes(k)));
+    // 전체 활용방안 요청 확인 (조건 강화)
+    const isFullUtilizationRequest = ["전체 활용", "모든 활용", "활용방안 전체", "활용 전부"].some((keyword) =>
+      prompt.includes(keyword)
+    );
 
     if (lastDataName && isFullUtilizationRequest) {
       try {
@@ -141,58 +137,37 @@ const ChatPage = () => {
       return;
     }
 
-    // 단일 활용방안 요청 확인
-    const isUtilizationRequest = [
-      "활용",
-      "방안",
-      "비즈니스",
-      "연구",
-      "정책",
-    ].some((keyword) => prompt.includes(keyword));
+    // 단일/맞춤 활용방안 요청 확인 (로직 단순화)
+    const isUtilizationRequest = ["활용", "방안"].some((keyword) =>
+      prompt.includes(keyword)
+    );
 
     if (lastDataName && isUtilizationRequest) {
-      let analysisType = "";
-      if (prompt.includes("비즈니스")) analysisType = "business";
-      else if (prompt.includes("연구")) analysisType = "research";
-      else if (prompt.includes("정책")) analysisType = "policy";
-      else if (prompt.includes("결합") || prompt.includes("조합"))
-        analysisType = "combination";
-      else if (prompt.includes("도구") || prompt.includes("분석"))
-        analysisType = "tools";
+      try {
+        const response = await axios.post(
+          "http://localhost:8080/api/data-utilization/single",
+          // 사용자 프롬프트 전체를 analysisType으로 전달하여 맞춤 분석 요청
+          { dataInfo: { fileName: lastDataName }, analysisType: prompt }
+        );
 
-      if (analysisType) {
-        try {
-          const response = await axios.post(
-            "http://localhost:8080/api/data-utilization/single",
-            { dataInfo: { fileName: lastDataName }, analysisType }
-          );
-
-          const botMessage = {
-            id: Date.now() + 1,
-            text: `🔍 ${getAnalysisTypeKorean(
-              analysisType
-            )} 상세 분석 결과:\n\n${response.data.join("\n\n")}`,
-            sender: "bot",
-          };
-          setMessages((prevMessages) => [...prevMessages, botMessage]);
-        } catch (error) {
-          console.error("Error fetching single utilization data:", error);
-          const errorMessage = {
-            id: Date.now() + 1,
-            text: "활용 방안을 가져오는 데 실패했습니다.",
-            sender: "bot",
-          };
-          setMessages((prevMessages) => [...prevMessages, errorMessage]);
-        }
-      } else {
-        const clarificationMessage = {
+        const botMessage = {
           id: Date.now() + 1,
-          text: `📋 어떤 측면의 활용 방안이 궁금하신가요?\n\n• "전체 활용" - 모든 분야 한눈에 보기\n• "비즈니스" - 수익 창출 방안\n• "연구" - 학술/기술 연구\n• "정책" - 공공 정책 활용\n• "결합" - 다른 데이터와 결합\n• "도구" - 분석 도구 추천`,
+          text: `🔍 사용자 맞춤 활용 방안에 대한 분석 결과입니다:\n\n${response.data.join(
+            "\n\n"
+          )}`,
           sender: "bot",
         };
-        setMessages((prevMessages) => [...prevMessages, clarificationMessage]);
+        setMessages((prevMessages) => [...prevMessages, botMessage]);
+      } catch (error) {
+        console.error("Error fetching single utilization data:", error);
+        const errorMessage = {
+          id: Date.now() + 1,
+          text: "활용 방안을 가져오는 데 실패했습니다.",
+          sender: "bot",
+        };
+        setMessages((prevMessages) => [...prevMessages, errorMessage]);
       }
-      return;
+      return; // 요청 처리 후 종료
     }
 
     // 상세 정보 요청 확인
