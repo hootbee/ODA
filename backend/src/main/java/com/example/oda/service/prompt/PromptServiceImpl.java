@@ -1,9 +1,6 @@
 package com.example.oda.service.prompt;
 
-import com.example.oda.dto.ChatResponseDto;
-import com.example.oda.dto.PromptRequestDto;
-import com.example.oda.dto.QueryPlanDto;
-import com.example.oda.dto.SingleUtilizationRequestDto;
+import com.example.oda.dto.*;
 import com.example.oda.entity.ChatMessage;
 import com.example.oda.entity.ChatSession;
 import com.example.oda.entity.PublicData;
@@ -54,19 +51,7 @@ public class PromptServiceImpl implements PromptService {
         String prompt = requestDto.getPrompt();
         Long sessionId = requestDto.getSessionId();
 
-        String email;
-        Object principal = authentication.getPrincipal();
-
-        if (principal instanceof OAuth2User) {
-            OAuth2User oAuth2User = (OAuth2User) principal;
-            email = oAuth2User.getAttribute("email");
-        } else if (principal instanceof org.springframework.security.core.userdetails.User) {
-            org.springframework.security.core.userdetails.User user = (org.springframework.security.core.userdetails.User) principal;
-            email = user.getUsername(); // JwtService에서 username을 email로 설정했을 경우
-        } else {
-            return Mono.error(new IllegalStateException("Unknown principal type: " + principal.getClass().getName()));
-        }
-
+        String email = getEmailFromAuthentication(authentication);
         if (email == null) {
             return Mono.error(new IllegalStateException("User email could not be extracted from principal."));
         }
@@ -180,14 +165,54 @@ public class PromptServiceImpl implements PromptService {
     }
 
     @Override
+    public Mono<List<ChatHistoryDto>> getChatHistory(Authentication authentication) {
+        String email = getEmailFromAuthentication(authentication);
+        if (email == null) {
+            return Mono.empty();
+        }
+
+        return Mono.fromCallable(() -> {
+            List<ChatSession> sessions = chatSessionRepository.findByUserEmailOrderByCreatedAtDesc(email);
+            return sessions.stream().map(this::mapSessionToHistoryDto).collect(Collectors.toList());
+        });
+    }
+
+    private ChatHistoryDto mapSessionToHistoryDto(ChatSession session) {
+        List<ChatMessage> messages = chatMessageRepository.findByChatSessionOrderByCreatedAtAsc(session);
+        List<ChatMessageDto> messageDtos = messages.stream().map(message -> {
+            // 여기에서 JSON 문자열로 된 botResponse를 파싱해야 합니다.
+            // 간소화를 위해 일단 그대로 전달하거나, 혹은 파싱 로직을 추가합니다.
+            return ChatMessageDto.builder()
+                    .userMessage(message.getUserMessage())
+                    .botResponse(message.getBotResponse()) // 실제로는 파싱 필요
+                    .createdAt(message.getCreatedAt())
+                    .build();
+        }).collect(Collectors.toList());
+
+        return ChatHistoryDto.builder()
+                .sessionId(session.getId())
+                .sessionTitle(session.getSessionTitle())
+                .messages(messageDtos)
+                .build();
+    }
+
+    private String getEmailFromAuthentication(Authentication authentication) {
+        if (authentication == null) return null;
+        Object principal = authentication.getPrincipal();
+        if (principal instanceof OAuth2User) {
+            return ((OAuth2User) principal).getAttribute("email");
+        } else if (principal instanceof org.springframework.security.core.userdetails.User) {
+            return ((org.springframework.security.core.userdetails.User) principal).getUsername();
+        }
+        return null;
+    }
+
+    @Override
     public Mono<List<ChatMessage>> getPromptHistory(Authentication authentication) {
-        if (authentication != null && authentication.getPrincipal() instanceof OAuth2User) {
-            OAuth2User oAuth2User = (OAuth2User) authentication.getPrincipal();
-            String email = oAuth2User.getAttribute("email");
-            if (email != null) {
-                return Mono.fromCallable(() -> chatMessageRepository.findByUserEmailOrderByCreatedAtAsc(email))
-                        .doOnSuccess(history -> log.info("Successfully fetched chat history for user {}", email));
-            }
+        String email = getEmailFromAuthentication(authentication);
+        if (email != null) {
+            return Mono.fromCallable(() -> chatMessageRepository.findByUserEmailOrderByCreatedAtAsc(email))
+                    .doOnSuccess(history -> log.info("Successfully fetched chat history for user {}", email));
         }
         return Mono.empty();
     }

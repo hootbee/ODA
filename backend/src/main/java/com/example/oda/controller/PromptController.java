@@ -1,9 +1,6 @@
 package com.example.oda.controller;
 
-import com.example.oda.dto.ChatResponseDto;
-import com.example.oda.dto.PromptRequestDto;
-import com.example.oda.dto.QueryPlanDto;
-import com.example.oda.dto.SingleUtilizationRequestDto;
+import com.example.oda.dto.*;
 import com.example.oda.entity.ChatMessage;
 import com.example.oda.service.PromptService;
 import com.example.oda.service.QueryPlannerService;
@@ -66,6 +63,13 @@ public class PromptController {
         return promptService.getFullUtilizationRecommendations(requestDto)
                 .map(recommendations -> ResponseEntity.ok(recommendations))
                 .defaultIfEmpty(ResponseEntity.notFound().build());
+    }
+
+    @GetMapping("/api/chat/history")
+    public Mono<ResponseEntity<List<ChatHistoryDto>>> getChatHistory(Authentication authentication) {
+        return promptService.getChatHistory(authentication)
+                .map(history -> ResponseEntity.ok(history))
+                .defaultIfEmpty(ResponseEntity.ok(List.of()));
     }
 
     @GetMapping("/api/prompt/history")

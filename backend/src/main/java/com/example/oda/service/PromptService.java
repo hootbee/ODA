@@ -1,5 +1,6 @@
 package com.example.oda.service;
 
+import com.example.oda.dto.ChatHistoryDto;
 import com.example.oda.dto.ChatResponseDto;
 import com.example.oda.dto.PromptRequestDto;
 import com.example.oda.dto.SingleUtilizationRequestDto;
@@ -18,6 +19,8 @@ public interface PromptService { // PromptService 인터페이스의 메소드�
 
     Mono<List<String>> getSingleUtilizationRecommendation(SingleUtilizationRequestDto requestDto);
     Mono<JsonNode> getFullUtilizationRecommendations(SingleUtilizationRequestDto requestDto);
+
+    Mono<List<ChatHistoryDto>> getChatHistory(Authentication authentication);
 
     Mono<List<ChatMessage>> getPromptHistory(Authentication authentication);
 }
