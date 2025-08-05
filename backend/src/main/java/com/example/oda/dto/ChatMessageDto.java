@@ -15,4 +15,5 @@ public class ChatMessageDto {
     private String userMessage;
     private String botResponse;
     private LocalDateTime createdAt;
+    private String lastDataName;
 }

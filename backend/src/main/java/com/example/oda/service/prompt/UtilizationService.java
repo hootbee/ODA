@@ -60,7 +60,12 @@ public class UtilizationService {
             if (exactMatch.isPresent()) {
                 PublicData data = exactMatch.get();
                 try {
-                    return aiModelService.getUtilizationRecommendations(data).block();
+                    JsonNode aiResponse = aiModelService.getUtilizationRecommendations(data).block();
+                    ObjectMapper mapper = new ObjectMapper();
+                    ObjectNode resultNode = mapper.createObjectNode();
+                    resultNode.set("data", aiResponse); // AI 응답을 'data' 필드 안에 넣습니다.
+                    resultNode.put("success", true);
+                    return resultNode;
                 } catch (Exception e) {
                     log.error("전체 활용 추천 생성 실패", e);
                     return createDefaultFullRecommendations(data);

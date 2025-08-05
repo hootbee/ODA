@@ -25,6 +25,8 @@ public class ChatSession {
     @Column(nullable = false)
     private String sessionTitle;
 
+    private String lastDataName;
+
     @CreationTimestamp
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;

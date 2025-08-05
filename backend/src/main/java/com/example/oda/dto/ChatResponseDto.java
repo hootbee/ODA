@@ -1,16 +1,16 @@
 package com.example.oda.dto;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-
-import java.util.List;
 
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 public class ChatResponseDto {
-    private List<String> response;
+    private JsonNode response; // 타입을 JsonNode로 변경
     private Long sessionId;
-    private String sessionTitle; // 세션 제목 추가
+    private String sessionTitle;
+    private String lastDataName;
 }

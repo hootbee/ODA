@@ -24,7 +24,6 @@ const ChatPage = () => {
   const [activeContextId, setActiveContextId] = useState(null);
   const [conversations, setConversations] = useState({});
   const [inputValue, setInputValue] = useState("");
-  const [lastDataName, setLastDataName] = useState(null);
 
   const getAuthHeaders = () => {
     const token = localStorage.getItem("token");
@@ -34,32 +33,75 @@ const ChatPage = () => {
   const handleNewChat = useCallback(() => {
     const newId = Date.now();
     const newContext = { id: newId, title: "새 대화" };
-    setContexts(prev => [...prev, newContext]);
-    setConversations(prev => ({ ...prev, [newId]: { messages: initialMessages, sessionId: null } }));
+    setContexts((prev) => [...prev, newContext]);
+    setConversations((prev) => ({
+      ...prev,
+      [newId]: { messages: initialMessages, sessionId: null },
+    }));
     setActiveContextId(newId);
   }, []);
 
+  const parseBotResponse = useCallback((responseData) => {
+    try {
+      const data = responseData.response; // Access the 'response' field from ChatResponseDto
+      const fileName = responseData.lastDataName; // Access the 'lastDataName' field
+
+      if (data && data.success && data.data) {
+        // 전체 활용방안 (대시보드)
+        return {
+          type: "utilization-dashboard",
+          data: data.data,
+          fileName: fileName,
+        };
+      } else if (data && data.text) {
+        // 상세 정보
+        return { type: "text", text: data.text };
+      } else if (Array.isArray(data)) {
+        // 일반 검색 결과
+        return { type: "text", text: data.join("\n") };
+      }
+    } catch (e) {
+      /* 파싱 실패 시 일반 텍스트로 처리 */
+    }
+    return { type: "text", text: JSON.stringify(responseData) }; // Fallback to stringify the whole response if parsing fails
+  }, []);
+
+  /* ---------- useCallback ---------- */
   const fetchHistory = useCallback(async () => {
     try {
-      const response = await axios.get("http://localhost:8080/api/chat/history", { headers: getAuthHeaders() });
-      const history = response.data;
+      const { data: history } = await axios.get(
+        "http://localhost:8080/api/chat/history",
+        { headers: getAuthHeaders() }
+      );
 
-      if (history && history.length > 0) {
-        const newContexts = history.map(h => ({ id: h.sessionId, title: h.sessionTitle }));
+      if (history?.length) {
+        const newContexts = history.map((h) => ({
+          id: h.sessionId,
+          title: h.sessionTitle,
+        }));
+
         const newConversations = {};
-        history.forEach(h => {
-          const formattedMessages = h.messages.flatMap((msg, index) => {
-            const userMsg = { id: `user-${h.sessionId}-${index}`, text: msg.userMessage, sender: 'user' };
-            let botMsg;
-            try {
-              const botResponseArray = JSON.parse(msg.botResponse);
-              botMsg = { id: `bot-${h.sessionId}-${index}`, text: botResponseArray.join('\n'), sender: 'bot' };
-            } catch (e) {
-              botMsg = { id: `bot-${h.sessionId}-${index}`, text: msg.botResponse, sender: 'bot' };
-            }
-            return [userMsg, botMsg];
+        history.forEach((h) => {
+          const formatted = h.messages.flatMap((msg, idx) => {
+            const user = {
+              id: `user-${h.sessionId}-${idx}`,
+              text: msg.userMessage,
+              sender: "user",
+            };
+            const bot = {
+              id: `bot-${h.sessionId}-${idx}`,
+              sender: "bot",
+              ...parseBotResponse({
+                response: JSON.parse(msg.botResponse),
+                lastDataName: msg.lastDataName,
+              }),
+            };
+            return [user, bot];
           });
-          newConversations[h.sessionId] = { messages: formattedMessages, sessionId: h.sessionId };
+          newConversations[h.sessionId] = {
+            messages: formatted,
+            sessionId: h.sessionId,
+          };
         });
 
         setContexts(newContexts);
@@ -68,32 +110,37 @@ const ChatPage = () => {
       } else {
         handleNewChat();
       }
-    } catch (error) {
-      console.error("Failed to fetch chat history:", error);
+    } catch (err) {
+      console.error("Failed to fetch chat history:", err);
       handleNewChat();
     }
-  }, [handleNewChat]);
+  }, [handleNewChat, parseBotResponse]); // ← 의존성 배열
 
+  /* ---------- useEffect ---------- */
   useEffect(() => {
-    if (!loading && !isAuthenticated) {
-      navigate('/login');
-    } else if (!loading && isAuthenticated) {
-      fetchHistory();
+    if (loading) return; // 아직 auth 체크 중
+
+    if (!isAuthenticated) {
+      navigate("/login");
+      return;
     }
+
+    fetchHistory(); // 로그인 돼 있으면 히스토리 로드
   }, [isAuthenticated, loading, navigate, fetchHistory]);
 
-  const activeConversation = conversations[activeContextId] || { messages: [], sessionId: null };
+  const activeConversation = conversations[activeContextId] || {
+    messages: [],
+    sessionId: null,
+  };
   const messages = activeConversation.messages;
   const sessionId = activeConversation.sessionId;
 
   const updateActiveConversation = (updater) => {
-    setConversations(prev => {
-        const currentConversation = prev[activeContextId];
-        const updatedConversation = typeof updater === 'function' ? updater(currentConversation) : updater;
-        return {
-            ...prev,
-            [activeContextId]: updatedConversation
-        };
+    setConversations((prev) => {
+      const currentConversation = prev[activeContextId];
+      const updatedConversation =
+        typeof updater === "function" ? updater(currentConversation) : updater;
+      return { ...prev, [activeContextId]: updatedConversation };
     });
   };
 
@@ -101,144 +148,62 @@ const ChatPage = () => {
     setActiveContextId(id);
   };
 
-  const getAnalysisTypeKorean = (type) => {
-    const typeMap = {
-      business: "💼 비즈니스 활용방안",
-      research: "🔬 연구 활용방안",
-      policy: "🏛️ 정책 활용방안",
-      combination: "🔗 데이터 결합 제안",
-      tools: "🛠️ 분석 도구 추천",
-    };
-    return typeMap[type] || `${type} 분석`;
-  };
+  const handleSendMessage = async (e, overridePrompt = null) => {
+    e.preventDefault();
+    const prompt = overridePrompt !== null ? overridePrompt : inputValue.trim();
+    if (prompt === "") return;
 
-  const handleCategorySelect = async (category, fileName) => {
+    const userMessage = { id: Date.now(), text: prompt, sender: "user" };
+    updateActiveConversation((conv) => ({
+      ...conv,
+      messages: [...conv.messages, userMessage],
+    }));
+    setInputValue("");
+
     try {
       const response = await axios.post(
-        "http://localhost:8080/api/data-utilization/single",
-        { dataInfo: { fileName }, analysisType: category },
+        "http://localhost:8080/api/prompt",
+        {
+          prompt: prompt,
+          sessionId: sessionId,
+        },
         { headers: getAuthHeaders() }
       );
 
-      const botMessage = {
-        id: Date.now(),
-        text: `🔍 ${getAnalysisTypeKorean(
-          category
-        )} 상세 분석:\n\n${response.data.join("\n\n")}`,
-        sender: "bot",
-      };
-      updateActiveConversation(conv => ({ ...conv, messages: [...conv.messages, botMessage] }));
-    } catch (error) {
-      console.error("Error fetching category details:", error);
-      const errorMessage = {
-        id: Date.now(),
-        text: `${getAnalysisTypeKorean(
-          category
-        )} 상세 정보를 가져오는 데 실패했습니다.`,
-        sender: "bot",
-      };
-      updateActiveConversation(conv => ({ ...conv, messages: [...conv.messages, errorMessage] }));
-    }
-  };
-
-  const handleSendMessage = async (e) => {
-    e.preventDefault();
-    const prompt = inputValue.trim();
-    if (prompt === "") return;
-
-    const userMessage = {
-      id: Date.now(),
-      text: prompt,
-      sender: "user",
-    };
-    updateActiveConversation(conv => ({ ...conv, messages: [...conv.messages, userMessage] }));
-    setInputValue("");
-
-    if (lastDataName) {
-      const isCsvRequest = ["CSV 조회", "csv", "실제 데이터"].some((keyword) => prompt.toLowerCase().includes(keyword.toLowerCase()));
-      if (isCsvRequest) {
-        const botMessage = { id: Date.now() + 1, text: `CSV 조회 기능은 현재 구현 중입니다: ${lastDataName}`, sender: "bot" };
-        updateActiveConversation(conv => ({ ...conv, messages: [...conv.messages, botMessage] }));
-        return;
-      }
-
-      const isFullUtilizationRequest = ["전체 활용", "모든 활용"].some((keyword) => prompt.includes(keyword));
-      if (isFullUtilizationRequest) {
-        try {
-          const response = await axios.post(
-            "http://localhost:8080/api/data-utilization/full",
-            { dataInfo: { fileName: lastDataName }, analysisType: "all" },
-            { headers: getAuthHeaders() }
-          );
-          const botMessage = {
-            id: Date.now() + 1,
-            text: "📊 전체 활용방안을 분석했습니다. 아래에서 관심 있는 분야를 선택해주세요.",
-            sender: "bot",
-            type: "utilization-dashboard",
-            data: response.data,
-            fileName: lastDataName,
-          };
-          updateActiveConversation(conv => ({ ...conv, messages: [...conv.messages, botMessage] }));
-        } catch (error) {
-          console.error("Error fetching full utilization data:", error);
-          const errorMessage = { id: Date.now() + 1, text: "전체 활용방안을 가져오는 데 실패했습니다.", sender: "bot" };
-          updateActiveConversation(conv => ({ ...conv, messages: [...conv.messages, errorMessage] }));
-        }
-        return;
-      }
-    }
-
-    const isDetailRequest = prompt.includes("상세") || prompt.includes("자세히");
-    if (isDetailRequest) {
-      try {
-        const response = await axios.post(
-          "http://localhost:8080/api/data-details",
-          { prompt: prompt },
-          { headers: getAuthHeaders() }
-        );
-        const botMessage = { id: Date.now() + 1, text: response.data, sender: "bot" };
-        const csvSuggestionMessage = {
-          id: Date.now() + 2,
-          text: `💡 더 자세한 분석을 원하신다면:\n\n• "CSV 조회" - 실제 데이터 접근하기 📋\n• "전체 활용" - 모든 활용방안 대시보드 🔍`,
-          sender: "bot",
-        };
-        updateActiveConversation(conv => ({ ...conv, messages: [...conv.messages, botMessage, csvSuggestionMessage] }));
-        const fileName = prompt.replace(/상세|자세히/g, "").trim();
-        setLastDataName(fileName);
-      } catch (error) {
-        console.error("Error fetching data details:", error);
-        const errorMessage = { id: Date.now() + 1, text: "상세 정보를 가져오는 데 실패했습니다.", sender: "bot" };
-        updateActiveConversation(conv => ({ ...conv, messages: [...conv.messages, errorMessage] }));
-      }
-      return;
-    }
-
-    try {
-      const response = await axios.post("http://localhost:8080/api/prompt", {
-        prompt: prompt,
-        sessionId: sessionId,
-      }, { headers: getAuthHeaders() });
-
       const responseData = response.data;
-      const botResponseText = Array.isArray(responseData.response)
-        ? responseData.response.join("\n")
-        : responseData.response;
-      const botMessage = { id: Date.now() + 1, text: botResponseText, sender: "bot" };
-      
-      updateActiveConversation(conv => ({
+      const botResponseContent = parseBotResponse(responseData);
+      const botMessage = {
+        id: Date.now() + 1,
+        sender: "bot",
+        ...botResponseContent,
+      };
+
+      updateActiveConversation((conv) => ({
         messages: [...conv.messages, botMessage],
-        sessionId: responseData.sessionId
+        sessionId: responseData.sessionId,
       }));
 
       if (sessionId === null && responseData.sessionId) {
-        setContexts(prevContexts => 
-          prevContexts.map(context => 
-            context.id === activeContextId ? { ...context, title: responseData.sessionTitle } : context
+        setContexts((prevContexts) =>
+          prevContexts.map((context) =>
+            context.id === activeContextId
+              ? { ...context, title: responseData.sessionTitle }
+              : context
           )
         );
       }
-      setLastDataName(null);
 
+      if (prompt.includes("상세") || prompt.includes("자세히")) {
+        const suggestionMessage = {
+          id: Date.now() + 2,
+          text: `💡 더 자세한 분석을 원하신다면:\n\n• "전체 활용" - 모든 활용방안 대시보드 🔍`,
+          sender: "bot",
+        };
+        updateActiveConversation((conv) => ({
+          ...conv,
+          messages: [...conv.messages, suggestionMessage],
+        }));
+      }
     } catch (error) {
       console.error("Error sending prompt to backend:", error);
       const errorResponse = {
@@ -246,13 +211,21 @@ const ChatPage = () => {
         text: "백엔드와 통신 중 오류가 발생했습니다.",
         sender: "bot",
       };
-      updateActiveConversation(conv => ({ ...conv, messages: [...conv.messages, errorResponse] }));
+      updateActiveConversation((conv) => ({
+        ...conv,
+        messages: [...conv.messages, errorResponse],
+      }));
     }
   };
 
   if (loading) {
     return <div>Loading...</div>;
   }
+
+  const handleDashboardCategorySelect = async (category, fileName) => {
+    const prompt = `${fileName} ${category} 활용`;
+    await handleSendMessage({ preventDefault: () => {} }, prompt);
+  };
 
   return (
     <AppContainer>
@@ -265,7 +238,7 @@ const ChatPage = () => {
       <ChatWindow>
         <MessageList
           messages={messages}
-          onCategorySelect={handleCategorySelect}
+          onCategorySelect={handleDashboardCategorySelect}
         />
         <MessageForm
           inputValue={inputValue}
