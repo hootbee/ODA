@@ -25,16 +25,23 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
 
     @Override
     public void onAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response, Authentication authentication) throws IOException, ServletException {
+        System.out.println("✅ OAuth2SuccessHandler: onAuthenticationSuccess triggered.");
+        System.out.println("✅ Authentication object: " + authentication);
+
         OAuth2User oAuth2User = (OAuth2User) authentication.getPrincipal();
         String email = oAuth2User.getAttribute("email");
         String name = oAuth2User.getAttribute("name");
+        System.out.println("✅ User Email: " + email);
+        System.out.println("✅ User Name: " + name);
 
         String token = jwtService.createToken(email, name);
+        System.out.println("OAuth2SuccessHandler: Generated JWT token: " + token);
 
         String targetUrl = UriComponentsBuilder.fromUriString("http://localhost:3000/auth/callback")
                 .queryParam("token", token)
                 .build().toUriString();
 
+        System.out.println("OAuth2SuccessHandler: Redirecting to: " + targetUrl);
         getRedirectStrategy().sendRedirect(request, response, targetUrl);
     }
 }

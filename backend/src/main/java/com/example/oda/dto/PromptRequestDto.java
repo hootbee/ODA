@@ -7,4 +7,5 @@ import lombok.Setter;
 @Setter
 public class PromptRequestDto {
     private String prompt;
+    private Long sessionId;
 }
