@@ -24,10 +24,12 @@ const ContextList = styled.ul`
 `;
 
 const ContextItem = styled.li`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
   padding: 0.75rem 1rem;
   margin-bottom: 0.5rem;
   border-radius: 5px;
-  cursor: pointer;
   background-color: #fff;
   border: 1px solid #dee2e6;
   transition: all 0.2s ease-in-out;
@@ -41,6 +43,36 @@ const ContextItem = styled.li`
     background-color: #007bff;
     color: white;
     border-color: #007bff;
+  }
+`;
+
+const ContextTitle = styled.span`
+  flex-grow: 1;
+  cursor: pointer;
+`;
+
+const DeleteButton = styled.button`
+  background: none;
+  border: none;
+  color: #dc3545;
+  font-size: 1rem;
+  cursor: pointer;
+  margin-left: 10px;
+  padding: 0 5px;
+  line-height: 1;
+  opacity: 0.7;
+  transition: opacity 0.2s, color 0.2s;
+
+  &:hover {
+    opacity: 1;
+    color: #c82333;
+  }
+
+  ${ContextItem}.active & {
+    color: white;
+    &:hover {
+      color: #ffc107; /* A lighter color for hover on active item */
+    }
   }
 `;
 
@@ -65,7 +97,7 @@ const NewChatButton = styled.button`
   }
 `;
 
-const ContextSidebar = ({ contexts, activeContextId, onNewChat, onSwitchContext }) => {
+const ContextSidebar = ({ contexts, activeContextId, onNewChat, onSwitchContext, onDeleteContext }) => {
   return (
     <SidebarContainer>
       <SidebarHeader>대화 목록</SidebarHeader>
@@ -74,9 +106,18 @@ const ContextSidebar = ({ contexts, activeContextId, onNewChat, onSwitchContext 
           <ContextItem 
             key={context.id}
             className={activeContextId === context.id ? 'active' : ''}
-            onClick={() => onSwitchContext(context.id)}
           >
-            {context.title}
+            <ContextTitle onClick={() => onSwitchContext(context.id)}>
+              {context.title}
+            </ContextTitle>
+            {context.id !== null && ( // '새 대화'는 삭제 버튼 없음
+              <DeleteButton onClick={(e) => {
+                e.stopPropagation(); // Prevent onSwitchContext from firing
+                onDeleteContext(context.id);
+              }}>
+                X
+              </DeleteButton>
+            )}
           </ContextItem>
         ))}
       </ContextList>

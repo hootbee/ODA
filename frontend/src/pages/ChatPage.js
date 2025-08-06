@@ -35,7 +35,7 @@ export default function ChatPage() {
 
   /* -------------------- 새 대화 ---------------------- */
   const handleNewChat = useCallback(() => {
-    const id = Date.now();
+    const id = `new-${Date.now()}`;
     setContexts((prev) => [...prev, { id, title: "새 대화" }]);
     setConvs((prev) => ({
       ...prev,
@@ -47,6 +47,47 @@ export default function ChatPage() {
     }));
     setActiveId(id);
   }, []);
+
+  /* -------------------- 대화 삭제 -------------------- */
+  const handleDeleteContext = useCallback(async (idToDelete) => {
+    console.log("Attempting to delete session with ID:", idToDelete);
+    try {
+      const isNewChat = typeof idToDelete === 'string' && idToDelete.startsWith('new-');
+
+      // Step 1: If it's a saved chat, call the backend API to delete it.
+      if (!isNewChat) {
+        await axios.delete(`http://localhost:8080/api/chat/session/${idToDelete}`, {
+          headers: authHeaders(),
+        });
+      }
+
+      // Step 2: Update the local state to remove the chat.
+      const newContexts = contexts.filter(ctx => ctx.id !== idToDelete);
+      const newConvs = { ...conversations };
+      delete newConvs[idToDelete];
+      
+      setContexts(newContexts);
+      setConvs(newConvs);
+
+      // Step 3: If the deleted chat was the active one, switch to another chat.
+      if (activeContextId === idToDelete) {
+        if (newContexts.length > 0) {
+          // If there are other chats, make the first one active.
+          setActiveId(newContexts[0].id);
+        } else {
+          // If no chats are left, create a new one.
+          handleNewChat();
+        }
+      }
+    } catch (error) {
+      console.error("Error deleting chat session:", error);
+      // Provide a more specific error message for backend errors.
+      const errorMessage = error.response 
+        ? `서버 오류: ${error.response.status} - ${error.response.data?.message || '알 수 없는 오류'}`
+        : `채팅 삭제 중 오류가 발생했습니다: ${error.message}`;
+      alert(errorMessage);
+    }
+  }, [activeContextId, contexts, conversations, authHeaders, handleNewChat, setActiveId, setConvs, setContexts]);
 
   
 
@@ -163,15 +204,30 @@ export default function ChatPage() {
         lastDataName: data.lastDataName,
       }));
 
-      /* 새 세션 제목 갱신 */
+      /* 새 세션 ID 및 제목 갱신 */
       if (conv.sessionId == null && data.sessionId) {
+        const newId = data.sessionId;
+        const oldId = activeContextId;
+
+        // 1. 컨텍스트 목록의 ID를 실제 세션 ID로 업데이트
         setContexts((cs) =>
           cs.map((ctx) =>
-            ctx.id === activeContextId
-              ? { ...ctx, title: data.sessionTitle }
+            ctx.id === oldId
+              ? { ...ctx, id: newId, title: data.sessionTitle }
               : ctx
           )
         );
+
+        // 2. 대화 데이터의 키를 실제 세션 ID로 변경
+        setConvs(prevConvs => {
+            const newConvs = { ...prevConvs };
+            newConvs[newId] = newConvs[oldId];
+            delete newConvs[oldId];
+            return newConvs;
+        });
+
+        // 3. 활성 ID를 실제 세션 ID로 변경
+        setActiveId(newId);
       }
 
       
@@ -205,6 +261,7 @@ export default function ChatPage() {
         activeContextId={activeContextId}
         onNewChat={handleNewChat}
         onSwitchContext={setActiveId}
+        onDeleteContext={handleDeleteContext}
       />
       <ChatPane>
         <MessageList messages={conv.messages} onCategorySelect={onCategory} />

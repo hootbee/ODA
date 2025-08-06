@@ -23,4 +23,6 @@ public interface PromptService { // PromptService 인터페이스의 메소드�
     Mono<List<ChatHistoryDto>> getChatHistory(Authentication authentication);
 
     Mono<List<ChatMessage>> getPromptHistory(Authentication authentication);
+
+    void deleteChatSession(Long sessionId, Authentication authentication);
 }

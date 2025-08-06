@@ -199,12 +199,12 @@ public class PromptServiceImpl implements PromptService {
         return detailService.getDataDetails(effectiveFileName)
                 .map(detailText -> {
                     String hint = "\n\n" +
-                            "💡 이 데이터를 어떻게 활용하고 싶으신가요?\n" +
-                            "예시:\n" +
-                            "• \"전체 활용\" - 모든 활용방안 대시보드 🔍\n" +
-                            "• \"해외 사례와 연관 지어 활용\" - 해외 사례를 통한 데이터 활용 방안\n" +
-                            "• \"[특정 목적]을 위한 활용\" - 예: \"마케팅 전략 수립을 위한 활용\"\n" +
-                            "• \"이 데이터 CSV 파일 보여줘\" - (아직 구현되지 않았지만) CSV 파일 내용을 직접 확인";
+                                          "💡 이 데이터를 어떻게 활용하고 싶으신가요? 자유롭게 질문해주세요!\n" +
+                                          "예시:\n" +
+                                          "• \"전체 활용\" - 모든 활용방안 대시보드 🔍\n" +
+                                          "• \"해외 사례와 연관 지어 활용\"\n" +
+                                          "• \"[특정 목적]을 위한 활용\" - 예: \"마케팅 전략 수립을 위한 활용\"\n" +
+                                          "• \"이 데이터 CSV 파일 보여줘\" - (아직 구현되지 않았지만) CSV 파일 내용을 직접 확인";
                     return objectMapper.createArrayNode().add(detailText + hint);
                 });
     }
@@ -427,4 +427,24 @@ public class PromptServiceImpl implements PromptService {
             String prompt,
             String email
     ) {}
+
+    @Override
+    @Transactional
+    public void deleteChatSession(Long sessionId, Authentication authentication) {
+        String email = getEmail(authentication);
+        if (email == null) {
+            throw new IllegalStateException("사용자 이메일을 찾을 수 없습니다.");
+        }
+
+        ChatSession session = chatSessionRepository.findById(sessionId)
+                .orElseThrow(() -> new RuntimeException("세션을 찾을 수 없습니다: " + sessionId));
+
+        if (!session.getUserEmail().equals(email)) {
+            throw new SecurityException("세션을 삭제할 권한이 없습니다.");
+        }
+
+        chatMessageRepository.deleteByChatSession(session);
+        chatSessionRepository.delete(session);
+        log.info("세션 ID {} 및 관련 메시지 삭제 완료", sessionId);
+    }
 }

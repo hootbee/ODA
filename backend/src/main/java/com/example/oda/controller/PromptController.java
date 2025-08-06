@@ -10,6 +10,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Schedulers;
 
 import java.util.List;
 import java.util.Map;
@@ -77,5 +78,22 @@ public class PromptController {
         return promptService.getPromptHistory(authentication)
                 .map(history -> ResponseEntity.ok(history))
                 .defaultIfEmpty(ResponseEntity.notFound().build());
+    }
+
+    @DeleteMapping("/api/chat/session/{sessionId}")
+    public Mono<ResponseEntity<Void>> deleteChatSession(
+            @PathVariable Long sessionId,
+            Authentication authentication) {
+        return Mono.fromRunnable(() -> promptService.deleteChatSession(sessionId, authentication))
+                .subscribeOn(Schedulers.boundedElastic())
+                .then(Mono.just(ResponseEntity.noContent().<Void>build()))
+                .onErrorResume(e -> {
+                    if (e instanceof SecurityException) {
+                        return Mono.just(ResponseEntity.status(403).build());
+                    } else if (e instanceof IllegalStateException || e instanceof RuntimeException) {
+                        return Mono.just(ResponseEntity.status(404).build()); // Or a more appropriate error
+                    }
+                    return Mono.just(ResponseEntity.status(500).build());
+                });
     }
 }
