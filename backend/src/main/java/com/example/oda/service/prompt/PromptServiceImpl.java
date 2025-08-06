@@ -2,6 +2,7 @@ package com.example.oda.service.prompt;
 
 import com.example.oda.dto.*;
 import com.example.oda.entity.ChatMessage;
+import com.example.oda.entity.MessageSender;
 import com.example.oda.entity.ChatSession;
 import com.example.oda.entity.PublicData;
 import com.example.oda.repository.ChatMessageRepository;
@@ -122,7 +123,11 @@ public class PromptServiceImpl implements PromptService {
                 session.setLastDataName(fileName);
                 chatSessionRepository.save(session);
                 responseMono = detailService.getDataDetails(prompt)
-                        .map(text -> objectMapper.createArrayNode().add(text));
+                        .map(detailText -> {
+                            String hint = "\n\n💡 더 자세한 분석을 원하신다면:\n" +
+                                    "• \"전체 활용\" - 모든 활용방안 대시보드 🔍";
+                            return objectMapper.createArrayNode().add(detailText + hint);
+                        });
 
             } else {
                 // 🎯 핵심: 자유로운 질문도 해당 데이터 기반으로 처리
@@ -138,7 +143,8 @@ public class PromptServiceImpl implements PromptService {
 
         return responseMono.flatMap(json -> {
             log.info("최종 응답 JSON: {}", json.toPrettyString());
-            saveChatMessage(session, email, prompt, json);
+            saveSingleChatMessage(session, email, MessageSender.USER, prompt);
+            saveSingleChatMessage(session, email, MessageSender.BOT, json.toPrettyString());
             return Mono.just(new ChatResponseDto(
                     json,
                     session.getId(),
@@ -263,12 +269,10 @@ public class PromptServiceImpl implements PromptService {
                     log.info("세션에 lastDataName 저장: {}", results.get(0));
                 }
 
-                if (!results.isEmpty() && results.size() >= 3) {
-                    List<String> mutableResults = new java.util.ArrayList<>(results);
-                    mutableResults.add("💡 특정 데이터에 대한 자세한 정보가 필요하시면");
-                    mutableResults.add("'[파일명] 상세정보' 또는 '[파일명] 자세히'라고 말씀하세요.");
-                    mutableResults.add("🔍 데이터 활용방안이 궁금하시면 '전체 활용'이라고 말씀하세요.");
-                    results = mutableResults;
+                if (!results.isEmpty()) {
+                    String hintMessage = "\n\n💡 특정 데이터에 대한 자세한 정보가 필요하시면\n'[파일명] 상세정보' 또는 '[파일명] 자세히'라고 말씀하세요.\n🔍 데이터 활용방안이 궁금하시면 '전체 활용'이라고 말씀하세요.";
+                    int lastIndex = results.size() - 1;
+                    results.set(lastIndex, results.get(lastIndex) + hintMessage);
                 }
             }
 
@@ -297,17 +301,15 @@ public class PromptServiceImpl implements PromptService {
     /**
      * 채팅 메시지 저장
      */
-    private void saveChatMessage(ChatSession session, String email,
-                                 String userMessage, JsonNode botResponseNode) {
+    private void saveSingleChatMessage(ChatSession session, String email, MessageSender sender, String content) {
         try {
-            String botResponse = objectMapper.writeValueAsString(botResponseNode);
             ChatMessage chatMessage = new ChatMessage();
             chatMessage.setChatSession(session);
             chatMessage.setUserEmail(email);
-            chatMessage.setUserMessage(userMessage);
-            chatMessage.setBotResponse(botResponse);
+            chatMessage.setSender(sender);
+            chatMessage.setContent(content);
             chatMessageRepository.save(chatMessage);
-            log.info("채팅 메시지 저장 완료 - 사용자: {}", email);
+            log.info("채팅 메시지 저장 완료 - 사용자: {}, 발신자: {}", email, sender);
         } catch (Exception e) {
             log.error("채팅 메시지 저장 실패", e);
         }
@@ -383,8 +385,8 @@ public class PromptServiceImpl implements PromptService {
                 .findByChatSessionOrderByCreatedAtAsc(session)
                 .stream()
                 .map(message -> ChatMessageDto.builder()
-                        .userMessage(message.getUserMessage())
-                        .botResponse(message.getBotResponse())
+                        .sender(message.getSender())
+                        .content(message.getContent())
                         .createdAt(message.getCreatedAt())
                         .lastDataName(session.getLastDataName())
                         .build())

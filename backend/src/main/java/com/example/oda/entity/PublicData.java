@@ -41,6 +41,6 @@ public class PublicData {
     private String description;
 
     // 누락된 컬럼 추가
-    @Column(name = "수정일_backup", columnDefinition = "TEXT")
-    private String modifiedDateBackup;
+//    @Column(name = "수정일_backup", columnDefinition = "TEXT")
+//    private String modifiedDateBackup;
 }

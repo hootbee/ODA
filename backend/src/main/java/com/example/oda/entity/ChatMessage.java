@@ -26,11 +26,12 @@ public class ChatMessage {
     @Column(nullable = false)
     private String userEmail;
 
-    @Column(columnDefinition = "TEXT", nullable = false)
-    private String userMessage;
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private MessageSender sender;
 
     @Column(columnDefinition = "TEXT", nullable = false)
-    private String botResponse;
+    private String content;
 
     @CreationTimestamp
     @Column(nullable = false, updatable = false)
