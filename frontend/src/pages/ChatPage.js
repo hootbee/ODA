@@ -110,14 +110,17 @@ export default function ChatPage() {
         const msgs = h.messages.map((m) => {
           let content;
           try {
+            // 서버에서 온 content는 문자열화된 JSON일 수 있습니다.
             content = JSON.parse(m.content);
           } catch (e) {
-            content = m.content;
+            content = m.content; // 파싱 실패 시 일반 문자열로 간주
           }
           return {
             id: `${m.sender}-${h.sessionId}-${m.createdAt}`,
             sender: m.sender.toLowerCase(),
-            text: typeof content === 'string' ? content : JSON.stringify(content),
+            text: Array.isArray(content)
+              ? content.join('\n') // 배열이면 줄바꿈으로 합칩니다.
+              : (typeof content === 'string' ? content : JSON.stringify(content, null, 2)),
             ...(typeof content === 'object' && content !== null && content.success && content.data ? { type: 'utilization-dashboard', data: content.data, fileName: m.lastDataName } : {}),
           };
         });
@@ -185,16 +188,24 @@ export default function ChatPage() {
       );
 
       let botContent;
-      try {
-        botContent = JSON.parse(data.response);
-      } catch (parseError) {
-        botContent = data.response;
+      // Axios는 JSON 응답을 자동으로 파싱하므로 data.response는 이미 객체/배열입니다.
+      if (typeof data.response === 'string') {
+        // 하지만 서버가 문자열화된 JSON을 보냈을 경우를 대비해 파싱을 시도합니다.
+        try {
+          botContent = JSON.parse(data.response);
+        } catch (e) {
+          botContent = data.response; // 일반 문자열인 경우
+        }
+      } else {
+        botContent = data.response; // 이미 파싱된 객체/배열인 경우
       }
 
       const botMessage = {
         id: Date.now() + 1,
         sender: "bot",
-        text: typeof botContent === 'string' ? botContent : JSON.stringify(botContent),
+        text: Array.isArray(botContent)
+          ? botContent.join('\n') // 배열이면 줄바꿈으로 합칩니다.
+          : (typeof botContent === 'string' ? botContent : JSON.stringify(botContent, null, 2)),
         ...(typeof botContent === 'object' && botContent !== null && botContent.success && botContent.data ? { type: 'utilization-dashboard', data: botContent.data, fileName: data.lastDataName } : {}),
       };
 
