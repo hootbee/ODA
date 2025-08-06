@@ -87,17 +87,24 @@ public class PromptServiceImpl implements PromptService {
         String prompt = sessionData.prompt();
         String email = sessionData.email();
 
+        // ✅ JsonNode 대신 바로 ChatResponseDto를 반환하는 구조로 변경
+        return processRequest(session, lastDataName, prompt, email);
+    }
+
+    /**
+     * ✅ 요청 처리 및 ChatResponseDto 반환을 하나의 메서드로 통합
+     */
+    private Mono<ChatResponseDto> processRequest(ChatSession session, String lastDataName, String prompt, String email) {
         Mono<JsonNode> responseMono;
 
-        /* ===== 새로운 분기 로직 ===== */
+        /* ===== 분기 로직 ===== */
 
-        // 1️⃣ "다른 데이터 조회" 명령어 체크 → lastDataName만 해제하고 안내 메시지
+        // 1️⃣ "다른 데이터 조회" 명령어 체크
         if (isNewSearchCommand(prompt)) {
             log.info("새로운 검색 명령어 감지 - lastDataName 해제");
             session.setLastDataName(null);
             chatSessionRepository.save(session);
 
-            // ✅ 실제 검색하지 않고 안내 메시지만 반환
             List<String> resetMessage = List.of(
                     "🔄 데이터 선택이 해제되었습니다.",
                     "새로운 데이터를 검색하고 싶으시면 원하는 키워드를 입력해주세요.",
@@ -105,7 +112,12 @@ public class PromptServiceImpl implements PromptService {
             );
             responseMono = Mono.just(objectMapper.valueToTree(resetMessage));
 
-            // 2️⃣ lastDataName이 있으면 → 모든 질문을 해당 데이터 기반으로 처리
+        // 2️⃣ "상세" 또는 "자세히" 명령어 체크 (lastDataName 유무와 상관없이 먼저 처리)
+        } else if (prompt.contains("상세") || prompt.contains("자세히")) {
+            log.info("상세 정보 분기 실행 (우선 처리)");
+            responseMono = processDetailRequest(session, prompt);
+
+        // 3️⃣ lastDataName이 있으면 → 데이터 활용 모드
         } else if (lastDataName != null && !lastDataName.isBlank()) {
             log.info("데이터 활용 모드 - lastDataName: {}", lastDataName);
 
@@ -117,49 +129,71 @@ public class PromptServiceImpl implements PromptService {
                 log.info("전통적 활용 키워드 분기 실행");
                 responseMono = buildSingleUtilMono(lastDataName, prompt);
 
-            } else if (prompt.contains("상세") || prompt.contains("자세히")) {
-                log.info("상세 정보 분기 실행");
-                String fileName = prompt.replace("상세", "").replace("자세히", "").trim();
-                session.setLastDataName(fileName);
-                chatSessionRepository.save(session);
-                responseMono = detailService.getDataDetails(prompt)
-                        .map(detailText -> {
-                            String hint = "\n\n💡 더 자세한 분석을 원하신다면:\n" +
-                                    "• \"전체 활용\" - 모든 활용방안 대시보드 🔍";
-                            return objectMapper.createArrayNode().add(detailText + hint);
-                        });
-
             } else {
-                // 🎯 핵심: 자유로운 질문도 해당 데이터 기반으로 처리
                 log.info("맞춤형 활용 분기 실행 - 사용자 질문: '{}'", prompt);
                 responseMono = buildCustomUtilMono(lastDataName, prompt);
             }
 
-            // 3️⃣ lastDataName이 없으면 → 일반 검색
+        // 4️⃣ lastDataName이 없으면 → 일반 검색
         } else {
             log.info("일반 검색 모드 실행");
             responseMono = runSearchLogic(prompt, session);
         }
 
+        // ✅ JsonNode를 받아서 ChatResponseDto로 변환 후 반환
         return responseMono.flatMap(json -> {
             log.info("최종 응답 JSON: {}", json.toPrettyString());
+
+            // 메시지 저장
             saveSingleChatMessage(session, email, MessageSender.USER, prompt);
             saveSingleChatMessage(session, email, MessageSender.BOT, json.toPrettyString());
-            return Mono.just(new ChatResponseDto(
+
+            // ChatResponseDto 생성 및 반환
+            ChatResponseDto responseDto = new ChatResponseDto(
                     json,
                     session.getId(),
                     session.getSessionTitle(),
-                    session.getLastDataName()));
+                    session.getLastDataName()
+            );
+
+            return Mono.just(responseDto);
         });
+    }
+
+    /**
+     * ✅ 상세 정보 요청 처리 메서드 분리
+     */
+    private Mono<JsonNode> processDetailRequest(ChatSession session, String prompt) {
+        String extractedFileName = prompt.replace("상세", "").replace("자세히", "").trim();
+        String effectiveFileName;
+
+        if (extractedFileName.isEmpty() || extractedFileName.equals("---")) {
+            effectiveFileName = session.getLastDataName();
+            if (effectiveFileName == null || effectiveFileName.isBlank()) {
+                log.warn("상세 정보 요청에 파일명이 없으며, 세션에 lastDataName도 설정되어 있지 않습니다.");
+                return Mono.just(objectMapper.valueToTree(List.of("어떤 데이터의 상세 정보를 원하시는지 파일명을 함께 알려주세요.")));
+            }
+            log.info("세션의 lastDataName '{}'을(를) 사용하여 상세 정보 조회", effectiveFileName);
+        } else {
+            effectiveFileName = extractedFileName;
+            log.info("프롬프트에서 추출된 파일명 '{}'을(를) 사용하여 상세 정보 조회", effectiveFileName);
+        }
+
+        session.setLastDataName(effectiveFileName);
+        chatSessionRepository.save(session);
+
+        return detailService.getDataDetails(effectiveFileName)
+                .map(detailText -> {
+                    String hint = "\n\n💡 더 자세한 분석을 원하신다면:\n" +
+                            "• \"전체 활용\" - 모든 활용방안 대시보드 🔍";
+                    return objectMapper.createArrayNode().add(detailText + hint);
+                });
     }
 
     /* ================================================================ */
     /*                           헬퍼 메서드                            */
     /* ================================================================ */
 
-    /**
-     * "다른 데이터 조회" 같은 새 검색 명령어 체크
-     */
     private boolean isNewSearchCommand(String prompt) {
         String lower = prompt.toLowerCase();
         return lower.contains("다른 데이터") ||
@@ -173,18 +207,12 @@ public class PromptServiceImpl implements PromptService {
                 lower.matches(".*다시.*검색.*");
     }
 
-    /**
-     * 기존 5가지 패턴 (전체/비즈니스/연구/정책/도구)
-     */
     private boolean containsTraditionalUtilKeyword(String p) {
         String s = p.toLowerCase();
         return s.matches(".*(비즈니스 활용|연구 활용|정책 활용|데이터 결합|분석 도구).*") ||
                 s.matches(".*(business 활용|research 활용|policy 활용|combination 활용|tool 활용).*");
     }
 
-    /**
-     * 전체 활용방안 (대시보드)
-     */
     private Mono<JsonNode> buildFullUtilMono(String fileName) {
         SingleUtilizationRequestDto dto = new SingleUtilizationRequestDto();
         SingleUtilizationRequestDto.DataInfo dataInfo = new SingleUtilizationRequestDto.DataInfo();
@@ -193,9 +221,6 @@ public class PromptServiceImpl implements PromptService {
         return utilizationService.getFullUtilizationRecommendations(dto);
     }
 
-    /**
-     * 전통적 단일 활용방안 (비즈니스/연구/정책/도구)
-     */
     private Mono<JsonNode> buildSingleUtilMono(String fileName, String analysisType) {
         SingleUtilizationRequestDto dto = new SingleUtilizationRequestDto();
         SingleUtilizationRequestDto.DataInfo dataInfo = new SingleUtilizationRequestDto.DataInfo();
@@ -203,12 +228,13 @@ public class PromptServiceImpl implements PromptService {
         dto.setDataInfo(dataInfo);
         dto.setAnalysisType(analysisType);
         return utilizationService.getSingleUtilizationRecommendation(dto)
-                .map(objectMapper::valueToTree);
+                .map(recommendations -> {
+                    List<String> combined = new java.util.ArrayList<>(recommendations);
+                    combined.add("\n\n💡 다른 데이터 조회를 원하시면 '다른 데이터 활용'을 입력하시고, 다른 활용방안을 원하시면 프롬프트를 작성해주세요.");
+                    return objectMapper.valueToTree(combined);
+                });
     }
 
-    /**
-     * 🎯 맞춤형 활용방안 - 자유로운 질문을 해당 데이터 기반으로 처리
-     */
     private Mono<JsonNode> buildCustomUtilMono(String fileName, String userPrompt) {
         log.info("맞춤형 활용방안 생성 - 파일: {}, 질문: {}", fileName, userPrompt);
 
@@ -216,15 +242,16 @@ public class PromptServiceImpl implements PromptService {
         SingleUtilizationRequestDto.DataInfo dataInfo = new SingleUtilizationRequestDto.DataInfo();
         dataInfo.setFileName(fileName);
         dto.setDataInfo(dataInfo);
-        dto.setAnalysisType(userPrompt);  // 사용자의 자유로운 질문 전달
+        dto.setAnalysisType(userPrompt);
 
         return utilizationService.getSingleUtilizationRecommendation(dto)
-                .map(objectMapper::valueToTree);
+                .map(recommendations -> {
+                    List<String> combined = new java.util.ArrayList<>(recommendations);
+                    combined.add("\n\n💡 다른 데이터 조회를 원하시면 '다른 데이터 활용'을 입력하시고, 다른 활용방안을 원하시면 프롬프트를 작성해주세요.");
+                    return objectMapper.valueToTree(combined);
+                });
     }
 
-    /**
-     * 일반 검색 로직
-     */
     private Mono<JsonNode> runSearchLogic(String prompt, ChatSession session) {
         log.info("일반 검색 모드로 진행");
 
@@ -262,15 +289,8 @@ public class PromptServiceImpl implements PromptService {
                         .limit(plan.getLimit())
                         .collect(Collectors.toList());
 
-                // 첫 번째 결과를 세션에 저장
                 if (!results.isEmpty()) {
-                    session.setLastDataName(results.get(0));
-                    chatSessionRepository.save(session);
-                    log.info("세션에 lastDataName 저장: {}", results.get(0));
-                }
-
-                if (!results.isEmpty()) {
-                    String hintMessage = "\n\n💡 특정 데이터에 대한 자세한 정보가 필요하시면\n'[파일명] 상세정보' 또는 '[파일명] 자세히'라고 말씀하세요.\n🔍 데이터 활용방안이 궁금하시면 '전체 활용'이라고 말씀하세요.";
+                    String hintMessage = "\n\n💡 특정 데이터에 대한 자세한 정보가 필요하시면\n'[파일명] 상세정보' 또는 '[파일명] 자세히'라고 말씀하세요.";
                     int lastIndex = results.size() - 1;
                     results.set(lastIndex, results.get(lastIndex) + hintMessage);
                 }
@@ -286,10 +306,6 @@ public class PromptServiceImpl implements PromptService {
         }
     }
 
-
-    /**
-     * 새로운 세션 생성
-     */
     private ChatSession createSession(String prompt, String email) {
         ChatSession session = new ChatSession();
         session.setUserEmail(email);
@@ -298,9 +314,6 @@ public class PromptServiceImpl implements PromptService {
         return chatSessionRepository.save(session);
     }
 
-    /**
-     * 채팅 메시지 저장
-     */
     private void saveSingleChatMessage(ChatSession session, String email, MessageSender sender, String content) {
         try {
             ChatMessage chatMessage = new ChatMessage();
@@ -315,9 +328,6 @@ public class PromptServiceImpl implements PromptService {
         }
     }
 
-    /**
-     * 인증에서 이메일 추출
-     */
     private String getEmail(Authentication auth) {
         if (auth == null) return null;
         Object principal = auth.getPrincipal();
@@ -334,25 +344,21 @@ public class PromptServiceImpl implements PromptService {
     /*                     인터페이스 기본 구현                          */
     /* ================================================================ */
 
-    /** 상세 정보 */
     @Override
     public Mono<String> getDataDetails(String prompt) {
         return detailService.getDataDetails(prompt);
     }
 
-    /** 단일 활용 */
     @Override
     public Mono<List<String>> getSingleUtilizationRecommendation(SingleUtilizationRequestDto dto) {
         return utilizationService.getSingleUtilizationRecommendation(dto);
     }
 
-    /** 전체 활용 */
     @Override
     public Mono<JsonNode> getFullUtilizationRecommendations(SingleUtilizationRequestDto dto) {
         return utilizationService.getFullUtilizationRecommendations(dto);
     }
 
-    /** 세션 목록 + 최근 메시지 */
     @Override
     public Mono<List<ChatHistoryDto>> getChatHistory(Authentication auth) {
         String email = getEmail(auth);
@@ -366,7 +372,6 @@ public class PromptServiceImpl implements PromptService {
                 .subscribeOn(Schedulers.boundedElastic());
     }
 
-    /** 전체 프롬프트 로그 */
     @Override
     public Mono<List<ChatMessage>> getPromptHistory(Authentication auth) {
         String email = getEmail(auth);
@@ -377,8 +382,6 @@ public class PromptServiceImpl implements PromptService {
                 .subscribeOn(Schedulers.boundedElastic())
                 .doOnSuccess(history -> log.info("사용자 {}의 프롬프트 히스토리 조회 완료", email));
     }
-
-    /* ===== DTO 변환 및 헬퍼 클래스 ===== */
 
     private ChatHistoryDto toHistoryDto(ChatSession session) {
         List<ChatMessageDto> messages = chatMessageRepository
@@ -399,9 +402,6 @@ public class PromptServiceImpl implements PromptService {
                 .build();
     }
 
-    /**
-     * 세션 데이터 래퍼 클래스 - Record 사용으로 불변성 보장
-     */
     private record SessionData(
             ChatSession session,
             String lastDataName,
