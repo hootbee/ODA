@@ -16,10 +16,37 @@ public class SearchService {
     private static final Logger log = LoggerFactory.getLogger(SearchService.class);
     private final PublicDataRepository publicDataRepository;
 
-    private static final String[] REGION_KEYWORDS = {
+    private static final Set<String> REGION_KEYWORDS = Set.of(
             "서울", "부산", "대구", "인천", "광주", "대전", "울산", "세종",
             "경기", "강원", "충북", "충남", "전북", "전남", "경북", "경남", "제주"
-    };
+    );
+
+    // 점수 상수화
+    private static final int SCORE_PROVIDER_AGENCY = 200;
+    private static final int SCORE_DATA_NAME_STARTS_WITH = 150;
+    private static final int SCORE_KEYWORD_EXACT_MATCH = 100;
+    private static final int SCORE_KEYWORD_CONTAINS = 60;
+    private static final int SCORE_DATA_NAME_CONTAINS = 40;
+    private static final int SCORE_TITLE_CONTAINS = 25;
+    private static final int SCORE_DESCRIPTION_CONTAINS = 30;
+    private static final int SCORE_DESCRIPTION_ALL_KEYWORDS = 50;
+    private static final int SCORE_RECENTLY_MODIFIED = 20;
+    private static final int SCORE_CLASSIFICATION_CONTAINS = 20;
+
+    // 기본 키워드 점수
+    private static final int PRIMARY_KEYWORD_REGION_PROVIDER = 100;
+    private static final int PRIMARY_KEYWORD_REGION_NAME_STARTS = 80;
+    private static final int PRIMARY_KEYWORD_REGION_NAME_CONTAINS = 50;
+    private static final int PRIMARY_KEYWORD_REGION_DESC = 40;
+    private static final int PRIMARY_KEYWORD_NORMAL_PROVIDER = 30;
+    private static final int PRIMARY_KEYWORD_NORMAL_NAME = 20;
+    private static final int PRIMARY_KEYWORD_NORMAL_DESC = 25;
+
+    // 설명 점수
+    private static final int DESC_SCORE_KEYWORD_PRESENCE = 10;
+    private static final int DESC_SCORE_SPECIAL_TERM = 25;
+    private static final int DESC_SCORE_HIGH_KEYWORD_DENSITY = 20;
+
 
     public SearchService(PublicDataRepository publicDataRepository) {
         this.publicDataRepository = publicDataRepository;
@@ -87,7 +114,7 @@ public class SearchService {
 
     public List<PublicData> sortResultsByRelevance(List<PublicData> uniqueResults, List<String> keywords, String prompt) {
         return uniqueResults.stream()
-                .sorted((a, b) -> calculateRelevanceScore(b, keywords, prompt) - calculateRelevanceScore(a, keywords, prompt))
+                .sorted((a, b) -> calculateRelevanceScore(b, keywords) - calculateRelevanceScore(a, keywords))
                 .collect(Collectors.toList());
     }
 
@@ -98,7 +125,16 @@ public class SearchService {
                 .orElse(null);
     }
 
-    private int calculateRelevanceScore(PublicData data, List<String> keywords, String originalPrompt) {
+    private int calculateRelevanceScore(PublicData data, List<String> keywords) {
+        int score = 0;
+        score += calculateScoresByKeyword(data, keywords);
+        score += calculateScoresByPrimaryKeyword(data, keywords);
+        score += calculateDescriptionScore(data.getDescription(), keywords);
+        score += calculateBonusScores(data, keywords);
+        return Math.max(0, score);
+    }
+
+    private int calculateScoresByKeyword(PublicData data, List<String> keywords) {
         int score = 0;
         String dataName = data.getFileDataName() != null ? data.getFileDataName().toLowerCase() : "";
         String dataKeywords = data.getKeywords() != null ? data.getKeywords().toLowerCase() : "";
@@ -108,43 +144,57 @@ public class SearchService {
 
         for (String keyword : keywords) {
             String lowerKeyword = keyword.toLowerCase();
-            if (providerAgency.contains(lowerKeyword)) score += 200;
-            if (dataName.startsWith(lowerKeyword)) score += 150;
-            if (isKeywordExactMatch(dataKeywords, lowerKeyword)) score += 100;
-            else if (dataKeywords.contains(lowerKeyword)) score += 60;
-            if (dataName.contains(lowerKeyword)) score += 40;
-            if (dataTitle.contains(lowerKeyword)) score += 25;
-            if (description.contains(lowerKeyword)) score += 30;
-            if (keywords.size() >= 2 && description.contains(String.join(" ", keywords).toLowerCase())) score += 50;
+            if (providerAgency.contains(lowerKeyword)) score += SCORE_PROVIDER_AGENCY;
+            if (dataName.startsWith(lowerKeyword)) score += SCORE_DATA_NAME_STARTS_WITH;
+            if (isKeywordExactMatch(dataKeywords, lowerKeyword)) score += SCORE_KEYWORD_EXACT_MATCH;
+            else if (dataKeywords.contains(lowerKeyword)) score += SCORE_KEYWORD_CONTAINS;
+            if (dataName.contains(lowerKeyword)) score += SCORE_DATA_NAME_CONTAINS;
+            if (dataTitle.contains(lowerKeyword)) score += SCORE_TITLE_CONTAINS;
+            if (description.contains(lowerKeyword)) score += SCORE_DESCRIPTION_CONTAINS;
+            if (keywords.size() >= 2 && description.contains(String.join(" ", keywords).toLowerCase()))
+                score += SCORE_DESCRIPTION_ALL_KEYWORDS;
         }
+        return score;
+    }
 
-        if (!keywords.isEmpty()) {
-            String primaryKeyword = keywords.get(0).toLowerCase();
-            if (isRegionKeyword(primaryKeyword)) {
-                if (providerAgency.contains(primaryKeyword)) score += 100;
-                if (dataName.startsWith(primaryKeyword)) score += 80;
-                if (dataName.contains(primaryKeyword)) score += 50;
-                if (description.contains(primaryKeyword)) score += 40;
-            } else {
-                if (providerAgency.contains(primaryKeyword)) score += 30;
-                if (dataName.contains(primaryKeyword)) score += 20;
-                if (description.contains(primaryKeyword)) score += 25;
-            }
+    private int calculateScoresByPrimaryKeyword(PublicData data, List<String> keywords) {
+        if (keywords.isEmpty()) {
+            return 0;
         }
+        int score = 0;
+        String primaryKeyword = keywords.get(0).toLowerCase();
+        String dataName = data.getFileDataName() != null ? data.getFileDataName().toLowerCase() : "";
+        String providerAgency = data.getProviderAgency() != null ? data.getProviderAgency().toLowerCase() : "";
+        String description = data.getDescription() != null ? data.getDescription().toLowerCase() : "";
 
-        score += calculateDescriptionScore(description, keywords);
+        if (isRegionKeyword(primaryKeyword)) {
+            if (providerAgency.contains(primaryKeyword)) score += PRIMARY_KEYWORD_REGION_PROVIDER;
+            if (dataName.startsWith(primaryKeyword)) score += PRIMARY_KEYWORD_REGION_NAME_STARTS;
+            if (dataName.contains(primaryKeyword)) score += PRIMARY_KEYWORD_REGION_NAME_CONTAINS;
+            if (description.contains(primaryKeyword)) score += PRIMARY_KEYWORD_REGION_DESC;
+        } else {
+            if (providerAgency.contains(primaryKeyword)) score += PRIMARY_KEYWORD_NORMAL_PROVIDER;
+            if (dataName.contains(primaryKeyword)) score += PRIMARY_KEYWORD_NORMAL_NAME;
+            if (description.contains(primaryKeyword)) score += PRIMARY_KEYWORD_NORMAL_DESC;
+        }
+        return score;
+    }
 
+    private int calculateBonusScores(PublicData data, List<String> keywords) {
+        int score = 0;
         if (data.getModifiedDate() != null && data.getModifiedDate().isAfter(java.time.LocalDateTime.now().minusYears(1))) {
-            score += 20;
+            score += SCORE_RECENTLY_MODIFIED;
         }
 
         if (data.getClassificationSystem() != null) {
             String classification = data.getClassificationSystem().toLowerCase();
             for (String keyword : keywords) {
-                if (classification.contains(keyword.toLowerCase())) score += 20;
+                if (classification.contains(keyword.toLowerCase())) {
+                    score += SCORE_CLASSIFICATION_CONTAINS;
+                }
             }
         }
-        return Math.max(0, score);
+        return score;
     }
 
     private int calculateDescriptionScore(String description, List<String> keywords) {
@@ -152,19 +202,19 @@ public class SearchService {
         int score = 0;
         String lowerDescription = description.toLowerCase();
         for (String keyword : keywords) {
-            if (lowerDescription.contains(keyword.toLowerCase())) score += 10;
+            if (lowerDescription.contains(keyword.toLowerCase())) score += DESC_SCORE_KEYWORD_PRESENCE;
         }
         String[] specialTerms = {"도시개발", "토지구획", "재개발", "재정비", "환지", "감보율", "시행인가", "대기오염", "수질오염", "폐기물", "배출시설", "환경영향", "오염물질", "교통사고", "교통위반", "교통체계", "대중교통", "교통량", "신호체계", "교육과정", "학습", "연구", "교육시설", "교육프로그램", "문화재", "관광지", "문화시설", "예술", "공연", "축제"};
         for (String term : specialTerms) {
-            if (lowerDescription.contains(term)) score += 25;
+            if (lowerDescription.contains(term)) score += DESC_SCORE_SPECIAL_TERM;
         }
         long keywordCount = keywords.stream().mapToLong(keyword -> (lowerDescription.length() - lowerDescription.replace(keyword.toLowerCase(), "").length()) / Math.max(keyword.length(), 1)).sum();
-        if (keywordCount > 2) score += 20;
+        if (keywordCount > 2) score += DESC_SCORE_HIGH_KEYWORD_DENSITY;
         return score;
     }
 
     private boolean isRegionKeyword(String keyword) {
-        return Arrays.asList(REGION_KEYWORDS).contains(keyword);
+        return REGION_KEYWORDS.contains(keyword);
     }
 
     private boolean isKeywordExactMatch(String dataKeywords, String searchKeyword) {
