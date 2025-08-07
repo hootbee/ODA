@@ -97,81 +97,81 @@ public class PromptServiceImpl implements PromptService {
     private Mono<ChatResponseDto> processRequest(ChatSession session, String lastDataName, String prompt, String email) {
         Mono<JsonNode> responseMono;
 
-        /* ===== 분기 로직 ===== */
-
-        // 1️⃣ "/도움말" 명령어 체크
         if (prompt.equals("/도움말")) {
-            log.info("도움말 명령어 감지");
-            List<String> helpMessage = List.of(
-                    "안녕하세요! 저는 공공 데이터를 찾고 활용하는 것을 돕는 AI 챗봇입니다.",
-                    "다음과 같이 질문해보세요:",
-                    "• 특정 데이터 검색: '서울시 교통 데이터 보여줘'",
-                    "• 데이터 상세 정보: '[파일명] 자세히' 또는 '[파일명] 상세정보'",
-                    "• 데이터 활용 방안: '[파일명] 전체 활용' 또는 '[파일명] 비즈니스 활용'",
-                    "• 새로운 데이터 검색 시작: '다른 데이터 조회'",
-                    "• 현재 대화 초기화: '새 대화' (프론트엔드 기능)"
-            );
-            responseMono = Mono.just(objectMapper.valueToTree(helpMessage));
-
-        // 2️⃣ "다른 데이터 조회" 명령어 체크
+            responseMono = handleHelpRequest();
         } else if (isNewSearchCommand(prompt)) {
-            log.info("새로운 검색 명령어 감지 - lastDataName 해제");
-            session.setLastDataName(null);
-            chatSessionRepository.save(session);
-
-            List<String> resetMessage = List.of(
-                    "🔄 데이터 선택이 해제되었습니다.",
-                    "새로운 데이터를 검색하고 싶으시면 원하는 키워드를 입력해주세요.",
-                    "예: '서울시 교통 데이터', '부산 관광 정보' 등"
-            );
-            responseMono = Mono.just(objectMapper.valueToTree(resetMessage));
-
-        // 2️⃣ "상세" 또는 "자세히" 명령어 체크 (lastDataName 유무와 상관없이 먼저 처리)
+            responseMono = handleNewSearchRequest(session);
         } else if (prompt.contains("상세") || prompt.contains("자세히")) {
-            log.info("상세 정보 분기 실행 (우선 처리)");
-            responseMono = processDetailRequest(session, prompt);
-
-        // 3️⃣ lastDataName이 있으면 → 데이터 활용 모드
+            responseMono = handleDetailRequest(session, prompt);
         } else if (lastDataName != null && !lastDataName.isBlank()) {
-            log.info("데이터 활용 모드 - lastDataName: {}", lastDataName);
-
-            if (prompt.toLowerCase().contains("전체 활용")) {
-                log.info("전체 활용 분기 실행");
-                responseMono = buildFullUtilMono(lastDataName);
-
-            } else if (containsTraditionalUtilKeyword(prompt)) {
-                log.info("전통적 활용 키워드 분기 실행");
-                responseMono = buildSingleUtilMono(lastDataName, prompt);
-
-            } else {
-                log.info("맞춤형 활용 분기 실행 - 사용자 질문: '{}'", prompt);
-                responseMono = buildCustomUtilMono(lastDataName, prompt);
-            }
-
-        // 4️⃣ lastDataName이 없으면 → 일반 검색
+            responseMono = handleUtilizationRequest(lastDataName, prompt);
         } else {
-            log.info("일반 검색 모드 실행");
-            responseMono = runSearchLogic(prompt, session);
+            responseMono = handleGeneralSearch(prompt, session);
         }
 
-        // ✅ JsonNode를 받아서 ChatResponseDto로 변환 후 반환
         return responseMono.flatMap(json -> {
             log.info("최종 응답 JSON: {}", json.toPrettyString());
-
-            // 메시지 저장
             saveSingleChatMessage(session, email, MessageSender.USER, prompt);
             saveSingleChatMessage(session, email, MessageSender.BOT, json.toPrettyString());
 
-            // ChatResponseDto 생성 및 반환
-            ChatResponseDto responseDto = new ChatResponseDto(
+            return Mono.just(new ChatResponseDto(
                     json,
                     session.getId(),
                     session.getSessionTitle(),
                     session.getLastDataName()
-            );
-
-            return Mono.just(responseDto);
+            ));
         });
+    }
+
+    private Mono<JsonNode> handleHelpRequest() {
+        log.info("도움말 명령어 감지");
+        List<String> helpMessage = List.of(
+                "안녕하세요! 저는 공공 데이터를 찾고 활용하는 것을 돕는 AI 챗봇입니다.",
+                "다음과 같이 질문해보세요:",
+                "• 특정 데이터 검색: '서울시 교통 데이터 보여줘'",
+                "• 데이터 상세 정보: '[파일명] 자세히' 또는 '[파일명] 상세정보'",
+                "• 데이터 활용 방안: '[파일명] 전체 활용' 또는 '[파일명] 비즈니스 활용'",
+                "• 새로운 데이터 검색 시작: '다른 데이터 조회'",
+                "• 현재 대화 초기화: '새 대화' (프론트엔드 기능)"
+        );
+        return Mono.just(objectMapper.valueToTree(helpMessage));
+    }
+
+    private Mono<JsonNode> handleNewSearchRequest(ChatSession session) {
+        log.info("새로운 검색 명령어 감지 - lastDataName 해제");
+        session.setLastDataName(null);
+        chatSessionRepository.save(session);
+
+        List<String> resetMessage = List.of(
+                "🔄 데이터 선택이 해제되었습니다.",
+                "새로운 데이터를 검색하고 싶으시면 원하는 키워드를 입력해주세요.",
+                "예: '서울시 교통 데이터', '부산 관광 정보' 등"
+        );
+        return Mono.just(objectMapper.valueToTree(resetMessage));
+    }
+
+    private Mono<JsonNode> handleDetailRequest(ChatSession session, String prompt) {
+        log.info("상세 정보 분기 실행 (우선 처리)");
+        return processDetailRequest(session, prompt);
+    }
+
+    private Mono<JsonNode> handleUtilizationRequest(String lastDataName, String prompt) {
+        log.info("데이터 활용 모드 - lastDataName: {}", lastDataName);
+        if (prompt.toLowerCase().contains("전체 활용")) {
+            log.info("전체 활용 분기 실행");
+            return buildFullUtilMono(lastDataName);
+        } else if (containsTraditionalUtilKeyword(prompt)) {
+            log.info("전통적 활용 키워드 분기 실행");
+            return buildSingleUtilMono(lastDataName, prompt);
+        } else {
+            log.info("맞춤형 활용 분기 실행 - 사용자 질문: '{}'", prompt);
+            return buildCustomUtilMono(lastDataName, prompt);
+        }
+    }
+
+    private Mono<JsonNode> handleGeneralSearch(String prompt, ChatSession session) {
+        log.info("일반 검색 모드 실행");
+        return runSearchLogic(prompt, session);
     }
 
     /**
