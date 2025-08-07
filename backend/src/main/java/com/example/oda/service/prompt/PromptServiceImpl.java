@@ -178,7 +178,7 @@ public class PromptServiceImpl implements PromptService {
      * ✅ 상세 정보 요청 처리 메서드 분리
      */
     private Mono<JsonNode> processDetailRequest(ChatSession session, String prompt) {
-        String extractedFileName = prompt.replace("상세", "").replace("자세히", "").trim();
+        String extractedFileName = prompt.replaceAll("상세정보|자세히|상세", "").trim();
         String effectiveFileName;
 
         if (extractedFileName.isEmpty() || extractedFileName.equals("---")) {
