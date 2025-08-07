@@ -24,15 +24,20 @@ public class DetailService {
 
     public boolean isDetailRequest(String prompt) {
         String lowerPrompt = prompt.toLowerCase().trim();
-        return (lowerPrompt.contains("상세정보") ||
+
+        boolean hasDetailKeywords = lowerPrompt.contains("상세정보") ||
                 lowerPrompt.contains("자세히") ||
                 lowerPrompt.contains("더 알고") ||
-                (lowerPrompt.contains("상세") && !lowerPrompt.contains("데이터"))) &&
-                !lowerPrompt.matches(".*\\d+개.*") &&
-                !lowerPrompt.contains("제공") &&
+                (lowerPrompt.contains("상세") && !lowerPrompt.contains("데이터"));
+
+        boolean isNotCountRequest = !lowerPrompt.matches(".*\\d+개.*") &&
+
+        boolean isNotActionRequest = !lowerPrompt.contains("제공") &&
                 !lowerPrompt.contains("보여") &&
                 !lowerPrompt.contains("검색") &&
                 !lowerPrompt.contains("찾아");
+
+        return hasDetailKeywords && isNotCountRequest && isNotActionRequest;
     }
 
     public Mono<String> getDataDetails(String prompt) {
