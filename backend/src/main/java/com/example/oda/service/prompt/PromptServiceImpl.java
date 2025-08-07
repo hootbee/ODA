@@ -4,14 +4,12 @@ import com.example.oda.dto.*;
 import com.example.oda.entity.ChatMessage;
 import com.example.oda.entity.MessageSender;
 import com.example.oda.entity.ChatSession;
-import com.example.oda.entity.PublicData;
 import com.example.oda.repository.ChatMessageRepository;
 import com.example.oda.repository.ChatSessionRepository;
 import com.example.oda.service.PromptService;
-import com.example.oda.service.QueryPlannerService;
+import com.example.oda.service.prompt.handlers.PromptHandler;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.core.user.OAuth2User;
@@ -25,16 +23,23 @@ import java.util.stream.Collectors;
 
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class PromptServiceImpl implements PromptService {
 
-    private final QueryPlannerService   queryPlannerService;
     private final DetailService         detailService;
-    private final SearchService         searchService;
     private final UtilizationService    utilizationService;
     private final ChatMessageRepository chatMessageRepository;
     private final ChatSessionRepository chatSessionRepository;
     private final ObjectMapper          objectMapper;
+    private final List<PromptHandler>   promptHandlers;
+
+    public PromptServiceImpl(DetailService detailService, UtilizationService utilizationService, ChatMessageRepository chatMessageRepository, ChatSessionRepository chatSessionRepository, ObjectMapper objectMapper, List<PromptHandler> promptHandlers) {
+        this.detailService = detailService;
+        this.utilizationService = utilizationService;
+        this.chatMessageRepository = chatMessageRepository;
+        this.chatSessionRepository = chatSessionRepository;
+        this.objectMapper = objectMapper;
+        this.promptHandlers = promptHandlers;
+    }
 
     /* ================================================================ */
     /*                             프롬프트 처리                         */
@@ -87,29 +92,12 @@ public class PromptServiceImpl implements PromptService {
         String prompt = sessionData.prompt();
         String email = sessionData.email();
 
-        // ✅ JsonNode 대신 바로 ChatResponseDto를 반환하는 구조로 변경
-        return processRequest(session, lastDataName, prompt, email);
-    }
+        PromptHandler handler = promptHandlers.stream()
+                .filter(h -> h.canHandle(prompt, lastDataName))
+                .findFirst()
+                .orElseThrow(() -> new IllegalStateException("처리할 수 있는 핸들러를 찾을 수 없습니다."));
 
-    /**
-     * ✅ 요청 처리 및 ChatResponseDto 반환을 하나의 메서드로 통합
-     */
-    private Mono<ChatResponseDto> processRequest(ChatSession session, String lastDataName, String prompt, String email) {
-        Mono<JsonNode> responseMono;
-
-        if (prompt.equals("/도움말")) {
-            responseMono = handleHelpRequest();
-        } else if (isNewSearchCommand(prompt)) {
-            responseMono = handleNewSearchRequest(session);
-        } else if (prompt.contains("상세") || prompt.contains("자세히")) {
-            responseMono = handleDetailRequest(session, prompt);
-        } else if (lastDataName != null && !lastDataName.isBlank()) {
-            responseMono = handleUtilizationRequest(lastDataName, prompt);
-        } else {
-            responseMono = handleGeneralSearch(prompt, session);
-        }
-
-        return responseMono.flatMap(json -> {
+        return handler.handle(session, prompt, lastDataName).flatMap(json -> {
             log.info("최종 응답 JSON: {}", json.toPrettyString());
             saveSingleChatMessage(session, email, MessageSender.USER, prompt);
             saveSingleChatMessage(session, email, MessageSender.BOT, json.toPrettyString());
@@ -121,208 +109,6 @@ public class PromptServiceImpl implements PromptService {
                     session.getLastDataName()
             ));
         });
-    }
-
-    private Mono<JsonNode> handleHelpRequest() {
-        log.info("도움말 명령어 감지");
-        List<String> helpMessage = List.of(
-                "안녕하세요! 저는 공공 데이터를 찾고 활용하는 것을 돕는 AI 챗봇입니다.",
-                "다음과 같이 질문해보세요:",
-                "• 특정 데이터 검색: '서울시 교통 데이터 보여줘'",
-                "• 데이터 상세 정보: '[파일명] 자세히' 또는 '[파일명] 상세정보'",
-                "• 데이터 활용 방안: '[파일명] 전체 활용' 또는 '[파일명] 비즈니스 활용'",
-                "• 새로운 데이터 검색 시작: '다른 데이터 조회'",
-                "• 현재 대화 초기화: '새 대화' (프론트엔드 기능)"
-        );
-        return Mono.just(objectMapper.valueToTree(helpMessage));
-    }
-
-    private Mono<JsonNode> handleNewSearchRequest(ChatSession session) {
-        log.info("새로운 검색 명령어 감지 - lastDataName 해제");
-        session.setLastDataName(null);
-        chatSessionRepository.save(session);
-
-        List<String> resetMessage = List.of(
-                "🔄 데이터 선택이 해제되었습니다.",
-                "새로운 데이터를 검색하고 싶으시면 원하는 키워드를 입력해주세요.",
-                "예: '서울시 교통 데이터', '부산 관광 정보' 등"
-        );
-        return Mono.just(objectMapper.valueToTree(resetMessage));
-    }
-
-    private Mono<JsonNode> handleDetailRequest(ChatSession session, String prompt) {
-        log.info("상세 정보 분기 실행 (우선 처리)");
-        return processDetailRequest(session, prompt);
-    }
-
-    private Mono<JsonNode> handleUtilizationRequest(String lastDataName, String prompt) {
-        log.info("데이터 활용 모드 - lastDataName: {}", lastDataName);
-        if (prompt.toLowerCase().contains("전체 활용")) {
-            log.info("전체 활용 분기 실행");
-            return buildFullUtilMono(lastDataName);
-        } else if (containsTraditionalUtilKeyword(prompt)) {
-            log.info("전통적 활용 키워드 분기 실행");
-            return buildSingleUtilMono(lastDataName, prompt);
-        } else {
-            log.info("맞춤형 활용 분기 실행 - 사용자 질문: '{}'", prompt);
-            return buildCustomUtilMono(lastDataName, prompt);
-        }
-    }
-
-    private Mono<JsonNode> handleGeneralSearch(String prompt, ChatSession session) {
-        log.info("일반 검색 모드 실행");
-        return runSearchLogic(prompt, session);
-    }
-
-    /**
-     * ✅ 상세 정보 요청 처리 메서드 분리
-     */
-    private Mono<JsonNode> processDetailRequest(ChatSession session, String prompt) {
-        String extractedFileName = prompt.replaceAll("상세정보|자세히|상세", "").trim();
-        String effectiveFileName;
-
-        if (extractedFileName.isEmpty() || extractedFileName.equals("---")) {
-            effectiveFileName = session.getLastDataName();
-            if (effectiveFileName == null || effectiveFileName.isBlank()) {
-                log.warn("상세 정보 요청에 파일명이 없으며, 세션에 lastDataName도 설정되어 있지 않습니다.");
-                return Mono.just(objectMapper.valueToTree(List.of("어떤 데이터의 상세 정보를 원하시는지 파일명을 함께 알려주세요.")));
-            }
-            log.info("세션의 lastDataName '{}'을(를) 사용하여 상세 정보 조회", effectiveFileName);
-        } else {
-            effectiveFileName = extractedFileName;
-            log.info("프롬프트에서 추출된 파일명 '{}'을(를) 사용하여 상세 정보 조회", effectiveFileName);
-        }
-
-        session.setLastDataName(effectiveFileName);
-        chatSessionRepository.save(session);
-
-        return detailService.getDataDetails(effectiveFileName)
-                .map(detailText -> {
-                    String hint = "\n\n" +
-                                          "💡 이 데이터를 어떻게 활용하고 싶으신가요? 자유롭게 질문해주세요!\n" +
-                                          "예시:\n" +
-                                          "• \"전체 활용\" - 모든 활용방안 대시보드 🔍\n" +
-                                          "• \"해외 사례와 연관 지어 활용\"\n" +
-                                          "• \"[특정 목적]을 위한 활용\" - 예: \"마케팅 전략 수립을 위한 활용\"\n" +
-                                          "• \"이 데이터 CSV 파일 보여줘\" - (아직 구현되지 않았지만) CSV 파일 내용을 직접 확인";
-                    return objectMapper.createArrayNode().add(detailText + hint);
-                });
-    }
-
-    /* ================================================================ */
-    /*                           헬퍼 메서드                            */
-    /* ================================================================ */
-
-    private boolean isNewSearchCommand(String prompt) {
-        String lower = prompt.toLowerCase();
-        return lower.contains("다른 데이터") ||
-                lower.contains("새로운 데이터") ||
-                lower.contains("다른 정보") ||
-                lower.contains("새 검색") ||
-                lower.contains("새로운 검색") ||
-                lower.contains("다른 자료") ||
-                lower.matches(".*다른.*조회.*") ||
-                lower.matches(".*새로.*찾.*") ||
-                lower.matches(".*다시.*검색.*");
-    }
-
-    private boolean containsTraditionalUtilKeyword(String p) {
-        String s = p.toLowerCase();
-        return s.matches(".*(비즈니스 활용|연구 활용|정책 활용|데이터 결합|분석 도구).*") ||
-                s.matches(".*(business 활용|research 활용|policy 활용|combination 활용|tool 활용).*");
-    }
-
-    private Mono<JsonNode> buildFullUtilMono(String fileName) {
-        SingleUtilizationRequestDto dto = new SingleUtilizationRequestDto();
-        SingleUtilizationRequestDto.DataInfo dataInfo = new SingleUtilizationRequestDto.DataInfo();
-        dataInfo.setFileName(fileName);
-        dto.setDataInfo(dataInfo);
-        return utilizationService.getFullUtilizationRecommendations(dto);
-    }
-
-    private Mono<JsonNode> buildSingleUtilMono(String fileName, String analysisType) {
-        SingleUtilizationRequestDto dto = new SingleUtilizationRequestDto();
-        SingleUtilizationRequestDto.DataInfo dataInfo = new SingleUtilizationRequestDto.DataInfo();
-        dataInfo.setFileName(fileName);
-        dto.setDataInfo(dataInfo);
-        dto.setAnalysisType(analysisType);
-        return utilizationService.getSingleUtilizationRecommendation(dto)
-                .map(recommendations -> {
-                    List<String> combined = new java.util.ArrayList<>(recommendations);
-                    combined.add("\n\n💡 다른 데이터 조회를 원하시면 '다른 데이터 활용'을 입력하시고, 다른 활용방안을 원하시면 프롬프트를 작성해주세요.");
-                    return objectMapper.valueToTree(combined);
-                });
-    }
-
-    private Mono<JsonNode> buildCustomUtilMono(String fileName, String userPrompt) {
-        log.info("맞춤형 활용방안 생성 - 파일: {}, 질문: {}", fileName, userPrompt);
-
-        SingleUtilizationRequestDto dto = new SingleUtilizationRequestDto();
-        SingleUtilizationRequestDto.DataInfo dataInfo = new SingleUtilizationRequestDto.DataInfo();
-        dataInfo.setFileName(fileName);
-        dto.setDataInfo(dataInfo);
-        dto.setAnalysisType(userPrompt);
-
-        return utilizationService.getSingleUtilizationRecommendation(dto)
-                .map(recommendations -> {
-                    List<String> combined = new java.util.ArrayList<>(recommendations);
-                    combined.add("\n\n💡 다른 데이터 조회를 원하시면 '다른 데이터 활용'을 입력하시고, 다른 활용방안을 원하시면 프롬프트를 작성해주세요.");
-                    return objectMapper.valueToTree(combined);
-                });
-    }
-
-    private Mono<JsonNode> runSearchLogic(String prompt, ChatSession session) {
-        log.info("일반 검색 모드로 진행");
-
-        try {
-            QueryPlanDto plan = queryPlannerService.createQueryPlan(prompt);
-
-            log.info("원본 프롬프트: {}", prompt);
-            log.info("추출된 키워드: {}", plan.getKeywords());
-            log.info("AI 분류 결과: {}", plan.getMajorCategory());
-            log.info("결과 개수 제한: {}", plan.getLimit());
-
-            List<PublicData> allResults = searchService.searchAndFilterData(plan.getKeywords(), plan.getMajorCategory());
-            List<PublicData> uniqueResults = searchService.deduplicateResults(allResults);
-            List<PublicData> sortedResults = searchService.sortResultsByRelevance(uniqueResults, plan.getKeywords(), prompt);
-
-            log.info("전체 검색 결과 수: {}", sortedResults.size());
-
-            List<String> results;
-
-            if (sortedResults.isEmpty()) {
-                String regionKeyword = searchService.extractRegionFromKeywords(plan.getKeywords());
-                if (regionKeyword != null) {
-                    results = List.of(
-                            "해당 지역(" + regionKeyword + ")의 데이터가 부족합니다.",
-                            "다른 지역의 유사한 데이터를 참고하거나",
-                            "상위 카테고리(" + plan.getMajorCategory() + ")로 검색해보세요."
-                    );
-                } else {
-                    results = List.of("해당 조건에 맞는 데이터를 찾을 수 없습니다.");
-                }
-            } else {
-                results = sortedResults.stream()
-                        .map(PublicData::getFileDataName)
-                        .filter(name -> name != null && !name.trim().isEmpty())
-                        .limit(plan.getLimit())
-                        .collect(Collectors.toList());
-
-                if (!results.isEmpty()) {
-                    String hintMessage = "\n\n💡 특정 데이터에 대한 자세한 정보가 필요하시면\n'[파일명] 상세정보' 또는 '[파일명] 자세히'라고 말씀하세요.";
-                    int lastIndex = results.size() - 1;
-                    results.set(lastIndex, results.get(lastIndex) + hintMessage);
-                }
-            }
-
-            JsonNode jsonNode = objectMapper.valueToTree(results);
-            return Mono.just(jsonNode);
-
-        } catch (Exception e) {
-            log.error("검색 중 오류 발생", e);
-            return Mono.just(objectMapper.valueToTree(
-                    List.of("데이터를 조회하는 중 오류가 발생했습니다.")));
-        }
     }
 
     private ChatSession createSession(String prompt, String email) {
@@ -363,20 +149,7 @@ public class PromptServiceImpl implements PromptService {
     /*                     인터페이스 기본 구현                          */
     /* ================================================================ */
 
-    @Override
-    public Mono<String> getDataDetails(String prompt) {
-        return detailService.getDataDetails(prompt);
-    }
-
-    @Override
-    public Mono<List<String>> getSingleUtilizationRecommendation(SingleUtilizationRequestDto dto) {
-        return utilizationService.getSingleUtilizationRecommendation(dto);
-    }
-
-    @Override
-    public Mono<JsonNode> getFullUtilizationRecommendations(SingleUtilizationRequestDto dto) {
-        return utilizationService.getFullUtilizationRecommendations(dto);
-    }
+    
 
     @Override
     public Mono<List<ChatHistoryDto>> getChatHistory(Authentication auth) {

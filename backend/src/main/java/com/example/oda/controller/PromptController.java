@@ -43,28 +43,7 @@ public class PromptController {
                 .defaultIfEmpty(ResponseEntity.notFound().build());
     }
 
-    @PostMapping("/api/data-details")
-    public Mono<ResponseEntity<String>> getDataDetails(@RequestBody PromptRequestDto requestDto) {
-        return promptService.getDataDetails(requestDto.getPrompt())
-                .map(details -> ResponseEntity.ok(details))
-                .defaultIfEmpty(ResponseEntity.notFound().build());
-    }
-
-    @PostMapping("/api/data-utilization/single")
-    public Mono<ResponseEntity<List<String>>> getSingleUtilization(
-            @RequestBody SingleUtilizationRequestDto requestDto) {
-        return promptService.getSingleUtilizationRecommendation(requestDto)
-                .map(recommendations -> ResponseEntity.ok(recommendations))
-                .defaultIfEmpty(ResponseEntity.notFound().build());
-    }
-
-    @PostMapping("/api/data-utilization/full")
-    public Mono<ResponseEntity<JsonNode>> getFullUtilization(
-            @RequestBody SingleUtilizationRequestDto requestDto) {
-        return promptService.getFullUtilizationRecommendations(requestDto)
-                .map(recommendations -> ResponseEntity.ok(recommendations))
-                .defaultIfEmpty(ResponseEntity.notFound().build());
-    }
+    
 
     @GetMapping("/api/chat/history")
     public Mono<ResponseEntity<List<ChatHistoryDto>>> getChatHistory(Authentication authentication) {
