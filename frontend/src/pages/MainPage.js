@@ -36,13 +36,19 @@ const MainPage = () => {
 
   return (
     <MainContainer>
-      <RotatingLogo src={`${process.env.PUBLIC_URL}/ODA_logo.png`} alt="ODA Logo" />
-      <Title>ODA<br/>Data Analysis Chatbot</Title>
-      <ButtonContainer>
-        <Button onClick={handleStartChat}>채팅</Button>
-        <Button onClick={togglePopup}>도움말</Button>
-        <Button onClick={handleLogin}>로그인</Button>
-      </ButtonContainer>
+      <FloatingBubble_Q1 top="20%" left="15%" delay="-2s">어떤 데이터 분석을 도와드릴까요?</FloatingBubble_Q1>
+      <FloatingBubble_A1 top="35%" left="10%" delay="0s">밥 먹는 시간을 분석해줘</FloatingBubble_A1>
+      <FloatingBubble_Q2 top="50%" left="75%" delay="-2s">어떤 도움이 필요하신가요?</FloatingBubble_Q2>
+      <FloatingBubble_A2 top="65%" left="77%" delay="0s">이 데이터의 활용 방안을 알려줘</FloatingBubble_A2>
+      <ContentWrapper>
+        <RotatingLogo src={`${process.env.PUBLIC_URL}/ODA_logo.png`} alt="ODA Logo" />
+        <Title>ODA<br/>Data Analysis Chatbot</Title>
+        <ButtonContainer>
+          <Button onClick={handleStartChat}>Chat</Button>
+          <Button onClick={togglePopup}>Help</Button>
+          {/*<Button onClick={handleLogin}>로그인</Button>*/}
+        </ButtonContainer>
+      </ContentWrapper>
       {showPopup && <Popup handleClose={togglePopup} />}
     </MainContainer>
   );
@@ -59,6 +65,19 @@ const rotate = keyframes`
   }
 `;
 
+//채팅 버블
+const float = keyframes`
+  0% {
+    transform: translateY(0px) rotateX(5deg) rotateY(-10deg);
+  }
+  50% {
+    transform: translateY(-20px) rotateX(5deg) rotateY(10deg);
+  }
+  100% {
+    transform: translateY(0px) rotateX(5deg) rotateY(-10deg);
+  }
+`;
+
 // Styled Components
 const MainContainer = styled.div`
   display: flex;
@@ -69,6 +88,97 @@ const MainContainer = styled.div`
   background: linear-gradient(150deg, #f4f8ff 0%, #a1ceffff 100%);
   perspective: 1000px;
   font-family: 'Poppins', sans-serif;
+  position: relative;
+  overflow: hidden;
+`;
+
+const ContentWrapper = styled.div`
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  position: relative;
+  z-index: 2;
+`;
+
+const FloatingBubble_Q1 = styled.div`
+  position: absolute;
+  top: ${props => props.top};
+  left: ${props => props.left};
+  right: ${props => props.right};
+  padding: 1.2rem 1.7rem;
+  background: rgba(255, 255, 255, 0.6);
+  border-radius: 20px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+  backdrop-filter: blur(5px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  z-index: 1;
+  font-size: 1.2rem;
+  color: #2c3e50;
+  font-weight: 500;
+
+  animation: ${float} 6s ease-in-out infinite;
+  animation-delay: ${props => props.delay};
+`;
+
+const FloatingBubble_A1 = styled.div`
+  position: absolute;
+  top: ${props => props.top};
+  left: ${props => props.left};
+  right: ${props => props.right};
+  padding: 1.2rem 1.7rem;
+  background: rgba(46, 161, 255, 0.62);
+  border-radius: 20px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+  backdrop-filter: blur(5px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  z-index: 1;
+  font-size: 1.2rem;
+  color: #2c3e50;
+  font-weight: 500;
+
+  animation: ${float} 6s ease-in-out infinite;
+  animation-delay: ${props => props.delay};
+`;
+
+const FloatingBubble_Q2 = styled.div`
+  position: absolute;
+  top: ${props => props.top};
+  left: ${props => props.left};
+  right: ${props => props.right};
+  padding: 1.2rem 1.7rem;
+  background: rgba(255, 255, 255, 0.6);
+  border-radius: 20px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+  backdrop-filter: blur(5px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  z-index: 1;
+  font-size: 1.2rem;
+  color: #2c3e50;
+  font-weight: 500;
+
+  animation: ${float} 6s ease-in-out infinite;
+  animation-delay: ${props => props.delay};
+`;
+
+const FloatingBubble_A2 = styled.div`
+  position: absolute;
+  top: ${props => props.top};
+  left: ${props => props.left};
+  right: ${props => props.right};
+  padding: 1.2rem 1.7rem;
+  background: rgba(46, 161, 255, 0.62);
+  border-radius: 20px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+  backdrop-filter: blur(5px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  z-index: 1;
+  font-size: 1.2rem;
+  color: #2c3e50;
+  font-weight: 500;
+
+  animation: ${float} 6s ease-in-out infinite;
+  animation-delay: ${props => props.delay};
 `;
 
 const RotatingLogo = styled.img`
