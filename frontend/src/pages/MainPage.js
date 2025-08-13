@@ -39,9 +39,9 @@ const MainPage = () => {
       <RotatingLogo src={`${process.env.PUBLIC_URL}/ODA_logo.png`} alt="ODA Logo" />
       <Title>ODA<br/>Data Analysis Chatbot</Title>
       <ButtonContainer>
-        <Button onClick={handleStartChat}>Chat</Button>
-        <Button onClick={togglePopup}>Help</Button>
-        <Button onClick={handleLogin}>Login</Button>
+        <Button onClick={handleStartChat}>채팅</Button>
+        <Button onClick={togglePopup}>도움말</Button>
+        <Button onClick={handleLogin}>로그인</Button>
       </ButtonContainer>
       {showPopup && <Popup handleClose={togglePopup} />}
     </MainContainer>
@@ -66,7 +66,7 @@ const MainContainer = styled.div`
   justify-content: center;
   align-items: center;
   height: 100vh;
-  background: linear-gradient(150deg, #fafeffff 0%, #bcecffff 100%);
+  background: linear-gradient(150deg, #f4f8ff 0%, #a1ceffff 100%);
   perspective: 1000px;
   font-family: 'Poppins', sans-serif;
 `;
@@ -82,30 +82,37 @@ const Title = styled.h1`
   font-weight: 700;
   color: #2c3e50;
   text-align: center;
-  margin-bottom: 2rem;
+  margin-bottom: 5rem;
+  line-height: 1.3;
+  background: linear-gradient(45deg, #0d326e 30%, #1d8bd5ff 70%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
 `;
 
 const ButtonContainer = styled.div`
   display: flex;
-  gap: 1rem;
+  gap: 1.5rem;
 `;
 
 const Button = styled.button`
+  min-width: 180px;
   padding: 1rem 2rem;
-  font-size: 1.2rem;
+  font-size: 1.1rem;
   font-family: 'Poppins', sans-serif;
-  color: #fff;
-  background-color: #007bff;
-  border: none;
+  font-weight: 600;
+  color: #0d326e;
+  background-color: transparent;
+  border: 2px solid #a3c5f5;
   border-radius: 50px;
   cursor: pointer;
   transition: all 0.3s ease;
-  box-shadow: 0 4px 10px rgba(0, 123, 255, 0.2);
-
+  
   &:hover {
-    background-color: #0056b3;
+    color: #fff;
+    background-color: #0086dfff;
+    border-color: #0086dfff;
     transform: translateY(-3px);
-    box-shadow: 0 8px 20px rgba(0, 123, 255, 0.3);
+    box-shadow: 0 8px 20px rgba(33, 166, 255, 0.3);
   }
 `;
 
