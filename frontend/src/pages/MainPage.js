@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import styled from 'styled-components';
+import styled, { keyframes } from 'styled-components';
 
 // 간단한 팝업 컴포넌트
 const Popup = ({ handleClose }) => {
@@ -36,6 +36,7 @@ const MainPage = () => {
 
   return (
     <MainContainer>
+      <RotatingLogo src={`${process.env.PUBLIC_URL}/ODA_logo.png`} alt="ODA Logo" />
       <Title>ODA 데이터 분석 챗봇</Title>
       <ButtonContainer>
         <Button onClick={handleStartChat}>챗봇 시작</Button>
@@ -49,6 +50,15 @@ const MainPage = () => {
 
 export default MainPage;
 
+const rotate = keyframes`
+  from {
+    transform: rotateY(0deg);
+  }
+  to {
+    transform: rotateY(360deg);
+  }
+`;
+
 // Styled Components
 const MainContainer = styled.div`
   display: flex;
@@ -57,6 +67,13 @@ const MainContainer = styled.div`
   align-items: center;
   height: 100vh;
   background-color: #f0f2f5;
+  perspective: 1000px;
+`;
+
+const RotatingLogo = styled.img`
+  width: 350px;
+  height: 350px;
+  animation: ${rotate} 5s linear infinite;
 `;
 
 const Title = styled.h1`
