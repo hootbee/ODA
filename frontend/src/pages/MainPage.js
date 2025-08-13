@@ -37,11 +37,11 @@ const MainPage = () => {
   return (
     <MainContainer>
       <RotatingLogo src={`${process.env.PUBLIC_URL}/ODA_logo.png`} alt="ODA Logo" />
-      <Title>ODA 데이터 분석 챗봇</Title>
+      <Title>ODA<br/>Data Analysis Chatbot</Title>
       <ButtonContainer>
-        <Button onClick={handleStartChat}>챗봇 시작</Button>
-        <Button onClick={togglePopup}>도움말</Button>
-        <Button onClick={handleLogin}>로그인</Button>
+        <Button onClick={handleStartChat}>Chat</Button>
+        <Button onClick={togglePopup}>Help</Button>
+        <Button onClick={handleLogin}>Login</Button>
       </ButtonContainer>
       {showPopup && <Popup handleClose={togglePopup} />}
     </MainContainer>
@@ -66,8 +66,9 @@ const MainContainer = styled.div`
   justify-content: center;
   align-items: center;
   height: 100vh;
-  background-color: #f0f2f5;
+  background: linear-gradient(150deg, #fafeffff 0%, #bcecffff 100%);
   perspective: 1000px;
+  font-family: 'Poppins', sans-serif;
 `;
 
 const RotatingLogo = styled.img`
@@ -78,7 +79,9 @@ const RotatingLogo = styled.img`
 
 const Title = styled.h1`
   font-size: 3rem;
-  color: #333;
+  font-weight: 700;
+  color: #2c3e50;
+  text-align: center;
   margin-bottom: 2rem;
 `;
 
@@ -90,15 +93,19 @@ const ButtonContainer = styled.div`
 const Button = styled.button`
   padding: 1rem 2rem;
   font-size: 1.2rem;
+  font-family: 'Poppins', sans-serif;
   color: #fff;
   background-color: #007bff;
   border: none;
-  border-radius: 5px;
+  border-radius: 50px;
   cursor: pointer;
-  transition: background-color 0.3s;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 10px rgba(0, 123, 255, 0.2);
 
   &:hover {
     background-color: #0056b3;
+    transform: translateY(-3px);
+    box-shadow: 0 8px 20px rgba(0, 123, 255, 0.3);
   }
 `;
 
