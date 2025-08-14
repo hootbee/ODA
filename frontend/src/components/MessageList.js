@@ -1,8 +1,17 @@
-import React from "react";
+import React, { useEffect, useRef } from "react";
 import styled from "styled-components";
 import UtilizationDashboard from "./UtilizationDashboard"; // 새로 추가
 
 function MessageList({ messages, onCategorySelect }) {
+  const messageEndRef = useRef(null);
+  const scrollToBottom = () => {
+    messageEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
+
   // props 추가
   return (
     <MessageListContainer>
@@ -24,6 +33,7 @@ function MessageList({ messages, onCategorySelect }) {
           )}
         </MessageItem>
       ))}
+      <div ref={messageEndRef} />
     </MessageListContainer>
   );
 }
@@ -36,21 +46,21 @@ const MessageListContainer = styled.div`
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 15px;
 `;
 
 const MessageItem = styled.div`
   padding: ${(props) =>
     props.children?.props?.data ? "0" : "10px 15px"}; // 대시보드일 때 패딩 제거
-  border-radius: 18px;
+  border-radius: 22px;
   max-width: ${(props) =>
     props.children?.props?.data ? "95%" : "70%"}; // 대시보드일 때 더 넓게
   word-wrap: break-word;
   white-space: pre-wrap;
   background-color: ${(props) => {
     // 대시보드 메시지는 투명 배경
-    if (props.children?.props?.data) return "transparent";
-    return props.sender === "user" ? "#007bff" : "#e9e9eb";
+    if (props.children?.props?.data) return `background: transparent; padding: 0; box-shadow: none;`;
+    return props.sender === "user" ? "#0099ffff" : "#e9e9eb";
   }};
   color: ${(props) => (props.sender === "user" ? "white" : "black")};
   align-self: ${(props) =>
@@ -68,7 +78,7 @@ const MessageItem = styled.div`
 
 const MessageText = styled.span`
   display: block;
-  line-height: 1.4;
+  line-height: 1.6;
 `;
 
 export default MessageList;
