@@ -64,11 +64,11 @@ const StyledLink = styled(NavLink)`
   font-family: 'Poppins', sans-serif;
 
   &:hover {
-    color: #0086dfff;
+    color: #0087e1ff;
   }
 
   &.active {
-    color: #0086dfff;
+    color: #0087e1ff;
     font-weight: 700;
   }
 `;
