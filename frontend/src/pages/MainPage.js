@@ -30,9 +30,9 @@ const MainPage = () => {
     setShowPopup(!showPopup);
   };
 
-  const handleLogin = () => {
+  /*const handleLogin = () => {
     alert('로그인 기능은 현재 준비 중입니다.');
-  };
+  };*/
 
   return (
     <MainContainer>

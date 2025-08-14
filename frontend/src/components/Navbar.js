@@ -1,5 +1,5 @@
 import React from "react";
-import { Link } from "react-router-dom";
+import { NavLink } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import styled from "styled-components";
 
@@ -9,14 +9,14 @@ const Navbar = () => {
   return (
     <Nav>
       <NavLinks>
-        <StyledLink to="/">메인</StyledLink>
-        <StyledLink to="/chat">채팅</StyledLink>
-        <StyledLink to="/profile">프로필</StyledLink>
+        <NavLink to="/"><LogoImage src={`${process.env.PUBLIC_URL}/ODA_logo.png`} alt="ODA Logo" /></NavLink>
+        <StyledLink to="/chat">Chat</StyledLink>
+        <StyledLink to="/profile">Profile</StyledLink>
       </NavLinks>
       <AuthControls>
         {isAuthenticated ? (
           <>
-            <WelcomeText>환영합니다, {user.name}!</WelcomeText>
+            <WelcomeText>환영합니다, {user.name}님!</WelcomeText>
             <LogoutButton onClick={logout}>로그아웃</LogoutButton>
           </>
         ) : (
@@ -35,6 +35,8 @@ const Nav = styled.nav`
   justify-content: space-between;
   align-items: center;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  position: relative;
+  z-index: 10;
 `;
 
 const NavLinks = styled.div`
@@ -42,19 +44,32 @@ const NavLinks = styled.div`
     align-items: center;
 `;
 
+const LogoImage = styled.img`
+  height: 55px;
+  margin-right: 1rem;
+  vertical-align: middle;
+`;
+
 const AuthControls = styled.div`
     display: flex;
     align-items: center;
 `;
 
-const StyledLink = styled(Link)`
+const StyledLink = styled(NavLink)`
   color: #333;
   text-decoration: none;
   padding: 1rem;
   transition: color 0.2s;
+  font-weight: 500;
+  font-family: 'Poppins', sans-serif;
 
   &:hover {
-    color: #007bff;
+    color: #0086dfff;
+  }
+
+  &.active {
+    color: #0086dfff;
+    font-weight: 700;
   }
 `;
 
@@ -65,14 +80,14 @@ const WelcomeText = styled.span`
 
 const LogoutButton = styled.button`
   padding: 8px 16px;
-  border: 1px solid #ddd;
+  border: 1px solid #c9c9c9ff;
   background-color: transparent;
-  border-radius: 4px;
+  border-radius: 20px;
   cursor: pointer;
   transition: all 0.2s;
 
   &:hover {
-    background-color: #f5f5f5;
+    background-color: #e6e6e6ff;
     border-color: #ccc;
   }
 `;
