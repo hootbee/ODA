@@ -211,8 +211,8 @@ const Button = styled.button`
   font-family: 'Poppins', sans-serif;
   font-weight: 600;
   color: #0d326e;
-  background-color: transparent;
-  border: 2px solid #a3c5f5;
+  background-color: rgba(255, 255, 255, 0.2);
+  border: 3px solid #8bbcffff;
   border-radius: 50px;
   cursor: pointer;
   transition: all 0.3s ease;
