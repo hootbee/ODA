@@ -1,8 +1,8 @@
 import React, { useEffect, useRef } from "react";
-import styled from "styled-components";
+import styled, { keyframes } from "styled-components";
 import UtilizationDashboard from "./UtilizationDashboard"; // 새로 추가
 
-function MessageList({ messages, onCategorySelect }) {
+function MessageList({ messages, onCategorySelect, isTyping }) {
   const messageEndRef = useRef(null);
   const scrollToBottom = () => {
     messageEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -10,7 +10,7 @@ function MessageList({ messages, onCategorySelect }) {
 
   useEffect(() => {
     scrollToBottom();
-  }, [messages]);
+  }, [messages, isTyping]);
 
   // props 추가
   return (
@@ -33,12 +33,46 @@ function MessageList({ messages, onCategorySelect }) {
           )}
         </MessageItem>
       ))}
+
+      {isTyping && (
+        <MessageItem sender="bot">
+          <TypingIndicator>
+            <Spinner />
+            <span>입력 중...</span>
+          </TypingIndicator>
+        </MessageItem>
+      )}
+
       <div ref={messageEndRef} />
     </MessageListContainer>
   );
 }
 
 // ============== Styled Components ==============
+
+const spin = keyframes`
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+`;
+
+const TypingIndicator = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+`;
+
+const Spinner = styled.div`
+  width: 18px;
+  height: 18px;
+  border: 3px solid rgba(0, 0, 0, 0.1);
+  border-top-color: #888; 
+  border-radius: 50%;
+  animation: ${spin} 1s linear infinite;
+  `;
 
 const MessageListContainer = styled.div`
   flex-grow: 1;

@@ -26,6 +26,7 @@ export default function ChatPage() {
   const [activeContextId, setActiveId] = useState(null);
   const [conversations, setConvs] = useState({});
   const [inputValue, setInput] = useState("");
+  const [isTyping, setIsTyping] = useState(false);
 
   /* ---------------------- 유틸 ---------------------- */
   const authHeaders = () => {
@@ -174,6 +175,7 @@ export default function ChatPage() {
     const userMsg = { id: Date.now(), sender: "user", text: prompt };
     updateConv((c) => ({ ...c, messages: [...c.messages, userMsg] }));
     setInput("");
+    setIsTyping(true);
 
     try {
       const body = {
@@ -255,6 +257,8 @@ export default function ChatPage() {
           },
         ],
       }));
+    } finally {
+      setIsTyping(false);
     }
   };
 
@@ -275,7 +279,7 @@ export default function ChatPage() {
         onDeleteContext={handleDeleteContext}
       />
       <ChatPane>
-        <MessageList messages={conv.messages} onCategorySelect={onCategory} />
+        <MessageList messages={conv.messages} onCategorySelect={onCategory} isTyping={isTyping}/>
         <MessageForm
           inputValue={inputValue}
           setInputValue={setInput}
