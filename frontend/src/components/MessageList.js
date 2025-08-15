@@ -52,7 +52,7 @@ const MessageListContainer = styled.div`
 const MessageItem = styled.div`
   padding: ${(props) =>
     props.children?.props?.data ? "0" : "10px 15px"}; // 대시보드일 때 패딩 제거
-  border-radius: 22px;
+  border-radius: 20px;
   max-width: ${(props) =>
     props.children?.props?.data ? "95%" : "70%"}; // 대시보드일 때 더 넓게
   word-wrap: break-word;

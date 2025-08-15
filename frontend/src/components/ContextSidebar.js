@@ -16,6 +16,7 @@ const SidebarHeader = styled.h2`
   font-size: 1.2rem;
   margin-bottom: 1.5rem;
   color: #343a40;
+  padding: 0 0.5rem;
 `;
 
 const ContextList = styled.ul`
