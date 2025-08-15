@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from "react";
 import styled, { keyframes } from "styled-components";
-import UtilizationDashboard from "./UtilizationDashboard"; // 새로 추가
+import UtilizationDashboard from "./UtilizationDashboard";
+import ReactMarkdown from 'react-markdown';
 
 function MessageList({ messages, onCategorySelect, isTyping }) {
   const messageEndRef = useRef(null);
@@ -26,9 +27,7 @@ function MessageList({ messages, onCategorySelect, isTyping }) {
             />
           ) : (
             <MessageText>
-              {message.text.split("\n").map((line, index) => (
-                <div key={index}>{line}</div>
-              ))}
+              <ReactMarkdown>{message.text}</ReactMarkdown>
             </MessageText>
           )}
         </MessageItem>
@@ -110,9 +109,52 @@ const MessageItem = styled.div`
   `}
 `;
 
-const MessageText = styled.span`
-  display: block;
-  line-height: 1.6;
+const MessageText = styled.div`
+  line-height: 1.5;
+  text-align: left;
+
+  p {
+    margin: 0;
+  }
+
+  strong {
+    font-weight: 600;
+    color: #000000ff;
+  }
+
+  h3 {
+    font-size: 1.2em;
+    margin: 0;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #bcbcbcff;
+  }
+
+  hr {
+    display: none;
+  }
+
+  p > strong {
+    margin-right: 3px;
+  }
+
+  ul {
+    padding-left: 20px;
+    margin: 0;
+  }
+
+  li {
+    margin-bottom: 0px;
+  }
+
+  blockquote {
+    margin: 0;
+    padding: 0 15px; 
+    /*background-color: #f7f9fc;
+    border-left: 4px solid #0099ffff;
+    border-radius: 0 8px 8px 0;
+    color: #4a5568;*/
+  }
 `;
+
 
 export default MessageList;
