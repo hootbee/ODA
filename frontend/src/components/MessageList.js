@@ -149,10 +149,10 @@ const MessageText = styled.div`
   blockquote {
     margin: 0;
     padding: 0 15px; 
-    /*background-color: #f7f9fc;
+    background-color: #f7f9fc;
     border-left: 4px solid #0099ffff;
     border-radius: 0 8px 8px 0;
-    color: #4a5568;*/
+    color: #4a5568;
   }
 `;
 

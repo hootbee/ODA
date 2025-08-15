@@ -8,35 +8,35 @@ const UtilizationDashboard = ({ data, fileName, onCategorySelect }) => {
   const categories = [
     {
       key: "businessApplications",
-      title: "💼 비즈니스 활용",
+      title: "비즈니스 활용",
       type: "business",
       icon: "💼",
       description: "수익 창출 및 사업 아이디어",
     },
     {
       key: "researchApplications",
-      title: "🔬 연구 활용",
+      title: "연구 활용",
       type: "research",
       icon: "🔬",
       description: "학술 연구 및 기술 개발",
     },
     {
       key: "policyApplications",
-      title: "🏛️ 정책 활용",
+      title: "정책 활용",
       type: "policy",
       icon: "🏛️",
       description: "공공 정책 및 행정 개선",
     },
     {
       key: "combinationSuggestions",
-      title: "🔗 데이터 결합",
+      title: "데이터 결합",
       type: "combination",
       icon: "🔗",
       description: "다른 데이터와의 융합 활용",
     },
     {
       key: "analysisTools",
-      title: "🛠️ 분석 도구",
+      title: "분석 도구",
       type: "tools",
       icon: "🛠️",
       description: "추천 분석 및 시각화 도구",
@@ -90,11 +90,11 @@ const UtilizationDashboard = ({ data, fileName, onCategorySelect }) => {
 // ============== Styled Components ===============
 
 const DashboardContainer = styled.div`
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  border-radius: 12px;
+  background: #e9e9eb;
+  border-radius: 20px;
   padding: 20px;
   margin: 10px 0;
-  color: white;
+  color: black;
 `;
 
 const DashboardHeader = styled.div`
@@ -120,9 +120,9 @@ const CategoriesGrid = styled.div`
 `;
 
 const CategoryCard = styled.div`
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(141, 141, 141, 0.1);
   backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(181, 181, 181, 0.2);
   border-radius: 10px;
   padding: 16px;
   cursor: pointer;
@@ -171,8 +171,8 @@ const PreviewItem = styled.div`
 `;
 
 const MoreButton = styled.div`
-  background: rgba(255, 255, 255, 0.2);
-  border: 1px solid rgba(255, 255, 255, 0.3);
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(161, 161, 161, 0.2);
   border-radius: 6px;
   padding: 8px 12px;
   text-align: center;
