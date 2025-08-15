@@ -83,7 +83,7 @@ const DeleteButton = styled.button`
 const NewChatButton = styled.button`
   margin-top: auto;
   padding: 0.8rem;
-  background: rgba(0, 128, 255, 0.6);
+  background: rgba(0, 13, 255, 0.6);
   color: white;
   border: none;
   border-radius: 20px;
@@ -97,7 +97,7 @@ const NewChatButton = styled.button`
   gap: 0.5rem;
 
   &:hover {
-    background-color: #0056b3;
+    background-color: #000dcaff;
   }
 
   &:disabled {
@@ -131,7 +131,7 @@ const ContextSidebar = ({ contexts, activeContextId, onNewChat, onSwitchContext,
         ))}
       </ContextList>
       <NewChatButton onClick={onNewChat} disabled={contexts.length >= 3}>
-        <FaPlus size="0.8em" /> 새 대화 시작하기
+        <FaPlus size="0.8em" /> 새로운 대화
       </NewChatButton>
     </SidebarContainer>
   );
