@@ -14,9 +14,10 @@ const SidebarContainer = styled.div`
 
 const SidebarHeader = styled.h2`
   font-size: 1.2rem;
-  margin-bottom: 1.5rem;
+  margin-bottom: 1.75rem;
   color: #343a40;
   padding: 0 0.5rem;
+  font-weight: 500;
 `;
 
 const ContextList = styled.ul`
@@ -84,7 +85,7 @@ const DeleteButton = styled.button`
 const NewChatButton = styled.button`
   margin-top: auto;
   padding: 0.8rem;
-  background: rgba(0, 13, 255, 0.6);
+  background: rgba(0, 42, 255, 0.6);
   color: white;
   border: none;
   border-radius: 20px;
@@ -98,7 +99,7 @@ const NewChatButton = styled.button`
   gap: 0.5rem;
 
   &:hover {
-    background-color: #000dcaff;
+    background-color: #0052e1ff;
   }
 
   &:disabled {
