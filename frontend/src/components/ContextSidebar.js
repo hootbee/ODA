@@ -111,7 +111,7 @@ const NewChatButton = styled.button`
 const ContextSidebar = ({ contexts, activeContextId, onNewChat, onSwitchContext, onDeleteContext }) => {
   return (
     <SidebarContainer>
-      <SidebarHeader>대화 목록</SidebarHeader>
+      <SidebarHeader>채팅 목록</SidebarHeader>
       <ContextList>
         {contexts.map((context) => (
           <ContextItem 
@@ -133,7 +133,7 @@ const ContextSidebar = ({ contexts, activeContextId, onNewChat, onSwitchContext,
         ))}
       </ContextList>
       <NewChatButton onClick={onNewChat} disabled={contexts.length >= 3}>
-        <FaPlus size="0.8em" /> 새로운 대화
+        <FaPlus size="0.8em" /> 새 채팅
       </NewChatButton>
     </SidebarContainer>
   );
