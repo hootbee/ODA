@@ -1,6 +1,7 @@
 import React from 'react';
 import styled from 'styled-components';
 import { FaPlus, FaTimes } from 'react-icons/fa';
+import { BsChatDots } from "react-icons/bs";
 
 const SidebarContainer = styled.div`
   width: 250px;
@@ -18,6 +19,9 @@ const SidebarHeader = styled.h2`
   color: #343a40;
   padding: 0 0.5rem;
   font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
 `;
 
 const ContextList = styled.ul`
@@ -111,7 +115,7 @@ const NewChatButton = styled.button`
 const ContextSidebar = ({ contexts, activeContextId, onNewChat, onSwitchContext, onDeleteContext }) => {
   return (
     <SidebarContainer>
-      <SidebarHeader>채팅 목록</SidebarHeader>
+      <SidebarHeader> <BsChatDots /> 채팅 목록</SidebarHeader>
       <ContextList>
         {contexts.map((context) => (
           <ContextItem 
