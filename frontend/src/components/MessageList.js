@@ -3,6 +3,29 @@ import styled, { keyframes } from "styled-components";
 import UtilizationDashboard from "./UtilizationDashboard";
 import ReactMarkdown from 'react-markdown';
 
+const SearchResults = ({ data }) => (
+    <SearchResultsContainer>
+        <h4><span role="img" aria-label="icon">🔍</span> 검색 결과 ({data.totalCount}개)</h4>
+        <ResultsList>
+            {data.results.map((result, index) => (
+                <ResultItem key={index}>{result}</ResultItem>
+            ))}
+        </ResultsList>
+        <TipMessage>
+            💡 특정 데이터에 대한 자세한 정보가 필요하시면 '[파일명] 상세정보' 또는 '[파일명] 자세히'라고 말씀하세요.
+        </TipMessage>
+    </SearchResultsContainer>
+);
+
+const SearchNotFound = ({ data }) => (
+    <SearchNotFoundContainer>
+        <h4><span role="img" aria-label="icon">😕</span> 데이터를 찾을 수 없습니다.</h4>
+        <p>다음 검색어를 확인해보세요: <strong>{data.failedKeywords.join(', ')}</strong></p>
+        {data.regionKeyword && <p>해당 지역(<strong>{data.regionKeyword}</strong>)의 데이터가 부족할 수 있습니다.</p>}
+        <p>다른 지역의 유사한 데이터를 찾아보거나, 더 일반적인 검색어로 다시 시도해보세요.</p>
+    </SearchNotFoundContainer>
+);
+
 const DataDetailView = ({ data }) => {
     if (!data) return null;
     return (
@@ -50,7 +73,11 @@ function MessageList({ messages, onCategorySelect, isTyping, scrollContainerRef,
     <MessageListContainer ref={scrollContainerRef} onScroll={onScroll}>
       {messages.map((message) => (
         <MessageItem key={message.id} sender={message.sender} type={message.type}>
-          {message.type === "context_reset" ? (
+          {message.type === "search_results" ? (
+            <SearchResults data={message.data} />
+          ) : message.type === "search_not_found" ? (
+            <SearchNotFound data={message.data} />
+          ) : message.type === "context_reset" ? (
             <ContextResetMessage>
                 <p>🔄 데이터 선택이 해제되었습니다.</p>
                 <span>새로운 데이터를 검색하고 싶으시면 원하는 키워드를 입력해주세요.</span>
@@ -63,7 +90,18 @@ function MessageList({ messages, onCategorySelect, isTyping, scrollContainerRef,
               onCategorySelect={onCategorySelect}
             />
           ) : message.type === "data_detail" ? (
-            <DataDetailView data={message.data} />
+            <>
+              <DataDetailView data={message.data} />
+              <DetailHint>
+                  <p>💡 이 데이터를 어떻게 활용하고 싶으신가요? 자유롭게 질문해주세요!</p>
+                  <strong>예시:</strong>
+                  <ul>
+                    <li>"전체 활용" - 모든 활용방안 대시보드 🔍</li>
+                    <li>"해외 사례와 연관 지어 활용"</li>
+                    <li>"[특정 목적]을 위한 활용" - 예: "마케팅 전략 수립을 위한 활용"</li>
+                  </ul>
+              </DetailHint>
+            </>
           ) : message.type === "help" ? (
             <HelpMessage />
           ) : message.type === "error" ? (
@@ -141,14 +179,14 @@ const MessageListContainer = styled.div`
 
 const MessageItem = styled.div`
   padding: ${(props) =>
-    props.type === 'context_reset' || props.type === 'data_detail' || props.type === 'help' || props.children?.props?.data ? "0" : "10px 15px"};
+    props.type === 'search_results' || props.type === 'search_not_found' || props.type === 'context_reset' || props.type === 'data_detail' || props.type === 'help' || props.children?.props?.data ? "0" : "10px 15px"};
   border-radius: 20px;
   max-width: ${(props) =>
-    props.type === 'context_reset' || props.type === 'data_detail' || props.type === 'help' || props.children?.props?.data ? "95%" : "70%"};
+    props.type === 'search_results' || props.type === 'search_not_found' || props.type === 'context_reset' || props.type === 'data_detail' || props.type === 'help' || props.children?.props?.data ? "95%" : "70%"};
   word-wrap: break-word;
   white-space: pre-wrap;
   background-color: ${(props) => {
-    if (props.type === 'context_reset' || props.type === 'data_detail' || props.type === 'help') return `transparent`;
+    if (props.type === 'search_results' || props.type === 'search_not_found' || props.type === 'context_reset' || props.type === 'data_detail' || props.type === 'help') return `transparent`;
     if (props.children?.props?.data) return `background: transparent; padding: 0; box-shadow: none;`;
     return props.sender === "user" ? "#0099ffff" : "#e9e9eb";
   }};
@@ -219,6 +257,21 @@ const TipMessage = styled.div`
   text-align: left;
 `;
 
+const DetailHint = styled.div`
+  margin-top: 12px;
+  padding: 10px 15px;
+  background-color: #f0f7ff;
+  border-radius: 15px;
+  font-size: 0.9em;
+  color: #4a5568;
+  line-height: 1.5;
+  text-align: left;
+  p { margin: 0 0 8px 0; font-weight: 500; }
+  strong { font-weight: 600; }
+  ul { list-style-type: '• '; padding-left: 1.2em; margin: 5px 0 0 0; }
+  li { margin-bottom: 4px; }
+`;
+
 const ErrorMessage = styled.div`
     background-color: #fff0f0;
     color: #c53030;
@@ -232,49 +285,24 @@ const HelpContainer = styled.div`
   border: 1px solid #e5e7eb;
   border-radius: 16px;
   padding: 20px;
-  h4 {
-    font-size: 1.2em;
-    color: #111827;
-    margin: 0 0 12px 0;
-  }
-  p {
-    color: #374151;
-    margin: 0 0 16px 0;
-    line-height: 1.6;
-  }
+  h4 { font-size: 1.2em; color: #111827; margin: 0 0 12px 0; }
+  p { color: #374151; margin: 0 0 16px 0; line-height: 1.6; }
 `;
 
 const HelpList = styled.ul`
   list-style: none;
   padding: 0;
   margin: 0;
-  li {
-    background: #ffffff;
-    border: 1px solid #e5e7eb;
-    padding: 12px;
-    border-radius: 8px;
-    margin-bottom: 8px;
-    font-size: 0.95em;
-    color: #4b5563;
-    strong { color: #1f2937; }
-  }
+  li { background: #ffffff; border: 1px solid #e5e7eb; padding: 12px; border-radius: 8px; margin-bottom: 8px; font-size: 0.95em; color: #4b5563; strong { color: #1f2937; } }
 `;
 
-// Styles for DataDetailView
 const DetailContainer = styled.div`
   background: white;
   border-radius: 16px;
   border: 1px solid #e2e8f0;
   padding: 20px;
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-  h3 {
-    font-size: 1.4em;
-    color: #1a202c;
-    margin-top: 0;
-    margin-bottom: 16px;
-    border-bottom: 2px solid #f1f5f9;
-    padding-bottom: 12px;
-  }
+  h3 { font-size: 1.4em; color: #1a202c; margin-top: 0; margin-bottom: 16px; border-bottom: 2px solid #f1f5f9; padding-bottom: 12px; }
 `;
 
 const DetailGrid = styled.div`
@@ -312,15 +340,51 @@ const KeywordTag = styled.span`
 const DescriptionSection = styled.div`
   margin-top: 16px;
   strong { display: block; margin-bottom: 8px; color: #2d3748; }
-  blockquote {
-    margin: 0;
-    padding: 12px;
-    background-color: #f7fafc;
-    border-left: 4px solid #e2e8f0;
-    color: #4a5568;
-    white-space: pre-wrap;
-    line-height: 1.6;
+  blockquote { margin: 0; padding: 12px; background-color: #f7fafc; border-left: 4px solid #e2e8f0; color: #4a5568; white-space: pre-wrap; line-height: 1.6; }
+`;
+
+const SearchResultsContainer = styled.div`
+  background: white;
+  border-radius: 16px;
+  border: 1px solid #e2e8f0;
+  padding: 20px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  h4 { font-size: 1.2em; color: #111827; margin: 0 0 16px 0; }
+`;
+
+const ResultsList = styled.ol`
+  list-style: none;
+  padding: 0;
+  margin: 0 0 16px 0;
+  counter-reset: result-counter;
+`;
+
+const ResultItem = styled.li`
+  counter-increment: result-counter;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  padding: 12px;
+  border-radius: 8px;
+  margin-bottom: 8px;
+  font-size: 0.95em;
+  color: #374151;
+  &::before {
+    content: counter(result-counter) ". ";
+    font-weight: 600;
+    color: #0099ffff;
+    margin-right: 8px;
   }
+`;
+
+const SearchNotFoundContainer = styled.div`
+  background-color: #fffbeb;
+  border: 1px solid #fef3c7;
+  border-radius: 16px;
+  padding: 20px;
+  text-align: center;
+  h4 { font-size: 1.2em; color: #b45309; margin: 0 0 8px 0; }
+  p { color: #92400e; margin: 0 0 10px 0; }
+  strong { color: #b45309; }
 `;
 
 export default MessageList;

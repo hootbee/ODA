@@ -7,6 +7,7 @@ import com.example.oda.service.QueryPlannerService;
 import com.example.oda.service.prompt.SearchService;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.annotation.Order;
@@ -48,40 +49,38 @@ public class GeneralSearchPromptHandler implements PromptHandler {
 
             log.info("전체 검색 결과 수: {}", sortedResults.size());
 
-            List<String> results;
+            ObjectNode root = objectMapper.createObjectNode();
 
             if (sortedResults.isEmpty()) {
                 String regionKeyword = searchService.extractRegionFromKeywords(plan.getKeywords());
-                if (regionKeyword != null) {
-                    results = List.of(
-                            "해당 지역(" + regionKeyword + ")의 데이터가 부족합니다.",
-                            "다른 지역의 유사한 데이터를 참고하거나",
-                            "상위 카테고리(" + plan.getMajorCategory() + ")로 검색해보세요."
-                    );
-                } else {
-                    results = List.of("해당 조건에 맞는 데이터를 찾을 수 없습니다.");
-                }
+                root.put("type", "search_not_found");
+                ObjectNode payload = objectMapper.createObjectNode();
+                payload.set("failedKeywords", objectMapper.valueToTree(plan.getKeywords()));
+                payload.put("suggestedCategory", plan.getMajorCategory());
+                payload.put("regionKeyword", regionKeyword);
+                root.set("payload", payload);
             } else {
-                results = sortedResults.stream()
+                List<String> resultNames = sortedResults.stream()
                         .map(PublicData::getFileDataName)
                         .filter(name -> name != null && !name.trim().isEmpty())
                         .limit(plan.getLimit())
                         .collect(Collectors.toList());
 
-                if (!results.isEmpty()) {
-                    String hintMessage = "\n\n💡 특정 데이터에 대한 자세한 정보가 필요하시면\n'[파일명] 상세정보' 또는 '[파일명] 자세히'라고 말씀하세요.";
-                    int lastIndex = results.size() - 1;
-                    results.set(lastIndex, results.get(lastIndex) + hintMessage);
-                }
+                root.put("type", "search_results");
+                ObjectNode payload = objectMapper.createObjectNode();
+                payload.set("results", objectMapper.valueToTree(resultNames));
+                payload.put("totalCount", sortedResults.size());
+                root.set("payload", payload);
             }
 
-            JsonNode jsonNode = objectMapper.valueToTree(results);
-            return Mono.just(jsonNode);
+            return Mono.just(root);
 
         } catch (Exception e) {
             log.error("검색 중 오류 발생", e);
-            return Mono.just(objectMapper.valueToTree(
-                    List.of("데이터를 조회하는 중 오류가 발생했습니다.")));
+            ObjectNode errorNode = objectMapper.createObjectNode();
+            errorNode.put("type", "error");
+            errorNode.put("message", "데이터를 조회하는 중 오류가 발생했습니다.");
+            return Mono.just(errorNode);
         }
     }
 }

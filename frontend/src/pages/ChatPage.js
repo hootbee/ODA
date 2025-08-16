@@ -86,14 +86,12 @@ export default function ChatPage() {
     try {
       const isNewChat = typeof idToDelete === 'string' && idToDelete.startsWith('new-');
 
-      // Step 1: If it's a saved chat, call the backend API to delete it.
       if (!isNewChat) {
         await axios.delete(`http://localhost:8080/api/chat/session/${idToDelete}`, {
           headers: authHeaders(),
         });
       }
 
-      // Step 2: Update the local state to remove the chat.
       const newContexts = contexts.filter(ctx => ctx.id !== idToDelete);
       const newConvs = { ...conversations };
       delete newConvs[idToDelete];
@@ -101,19 +99,15 @@ export default function ChatPage() {
       setContexts(newContexts);
       setConvs(newConvs);
 
-      // Step 3: If the deleted chat was the active one, switch to another chat.
       if (activeContextId === idToDelete) {
         if (newContexts.length > 0) {
-          // If there are other chats, make the first one active.
           setActiveId(newContexts[0].id);
         } else {
-          // If no chats are left, create a new one.
           handleNewChat();
         }
       }
     } catch (error) {
       console.error("Error deleting chat session:", error);
-      // Provide a more specific error message for backend errors.
       const errorMessage = error.response 
         ? `서버 오류: ${error.response.status} - ${error.response.data?.message || '알 수 없는 오류'}`
         : `채팅 삭제 중 오류가 발생했습니다: ${error.message}`;
@@ -142,10 +136,9 @@ export default function ChatPage() {
         const msgs = h.messages.map((m) => {
           let content;
           try {
-            // 서버에서 온 content는 문자열화된 JSON일 수 있습니다.
             content = JSON.parse(m.content);
           } catch (e) {
-            content = m.content; // 파싱 실패 시 일반 문자열로 간주
+            content = m.content;
           }
 
           const messageObject = {
@@ -154,35 +147,33 @@ export default function ChatPage() {
           };
 
           if (typeof content === 'object' && content !== null) {
-            // 전체 활용 대시보드
-            if (content.success && content.data) {
+            if (content.type === 'search_results') {
+                messageObject.type = 'search_results';
+                messageObject.data = content.payload;
+            } else if (content.type === 'search_not_found') {
+                messageObject.type = 'search_not_found';
+                messageObject.data = content.payload;
+            } else if (content.success && content.data) {
                 messageObject.type = 'utilization-dashboard';
                 messageObject.data = content.data;
                 messageObject.fileName = m.lastDataName;
-            // 단일/커스텀 활용 추천
             } else if (content.type === 'simple_recommendation') {
                 messageObject.type = 'simple_recommendation';
                 messageObject.recommendations = content.recommendations;
-            // 데이터 상세 정보
             } else if (content.type === 'data_detail') {
                 messageObject.type = 'data_detail';
-                messageObject.text = content.detail;
-                messageObject.fileName = content.fileName;
-            // 컨텍스트 리셋
+                messageObject.data = content.payload;
             } else if (content.type === 'context_reset') {
                 messageObject.type = 'context_reset';
-            // 에러 메시지
             } else if (content.type === 'error') {
                 messageObject.type = 'error';
                 messageObject.text = content.message;
             } else if (content.type === 'help') {
                 messageObject.type = 'help';
-            // 기타 객체 또는 배열
             } else {
                 messageObject.text = Array.isArray(content) ? content.join('\n') : JSON.stringify(content, null, 2);
             }
           } else {
-            // 일반 문자열 응답
             messageObject.text = String(content);
           }
           
@@ -266,7 +257,21 @@ export default function ChatPage() {
       let botMessage;
 
       if (typeof botContent === 'object' && botContent !== null) {
-        if (botContent.success && botContent.data) {
+        if (botContent.type === 'search_results') {
+            botMessage = {
+                id: Date.now() + 1,
+                sender: 'bot',
+                type: 'search_results',
+                data: botContent.payload
+            };
+        } else if (botContent.type === 'search_not_found') {
+            botMessage = {
+                id: Date.now() + 1,
+                sender: 'bot',
+                type: 'search_not_found',
+                data: botContent.payload
+            };
+        } else if (botContent.success && botContent.data) {
           botMessage = {
             id: Date.now() + 1,
             sender: 'bot',
