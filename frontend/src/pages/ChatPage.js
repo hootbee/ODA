@@ -175,6 +175,8 @@ export default function ChatPage() {
             } else if (content.type === 'error') {
                 messageObject.type = 'error';
                 messageObject.text = content.message;
+            } else if (content.type === 'help') {
+                messageObject.type = 'help';
             // 기타 객체 또는 배열
             } else {
                 messageObject.text = Array.isArray(content) ? content.join('\n') : JSON.stringify(content, null, 2);
@@ -298,6 +300,12 @@ export default function ChatPage() {
               sender: 'bot',
               type: 'error',
               text: botContent.message
+            };
+        } else if (botContent.type === 'help') {
+            botMessage = {
+                id: Date.now() + 1,
+                sender: 'bot',
+                type: 'help'
             };
         } else {
           botMessage = {
