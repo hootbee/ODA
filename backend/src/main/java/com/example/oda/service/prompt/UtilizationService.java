@@ -6,7 +6,6 @@ import com.example.oda.repository.PublicDataRepository;
 import com.example.oda.service.AiModelService;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -65,57 +64,26 @@ public class UtilizationService {
                         return aiModelService.getUtilizationRecommendations(data)
                                 .map(aiResponse -> {
                                     ObjectNode resultNode = objectMapper.createObjectNode();
-                                    resultNode.set("data", aiResponse);
                                     resultNode.put("success", true);
+                                    resultNode.set("data", aiResponse);
                                     return (JsonNode) resultNode;
                                 })
                                 .doOnError(e -> log.error("전체 활용 추천 생성 실패", e))
-                                .onErrorReturn(createDefaultFullRecommendations(data));
+                                // [수정됨] 기본값 대신 에러 노드를 반환합니다.
+                                .onErrorReturn(createErrorNode("AI 모델로부터 전체 활용 방안을 가져오는 데 실패했습니다."));
                     }
-                    ObjectNode errorNode = objectMapper.createObjectNode();
-                    errorNode.put("error", "파일을 찾을 수 없습니다: " + fileName);
-                    return Mono.just(errorNode);
+                    // 파일을 찾지 못했을 때도 일관된 에러 형식을 사용합니다.
+                    return Mono.just(createErrorNode("파일을 찾을 수 없습니다: " + fileName));
                 });
     }
 
-    private JsonNode createDefaultFullRecommendations(PublicData data) {
-        ObjectNode result = objectMapper.createObjectNode();
-        ObjectNode dataNode = objectMapper.createObjectNode();
-
-        ArrayNode businessApps = objectMapper.createArrayNode();
-        businessApps.add("데이터 기반 비즈니스 서비스 개발");
-        businessApps.add("관련 분야 컨설팅 사업");
-        businessApps.add("정부 사업 입찰 참여");
-
-        ArrayNode researchApps = objectMapper.createArrayNode();
-        researchApps.add("현황 분석 및 트렌드 연구");
-        researchApps.add("정책 효과성 분석");
-        researchApps.add("지역별 비교 연구");
-
-        ArrayNode policyApps = objectMapper.createArrayNode();
-        policyApps.add("정책 수립 근거 자료");
-        policyApps.add("예산 배분 참고");
-        policyApps.add("성과 평가 지표");
-
-        ArrayNode combinations = objectMapper.createArrayNode();
-        combinations.add("인구 통계 데이터");
-        combinations.add("경제 지표 데이터");
-        combinations.add("지리 정보 데이터");
-
-        ArrayNode tools = objectMapper.createArrayNode();
-        tools.add("Excel/Google Sheets");
-        tools.add("Python pandas");
-        tools.add("R 통계 분석");
-
-        dataNode.set("businessApplications", businessApps);
-        dataNode.set("researchApplications", researchApps);
-        dataNode.set("policyApplications", policyApps);
-        dataNode.set("combinationSuggestions", combinations);
-        dataNode.set("analysisTools", tools);
-
-        result.set("data", dataNode);
-        result.put("success", true);
-
-        return result;
+    // [새로 추가됨] 일관된 에러 응답을 생성하는 헬퍼 메소드
+    private JsonNode createErrorNode(String errorMessage) {
+        ObjectNode errorNode = objectMapper.createObjectNode();
+        errorNode.put("success", false);
+        errorNode.put("error", errorMessage);
+        return errorNode;
     }
+
+
 }
