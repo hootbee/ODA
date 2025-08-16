@@ -58,9 +58,10 @@ public class UtilizationPromptHandler implements PromptHandler {
         dto.setAnalysisType(analysisType);
         return utilizationService.getSingleUtilizationRecommendation(dto)
                 .map(recommendations -> {
-                    List<String> combined = new java.util.ArrayList<>(recommendations);
-                    combined.add("\n\n💡 다른 데이터 조회를 원하시면 '다른 데이터 활용'을 입력하시고, 다른 활용방안을 원하시면 프롬프트를 작성해주세요.");
-                    return objectMapper.valueToTree(combined);
+                    com.fasterxml.jackson.databind.node.ObjectNode root = objectMapper.createObjectNode();
+                    root.put("type", "simple_recommendation");
+                    root.set("recommendations", objectMapper.valueToTree(recommendations));
+                    return root;
                 });
     }
 
@@ -73,9 +74,10 @@ public class UtilizationPromptHandler implements PromptHandler {
 
         return utilizationService.getSingleUtilizationRecommendation(dto)
                 .map(recommendations -> {
-                    List<String> combined = new java.util.ArrayList<>(recommendations);
-                    combined.add("\n\n💡 다른 데이터 조회를 원하시면 '다른 데이터 활용'을 입력하시고, 다른 활용방안을 원하시면 프롬프트를 작성해주세요.");
-                    return objectMapper.valueToTree(combined);
+                    com.fasterxml.jackson.databind.node.ObjectNode root = objectMapper.createObjectNode();
+                    root.put("type", "simple_recommendation");
+                    root.set("recommendations", objectMapper.valueToTree(recommendations));
+                    return root;
                 });
     }
 }

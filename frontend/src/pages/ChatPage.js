@@ -233,14 +233,43 @@ export default function ChatPage() {
         botContent = data.response; // 이미 파싱된 객체/배열인 경우
       }
 
-      const botMessage = {
-        id: Date.now() + 1,
-        sender: "bot",
-        text: Array.isArray(botContent)
-          ? botContent.join('\n') // 배열이면 줄바꿈으로 합칩니다.
-          : (typeof botContent === 'string' ? botContent : JSON.stringify(botContent, null, 2)),
-        ...(typeof botContent === 'object' && botContent !== null && botContent.success && botContent.data ? { type: 'utilization-dashboard', data: botContent.data, fileName: data.lastDataName } : {}),
-      };
+      let botMessage;
+
+      if (typeof botContent === 'object' && botContent !== null) {
+        // 전체 활용 대시보드
+        if (botContent.success && botContent.data) {
+          botMessage = {
+            id: Date.now() + 1,
+            sender: 'bot',
+            type: 'utilization-dashboard',
+            data: botContent.data,
+            fileName: data.lastDataName,
+            text: ''
+          };
+        // 단일/커스텀 활용 추천
+        } else if (botContent.type === 'simple_recommendation') {
+          botMessage = {
+            id: Date.now() + 1,
+            sender: 'bot',
+            type: 'simple_recommendation',
+            recommendations: botContent.recommendations
+          };
+        // 기타 객체 또는 배열
+        } else {
+          botMessage = {
+            id: Date.now() + 1,
+            sender: 'bot',
+            text: Array.isArray(botContent) ? botContent.join('\n') : JSON.stringify(botContent, null, 2)
+          };
+        }
+      } else {
+        // 일반 문자열 응답
+        botMessage = {
+          id: Date.now() + 1,
+          sender: 'bot',
+          text: String(botContent)
+        };
+      }
 
       updateConv((c) => ({
         messages: [...c.messages, botMessage],

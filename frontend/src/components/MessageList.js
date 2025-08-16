@@ -18,9 +18,26 @@ function MessageList({ messages, onCategorySelect, isTyping, scrollContainerRef,
               onCategorySelect={onCategorySelect}
             />
           ) : (
-            <MessageText>
-              <ReactMarkdown>{message.text}</ReactMarkdown>
-            </MessageText>
+            <>
+              {message.type === "simple_recommendation" && message.recommendations ? (
+                <RecommendationList>
+                  {message.recommendations.map((rec, index) => (
+                    <RecommendationItem key={index}>
+                      <ReactMarkdown>{rec}</ReactMarkdown>
+                    </RecommendationItem>
+                  ))}
+                </RecommendationList>
+              ) : (
+                <MessageText>
+                  <ReactMarkdown>{message.text || ''}</ReactMarkdown>
+                </MessageText>
+              )}
+              {message.type === "simple_recommendation" && (
+                <TipMessage>
+                  💡 다른 데이터 조회를 원하시면 '다른 데이터 활용'을 입력하시고, 다른 활용방안을 원하시면 프롬프트를 작성해주세요.
+                </TipMessage>
+              )}
+            </>
           )}
         </MessageItem>
       ))}
@@ -149,5 +166,34 @@ const MessageText = styled.div`
   }
 `;
 
+const RecommendationList = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  text-align: left;
+`;
+
+const RecommendationItem = styled.div`
+  background-color: #f8f9fa;
+  padding: 10px 15px;
+  border-radius: 10px;
+  border: 1px solid #e9ecef;
+  line-height: 1.5;
+
+  p {
+    margin: 0;
+  }
+`;
+
+const TipMessage = styled.div`
+  margin-top: 12px;
+  padding: 10px 15px;
+  background-color: #f0f7ff;
+  border-radius: 15px;
+  font-size: 0.9em;
+  color: #4a5568;
+  line-height: 1.5;
+  text-align: left;
+`;
 
 export default MessageList;
