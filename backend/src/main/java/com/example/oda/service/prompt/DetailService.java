@@ -40,20 +40,20 @@ public class DetailService {
 //        return hasDetailKeywords && isNotCountRequest && isNotActionRequest;
 //    }
 
-    public Mono<String> getDataDetails(String prompt) {
+    public Mono<PublicData> getDataDetails(String prompt) {
         return Mono.fromCallable(() -> {
             String fileDataName = extractFileNameFromPrompt(prompt);
             log.info("상세 정보 조회 요청: '{}'", fileDataName);
             Optional<PublicData> exactMatch = publicDataRepository.findByFileDataName(fileDataName);
             if (exactMatch.isPresent()) {
-                return formatDataDetails(exactMatch.get());
+                return exactMatch.get();
             }
             List<PublicData> partialMatches = publicDataRepository.findByFileDataNameContaining(fileDataName);
             if (!partialMatches.isEmpty()) {
-                return formatDataDetails(partialMatches.get(0));
+                return partialMatches.get(0);
             }
-            return "❌ 해당 파일명을 찾을 수 없습니다: " + fileDataName;
-        });
+            return null;
+        }).flatMap(Mono::justOrEmpty);
     }
 
     private String extractFileNameFromPrompt(String prompt) {
