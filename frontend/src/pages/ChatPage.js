@@ -6,7 +6,8 @@ import ContextSidebar from "../components/ContextSidebar";
 import axios from "axios";
 import { useAuth } from "../context/AuthContext";
 import { useNavigate } from "react-router-dom";
-import { GoTriangleUp, GoTriangleDown } from 'react-icons/go';
+import { GoTriangleUp, GoTriangleDown } from "react-icons/go";
+import { parseBotMessage } from "../utils/messageParser";
 
 /* ---------------------------- 기본 메시지 --------------------------- */
 const initialMessages = [
@@ -29,35 +30,42 @@ export default function ChatPage() {
   const [inputValue, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
 
-    const scrollContainerRef = useRef(null);
+  const scrollContainerRef = useRef(null);
   const messageEndRef = useRef(null);
   const [showScrollTop, setShowScrollTop] = useState(false);
   const [showScrollBottom, setShowScrollBottom] = useState(false);
 
   const scrollToBottom = () => {
-      messageEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    messageEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
   const handleScrollToTop = () => {
-      if (scrollContainerRef.current) {
-          scrollContainerRef.current.scrollTo({ top: 0, behavior: "smooth" });
-      }
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.scrollTo({ top: 0, behavior: "smooth" });
+    }
   };
 
   const handleScroll = () => {
-      const el = scrollContainerRef.current;
-      if (!el) return;
-      const { scrollTop, scrollHeight, clientHeight } = el;
-      const isAtTop = scrollTop < 50;
-      const isAtBottom = scrollHeight - scrollTop < clientHeight + 50;
-      setShowScrollTop(!isAtTop);
-      setShowScrollBottom(!isAtBottom);
+    const el = scrollContainerRef.current;
+    if (!el) return;
+    const { scrollTop, scrollHeight, clientHeight } = el;
+    const isAtTop = scrollTop < 50;
+    const isAtBottom = scrollHeight - scrollTop < clientHeight + 50;
+    setShowScrollTop(!isAtTop);
+    setShowScrollBottom(!isAtBottom);
   };
-  
+
   useEffect(() => {
     const timer = setTimeout(() => handleScroll(), 300);
     return () => clearTimeout(timer);
   }, [conversations[activeContextId]?.messages]);
+
+  const updateConv = (updater) =>
+    setConvs((prev) => {
+      const cur = prev[activeContextId];
+      const next = typeof updater === "function" ? updater(cur) : updater;
+      return { ...prev, [activeContextId]: next };
+    });
 
   /* ---------------------- 유틸 ---------------------- */
   const authHeaders = () => {
@@ -82,23 +90,16 @@ export default function ChatPage() {
 
   /* -------------------- 대화 삭제 -------------------- */
   const handleDeleteContext = useCallback(async (idToDelete) => {
-    console.log("Attempting to delete session with ID:", idToDelete);
     try {
       const isNewChat = typeof idToDelete === 'string' && idToDelete.startsWith('new-');
-
       if (!isNewChat) {
-        await axios.delete(`http://localhost:8080/api/chat/session/${idToDelete}`, {
-          headers: authHeaders(),
-        });
+        await axios.delete(`http://localhost:8080/api/chat/session/${idToDelete}`, { headers: authHeaders() });
       }
-
       const newContexts = contexts.filter(ctx => ctx.id !== idToDelete);
       const newConvs = { ...conversations };
       delete newConvs[idToDelete];
-      
       setContexts(newContexts);
       setConvs(newConvs);
-
       if (activeContextId === idToDelete) {
         if (newContexts.length > 0) {
           setActiveId(newContexts[0].id);
@@ -108,23 +109,16 @@ export default function ChatPage() {
       }
     } catch (error) {
       console.error("Error deleting chat session:", error);
-      const errorMessage = error.response 
-        ? `서버 오류: ${error.response.status} - ${error.response.data?.message || '알 수 없는 오류'}`
-        : `채팅 삭제 중 오류가 발생했습니다: ${error.message}`;
-      alert(errorMessage);
+      alert(`채팅 삭제 중 오류 발생: ${error.message}`);
     }
-  }, [activeContextId, contexts, conversations, authHeaders, handleNewChat, setActiveId, setConvs, setContexts]);
+  }, [activeContextId, contexts, conversations, handleNewChat]);
 
-  
-
-  /* ---------------- 히스토리 로드 ------------------- */
   const fetchHistory = useCallback(async () => {
     try {
       const { data: hist } = await axios.get(
         "http://localhost:8080/api/chat/history",
         { headers: authHeaders() }
       );
-
       if (!hist?.length) return handleNewChat();
 
       const ctxs = hist.map((h) => ({
@@ -133,54 +127,20 @@ export default function ChatPage() {
       }));
       const convs = {};
       hist.forEach((h) => {
-        const msgs = h.messages.map((m) => {
-          let content;
-          try {
-            content = JSON.parse(m.content);
-          } catch (e) {
-            content = m.content;
-          }
-
-          const messageObject = {
-            id: `${m.sender}-${h.sessionId}-${m.createdAt}`,
-            sender: m.sender.toLowerCase(),
-          };
-
-          if (typeof content === 'object' && content !== null) {
-            if (content.type === 'search_results') {
-                messageObject.type = 'search_results';
-                messageObject.data = content.payload;
-            } else if (content.type === 'search_not_found') {
-                messageObject.type = 'search_not_found';
-                messageObject.data = content.payload;
-            } else if (content.success && content.data) {
-                messageObject.type = 'utilization-dashboard';
-                messageObject.data = content.data;
-                messageObject.fileName = m.lastDataName;
-            } else if (content.type === 'simple_recommendation') {
-                messageObject.type = 'simple_recommendation';
-                messageObject.recommendations = content.recommendations;
-            } else if (content.type === 'data_detail') {
-                messageObject.type = 'data_detail';
-                messageObject.data = content.payload;
-            } else if (content.type === 'context_reset') {
-                messageObject.type = 'context_reset';
-            } else if (content.type === 'error') {
-                messageObject.type = 'error';
-                messageObject.text = content.message;
-            } else if (content.type === 'help') {
-                messageObject.type = 'help';
-            } else {
-                messageObject.text = Array.isArray(content) ? content.join('\n') : JSON.stringify(content, null, 2);
-            }
-          } else {
-            messageObject.text = String(content);
-          }
-          
-          return messageObject;
-        });
         convs[h.sessionId] = {
-          messages: msgs,
+          messages: h.messages.map((m) => {
+            let content;
+            try {
+              content = JSON.parse(m.content);
+            } catch (e) {
+              content = m.content;
+            }
+            // parseBotMessage 유틸리티 함수 사용
+            return parseBotMessage(content, {
+              id: `${m.sender}-${h.sessionId}-${m.createdAt}`,
+              lastDataName: h.lastDataName,
+            });
+          }),
           sessionId: h.sessionId,
           lastDataName: h.lastDataName,
         };
@@ -195,32 +155,18 @@ export default function ChatPage() {
     }
   }, [handleNewChat]);
 
-  /* ---------------- useEffect ----------------------- */
   useEffect(() => {
     if (loading) return;
-    if (!isAuthenticated) {
-      navigate("/login");
-      return;
-    }
-    fetchHistory();
+    if (!isAuthenticated) navigate("/login");
+    else fetchHistory();
   }, [isAuthenticated, loading, navigate, fetchHistory]);
 
-  /* ------------- 현재 대화 상태 ------------- */
   const conv = conversations[activeContextId] ?? {
     messages: [],
     sessionId: null,
     lastDataName: null,
   };
 
-  /* ------------- 대화 업데이트 헬퍼 --------- */
-  const updateConv = (updater) =>
-    setConvs((prev) => {
-      const cur = prev[activeContextId];
-      const next = typeof updater === "function" ? updater(cur) : updater;
-      return { ...prev, [activeContextId]: next };
-    });
-
-  /* ------------- 메시지 전송 --------------- */
   const handleSend = async (e, overridePrompt = null, overrideLast = null) => {
     e.preventDefault();
     const prompt = overridePrompt ?? inputValue.trim();
@@ -232,100 +178,27 @@ export default function ChatPage() {
     setIsTyping(true);
 
     try {
-      const body = {
-        prompt,
-        sessionId: conv.sessionId,
-        lastDataName: overrideLast ?? conv.lastDataName,
-      };
       const { data } = await axios.post(
         "http://localhost:8080/api/prompt",
-        body,
+        {
+          prompt,
+          sessionId: conv.sessionId,
+          lastDataName: overrideLast ?? conv.lastDataName,
+        },
         { headers: authHeaders() }
       );
 
       let botContent;
-      if (typeof data.response === 'string') {
-        try {
-          botContent = JSON.parse(data.response);
-        } catch (e) {
-          botContent = data.response;
-        }
-      } else {
+      try {
+        botContent = JSON.parse(data.response);
+      } catch (e) {
         botContent = data.response;
       }
 
-      let botMessage;
-
-      if (typeof botContent === 'object' && botContent !== null) {
-        if (botContent.type === 'search_results') {
-            botMessage = {
-                id: Date.now() + 1,
-                sender: 'bot',
-                type: 'search_results',
-                data: botContent.payload
-            };
-        } else if (botContent.type === 'search_not_found') {
-            botMessage = {
-                id: Date.now() + 1,
-                sender: 'bot',
-                type: 'search_not_found',
-                data: botContent.payload
-            };
-        } else if (botContent.success && botContent.data) {
-          botMessage = {
-            id: Date.now() + 1,
-            sender: 'bot',
-            type: 'utilization-dashboard',
-            data: botContent.data,
-            fileName: data.lastDataName,
-          };
-        } else if (botContent.type === 'simple_recommendation') {
-          botMessage = {
-            id: Date.now() + 1,
-            sender: 'bot',
-            type: 'simple_recommendation',
-            recommendations: botContent.recommendations
-          };
-        } else if (botContent.type === 'data_detail') {
-          botMessage = {
-            id: Date.now() + 1,
-            sender: 'bot',
-            type: 'data_detail',
-            data: botContent.payload
-          };
-        } else if (botContent.type === 'context_reset') {
-          botMessage = {
-            id: Date.now() + 1,
-            sender: 'bot',
-            type: 'context_reset'
-          };
-        } else if (botContent.type === 'error') {
-            botMessage = {
-              id: Date.now() + 1,
-              sender: 'bot',
-              type: 'error',
-              text: botContent.message
-            };
-        } else if (botContent.type === 'help') {
-            botMessage = {
-                id: Date.now() + 1,
-                sender: 'bot',
-                type: 'help'
-            };
-        } else {
-          botMessage = {
-            id: Date.now() + 1,
-            sender: 'bot',
-            text: Array.isArray(botContent) ? botContent.join('\n') : JSON.stringify(botContent, null, 2)
-          };
-        }
-      } else {
-        botMessage = {
-          id: Date.now() + 1,
-          sender: 'bot',
-          text: String(botContent)
-        };
-      }
+      // parseBotMessage 유틸리티 함수 사용
+      const botMessage = parseBotMessage(botContent, {
+        lastDataName: data.lastDataName,
+      });
 
       updateConv((c) => ({
         messages: [...c.messages, botMessage],
@@ -333,11 +206,9 @@ export default function ChatPage() {
         lastDataName: data.lastDataName,
       }));
 
-      /* 새 세션 ID 및 제목 갱신 */
       if (conv.sessionId == null && data.sessionId) {
         const newId = data.sessionId;
         const oldId = activeContextId;
-
         setContexts((cs) =>
           cs.map((ctx) =>
             ctx.id === oldId
@@ -345,41 +216,29 @@ export default function ChatPage() {
               : ctx
           )
         );
-
-        setConvs(prevConvs => {
-            const newConvs = { ...prevConvs };
-            newConvs[newId] = newConvs[oldId];
-            delete newConvs[oldId];
-            return newConvs;
+        setConvs((prevConvs) => {
+          const newConvs = { ...prevConvs };
+          newConvs[newId] = newConvs[oldId];
+          delete newConvs[oldId];
+          return newConvs;
         });
-
         setActiveId(newId);
       }
-
-      
     } catch (error) {
       console.error("Error sending message:", error);
-      updateConv((c) => ({
-        ...c,
-        messages: [
-          ...c.messages,
-          {
-            id: Date.now() + 1,
-            sender: "bot",
-            text: "백엔드 통신 오류가 발생했습니다.",
-          },
-        ],
-      }));
+      const errorMsg = parseBotMessage({
+        type: "error",
+        message: "백엔드 통신 오류가 발생했습니다.",
+      });
+      updateConv((c) => ({ ...c, messages: [...c.messages, errorMsg] }));
     } finally {
       setIsTyping(false);
     }
   };
 
-  /* -------- 대시보드 카테고리 클릭 -------- */
   const onCategory = (cat, file) =>
     handleSend({ preventDefault() {} }, `${file} ${cat} 활용`, file);
 
-  /* =================== 렌더 =================== */
   if (loading) return <div>Loading...</div>;
 
   return (
@@ -393,36 +252,41 @@ export default function ChatPage() {
       />
       <ChatPane>
         <ChatWrapper>
-            <MessageList
-                messages={conv.messages}
-                onCategorySelect={onCategory}
-                isTyping={isTyping}
-                scrollContainerRef={scrollContainerRef}
-                messageEndRef={messageEndRef}
-                onScroll={handleScroll}
-            />
-            <MessageForm
-                inputValue={inputValue}
-                setInputValue={setInput}
-                handleSendMessage={handleSend}
-            />
+          <MessageList
+            messages={conv.messages}
+            onCategorySelect={onCategory}
+            isTyping={isTyping}
+            scrollContainerRef={scrollContainerRef}
+            messageEndRef={messageEndRef}
+            onScroll={handleScroll}
+          />
+          <MessageForm
+            inputValue={inputValue}
+            setInputValue={setInput}
+            handleSendMessage={handleSend}
+          />
         </ChatWrapper>
-
         <ScrollControls>
-            <ScrollButton onClick={handleScrollToTop} title="맨 위로" visible={showScrollTop}>
-                <GoTriangleUp />
-            </ScrollButton>
-            <ScrollButton onClick={scrollToBottom} title="맨 아래로" visible={showScrollBottom}>
-                <GoTriangleDown />
-            </ScrollButton>
+          <ScrollButton
+            onClick={handleScrollToTop}
+            title="맨 위로"
+            visible={showScrollTop}
+          >
+            <GoTriangleUp />
+          </ScrollButton>
+          <ScrollButton
+            onClick={scrollToBottom}
+            title="맨 아래로"
+            visible={showScrollBottom}
+          >
+            <GoTriangleDown />
+          </ScrollButton>
         </ScrollControls>
-
       </ChatPane>
     </Container>
   );
 }
 
-/* ---------------- styled ----------------- */
 const Container = styled.div`
   display: flex;
   height: 100vh;
@@ -455,8 +319,8 @@ const ChatWrapper = styled.div`
 
 const ScrollControls = styled.div`
   position: absolute;
-  bottom: 110px; /* MessageForm 높이(약 80px) + 여유 공간(30px) */
-  right: 40px;  /* ChatPane의 오른쪽 padding(1.5rem) 고려 */
+  bottom: 110px;
+  right: 40px;
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -478,9 +342,9 @@ const ScrollButton = styled.button`
   font-size: 1.5rem;
   transition: all 0.2s ease;
 
-  opacity: ${props => (props.visible ? 1 : 0)};
-  visibility: ${props => (props.visible ? "visible" : "hidden")};
-  transform: ${props => (props.visible ? "scale(1)" : "scale(0.5)")};
+  opacity: ${(props) => (props.visible ? 1 : 0)};
+  visibility: ${(props) => (props.visible ? "visible" : "hidden")};
+  transform: ${(props) => (props.visible ? "scale(1)" : "scale(0.5)")};
 
   &:hover {
     background-color: #0099ffff;
