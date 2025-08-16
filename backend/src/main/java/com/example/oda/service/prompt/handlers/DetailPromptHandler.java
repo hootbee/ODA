@@ -48,13 +48,38 @@ public class DetailPromptHandler implements PromptHandler {
         session.setLastDataName(effectiveFileName);
         chatSessionRepository.save(session);
 
+        final String finalEffectiveFileName = effectiveFileName; 
         return detailService.getDataDetails(effectiveFileName)
-                .map(detailText -> {
-                    com.fasterxml.jackson.databind.node.ObjectNode root = objectMapper.createObjectNode();
+                .map(publicData -> {
+                    ObjectNode root = objectMapper.createObjectNode();
                     root.put("type", "data_detail");
-                    root.put("detail", detailText);
-                    root.put("fileName", effectiveFileName);
-                    return root;
-                });
+
+                    ObjectNode payload = objectMapper.createObjectNode();
+                    payload.put("fileDataName", publicData.getFileDataName());
+                    payload.put("title", publicData.getTitle());
+                    payload.put("classificationSystem", publicData.getClassificationSystem());
+                    payload.put("providerAgency", publicData.getProviderAgency());
+                    payload.put("modifiedDate", publicData.getModifiedDate() != null ? publicData.getModifiedDate().toString() : "정보 없음");
+                    payload.put("fileExtension", publicData.getFileExtension());
+                    payload.put("description", publicData.getDescription());
+
+                    ArrayNode keywordsNode = objectMapper.createArrayNode();
+                    if (publicData.getKeywords() != null && !publicData.getKeywords().trim().isEmpty()) {
+                        String[] keywords = publicData.getKeywords().split(",");
+                        for (String keyword : keywords) {
+                            keywordsNode.add(keyword.trim());
+                        }
+                    }
+                    payload.set("keywords", keywordsNode);
+
+                    root.set("payload", payload);
+                    return (JsonNode) root;
+                })
+                .switchIfEmpty(Mono.fromCallable(() -> {
+                    ObjectNode errorNode = objectMapper.createObjectNode();
+                    errorNode.put("type", "error");
+                    errorNode.put("message", "❌ 해당 파일명을 찾을 수 없습니다: " + finalEffectiveFileName);
+                    return errorNode;
+                }));
     }
 }

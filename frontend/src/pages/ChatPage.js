@@ -171,6 +171,10 @@ export default function ChatPage() {
             // 컨텍스트 리셋
             } else if (content.type === 'context_reset') {
                 messageObject.type = 'context_reset';
+            // 에러 메시지
+            } else if (content.type === 'error') {
+                messageObject.type = 'error';
+                messageObject.text = content.message;
             // 기타 객체 또는 배열
             } else {
                 messageObject.text = Array.isArray(content) ? content.join('\n') : JSON.stringify(content, null, 2);
@@ -247,22 +251,19 @@ export default function ChatPage() {
       );
 
       let botContent;
-      // Axios는 JSON 응답을 자동으로 파싱하므로 data.response는 이미 객체/배열입니다.
       if (typeof data.response === 'string') {
-        // 하지만 서버가 문자열화된 JSON을 보냈을 경우를 대비해 파싱을 시도합니다.
         try {
           botContent = JSON.parse(data.response);
         } catch (e) {
-          botContent = data.response; // 일반 문자열인 경우
+          botContent = data.response;
         }
       } else {
-        botContent = data.response; // 이미 파싱된 객체/배열인 경우
+        botContent = data.response;
       }
 
       let botMessage;
 
       if (typeof botContent === 'object' && botContent !== null) {
-        // 전체 활용 대시보드
         if (botContent.success && botContent.data) {
           botMessage = {
             id: Date.now() + 1,
@@ -270,9 +271,7 @@ export default function ChatPage() {
             type: 'utilization-dashboard',
             data: botContent.data,
             fileName: data.lastDataName,
-            text: ''
           };
-        // 단일/커스텀 활용 추천
         } else if (botContent.type === 'simple_recommendation') {
           botMessage = {
             id: Date.now() + 1,
@@ -280,16 +279,26 @@ export default function ChatPage() {
             type: 'simple_recommendation',
             recommendations: botContent.recommendations
           };
-        // 데이터 상세 정보
         } else if (botContent.type === 'data_detail') {
           botMessage = {
             id: Date.now() + 1,
             sender: 'bot',
             type: 'data_detail',
-            text: botContent.detail,
-            fileName: botContent.fileName
+            data: botContent.payload
           };
-        // 기타 객체 또는 배열
+        } else if (botContent.type === 'context_reset') {
+          botMessage = {
+            id: Date.now() + 1,
+            sender: 'bot',
+            type: 'context_reset'
+          };
+        } else if (botContent.type === 'error') {
+            botMessage = {
+              id: Date.now() + 1,
+              sender: 'bot',
+              type: 'error',
+              text: botContent.message
+            };
         } else {
           botMessage = {
             id: Date.now() + 1,
@@ -298,7 +307,6 @@ export default function ChatPage() {
           };
         }
       } else {
-        // 일반 문자열 응답
         botMessage = {
           id: Date.now() + 1,
           sender: 'bot',
@@ -317,7 +325,6 @@ export default function ChatPage() {
         const newId = data.sessionId;
         const oldId = activeContextId;
 
-        // 1. 컨텍스트 목록의 ID를 실제 세션 ID로 업데이트
         setContexts((cs) =>
           cs.map((ctx) =>
             ctx.id === oldId
@@ -326,7 +333,6 @@ export default function ChatPage() {
           )
         );
 
-        // 2. 대화 데이터의 키를 실제 세션 ID로 변경
         setConvs(prevConvs => {
             const newConvs = { ...prevConvs };
             newConvs[newId] = newConvs[oldId];
@@ -334,7 +340,6 @@ export default function ChatPage() {
             return newConvs;
         });
 
-        // 3. 활성 ID를 실제 세션 ID로 변경
         setActiveId(newId);
       }
 

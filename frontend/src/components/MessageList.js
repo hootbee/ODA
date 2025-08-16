@@ -1,11 +1,38 @@
-import React, { useEffect, useRef, useState } from "react";
+import React from "react";
 import styled, { keyframes } from "styled-components";
 import UtilizationDashboard from "./UtilizationDashboard";
 import ReactMarkdown from 'react-markdown';
 
-function MessageList({ messages, onCategorySelect, isTyping, scrollContainerRef, messageEndRef, onScroll }) {
+const DataDetailView = ({ data }) => {
+    if (!data) return null;
+    return (
+        <DetailContainer>
+            <h3><span role="img" aria-label="icon">📋</span> {data.title || '데이터 상세 정보'}</h3>
+            <DetailGrid>
+                <DetailItem><strong>📄 파일명:</strong> {data.fileDataName}</DetailItem>
+                <DetailItem><strong>📅 수정일:</strong> {data.modifiedDate}</DetailItem>
+                <DetailItem><strong>📂 분류:</strong> {data.classificationSystem}</DetailItem>
+                <DetailItem><strong>🏢 제공기관:</strong> {data.providerAgency}</DetailItem>
+            </DetailGrid>
+            {data.keywords && data.keywords.length > 0 && (
+                <KeywordSection>
+                    <strong>🔑 키워드:</strong>
+                    <KeywordContainer>
+                        {data.keywords.map((kw, i) => <KeywordTag key={i}>{kw}</KeywordTag>)}
+                    </KeywordContainer>
+                </KeywordSection>
+            )}
+            {data.description && (
+                 <DescriptionSection>
+                    <strong>📝 상세 설명:</strong>
+                    <blockquote>{data.description}</blockquote>
+                </DescriptionSection>
+            )}
+        </DetailContainer>
+    );
+};
 
-  // props 추가
+function MessageList({ messages, onCategorySelect, isTyping, scrollContainerRef, messageEndRef, onScroll }) {
   return (
     <MessageListContainer ref={scrollContainerRef} onScroll={onScroll}>
       {messages.map((message) => (
@@ -22,6 +49,10 @@ function MessageList({ messages, onCategorySelect, isTyping, scrollContainerRef,
               fileName={message.fileName}
               onCategorySelect={onCategorySelect}
             />
+          ) : message.type === "data_detail" ? (
+            <DataDetailView data={message.data} />
+          ) : message.type === "error" ? (
+            <ErrorMessage>{message.text}</ErrorMessage>
           ) : (
             <>
               {message.type === "simple_recommendation" && message.recommendations ? (
@@ -41,17 +72,6 @@ function MessageList({ messages, onCategorySelect, isTyping, scrollContainerRef,
                 <TipMessage>
                   💡 다른 데이터 조회를 원하시면 '다른 데이터 활용'을 입력하시고, 다른 활용방안을 원하시면 프롬프트를 작성해주세요.
                 </TipMessage>
-              )}
-              {message.type === "data_detail" && (
-                <DetailHint>
-                  <p>💡 이 데이터를 어떻게 활용하고 싶으신가요? 자유롭게 질문해주세요!</p>
-                  <strong>예시:</strong>
-                  <ul>
-                    <li>"전체 활용" - 모든 활용방안 대시보드 🔍</li>
-                    <li>"해외 사례와 연관 지어 활용"</li>
-                    <li>"[특정 목적]을 위한 활용" - 예: "마케팅 전략 수립을 위한 활용"</li>
-                  </ul>
-                </DetailHint>
               )}
             </>
           )}
@@ -75,12 +95,8 @@ function MessageList({ messages, onCategorySelect, isTyping, scrollContainerRef,
 // ============== Styled Components ==============
 
 const spin = keyframes`
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 `;
 
 const TypingIndicator = styled.div`
@@ -96,7 +112,7 @@ const Spinner = styled.div`
   border-top-color: #888; 
   border-radius: 50%;
   animation: ${spin} 1s linear infinite;
-  `;
+`;
 
 const MessageListContainer = styled.div`
   flex-grow: 1;
@@ -110,15 +126,14 @@ const MessageListContainer = styled.div`
 
 const MessageItem = styled.div`
   padding: ${(props) =>
-    props.type === 'context_reset' || props.children?.props?.data ? "0" : "10px 15px"}; // 컨텍스트 리셋 또는 대시보드일 때 패딩 제거
+    props.type === 'context_reset' || props.type === 'data_detail' || props.children?.props?.data ? "0" : "10px 15px"};
   border-radius: 20px;
   max-width: ${(props) =>
-    props.type === 'context_reset' || props.children?.props?.data ? "95%" : "70%"}; // 컨텍스트 리셋 또는 대시보드일 때 더 넓게
+    props.type === 'context_reset' || props.type === 'data_detail' || props.children?.props?.data ? "95%" : "70%"};
   word-wrap: break-word;
   white-space: pre-wrap;
   background-color: ${(props) => {
-    if (props.type === 'context_reset') return `transparent`; // 컨텍스트 리셋 메시지는 투명 배경
-    // 대시보드 메시지는 투명 배경
+    if (props.type === 'context_reset' || props.type === 'data_detail') return `transparent`;
     if (props.children?.props?.data) return `background: transparent; padding: 0; box-shadow: none;`;
     return props.sender === "user" ? "#0099ffff" : "#e9e9eb";
   }};
@@ -126,7 +141,6 @@ const MessageItem = styled.div`
   align-self: ${(props) =>
     props.sender === "user" ? "flex-end" : "flex-start"};
 
-  /* 대시보드 메시지일 때 특별한 스타일 */
   ${(props) =>
     props.children?.props?.data &&
     `
@@ -139,48 +153,14 @@ const MessageItem = styled.div`
 const MessageText = styled.div`
   line-height: 1.5;
   text-align: left;
-
-  p {
-    margin: 0;
-  }
-
-  strong {
-    font-weight: 600;
-    color: #000000ff;
-  }
-
-  h3 {
-    font-size: 1.2em;
-    margin: 0;
-    padding-bottom: 10px;
-    border-bottom: 1px solid #bcbcbcff;
-  }
-
-  hr {
-    display: none;
-  }
-
-  p > strong {
-    margin-right: 3px;
-  }
-
-  ul {
-    padding-left: 20px;
-    margin: 0;
-  }
-
-  li {
-    margin-bottom: 0px;
-  }
-
-  blockquote {
-    margin: 0;
-    padding: 0 15px; 
-    background-color: #f7f9fc;
-    border-left: 4px solid #0099ffff;
-    border-radius: 0 8px 8px 0;
-    color: #4a5568;
-  }
+  p { margin: 0; }
+  strong { font-weight: 600; color: #000000ff; }
+  h3 { font-size: 1.2em; margin: 0; padding-bottom: 10px; border-bottom: 1px solid #bcbcbcff; }
+  hr { display: none; }
+  p > strong { margin-right: 3px; }
+  ul { padding-left: 20px; margin: 0; }
+  li { margin-bottom: 0px; }
+  blockquote { margin: 0; padding: 0 15px; background-color: #f7f9fc; border-left: 4px solid #0099ffff; border-radius: 0 8px 8px 0; color: #4a5568; }
 `;
 
 const ContextResetMessage = styled.div`
@@ -192,25 +172,9 @@ const ContextResetMessage = styled.div`
   width: 100%;
   max-width: 100%;
   align-self: center;
-
-  p {
-    font-weight: 600;
-    font-size: 1.05em;
-    color: #374151;
-    margin: 0 0 8px 0;
-  }
-
-  span {
-    font-size: 0.95em;
-    color: #6b7280;
-    display: block;
-    margin-bottom: 10px;
-  }
-
-  small {
-    font-size: 0.9em;
-    color: #9ca3af;
-  }
+  p { font-weight: 600; font-size: 1.05em; color: #374151; margin: 0 0 8px 0; }
+  span { font-size: 0.95em; color: #6b7280; display: block; margin-bottom: 10px; }
+  small { font-size: 0.9em; color: #9ca3af; }
 `;
 
 const RecommendationList = styled.div`
@@ -226,10 +190,7 @@ const RecommendationItem = styled.div`
   border-radius: 10px;
   border: 1px solid #e9ecef;
   line-height: 1.5;
-
-  p {
-    margin: 0;
-  }
+  p { margin: 0; }
 `;
 
 const TipMessage = styled.div`
@@ -243,33 +204,74 @@ const TipMessage = styled.div`
   text-align: left;
 `;
 
-const DetailHint = styled.div`
-  margin-top: 12px;
-  padding: 10px 15px;
-  background-color: #f0f7ff;
-  border-radius: 15px;
-  font-size: 0.9em;
+const ErrorMessage = styled.div`
+    background-color: #fff0f0;
+    color: #c53030;
+    padding: 10px 15px;
+    border-radius: 15px;
+    border: 1px solid #fdb8b8;
+`;
+
+// Styles for DataDetailView
+const DetailContainer = styled.div`
+  background: white;
+  border-radius: 16px;
+  border: 1px solid #e2e8f0;
+  padding: 20px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  h3 {
+    font-size: 1.4em;
+    color: #1a202c;
+    margin-top: 0;
+    margin-bottom: 16px;
+    border-bottom: 2px solid #f1f5f9;
+    padding-bottom: 12px;
+  }
+`;
+
+const DetailGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+`;
+
+const DetailItem = styled.div`
+  font-size: 0.95em;
   color: #4a5568;
-  line-height: 1.5;
-  text-align: left;
+  strong { color: #2d3748; }
+`;
 
-  p {
-    margin: 0 0 8px 0;
-    font-weight: 500;
-  }
+const KeywordSection = styled.div`
+  margin-top: 16px;
+  strong { display: block; margin-bottom: 8px; color: #2d3748; }
+`;
 
-  strong {
-    font-weight: 600;
-  }
+const KeywordContainer = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+`;
 
-  ul {
-    list-style-type: '• ';
-    padding-left: 1.2em;
-    margin: 5px 0 0 0;
-  }
+const KeywordTag = styled.span`
+  background-color: #edf2f7;
+  color: #4a5568;
+  padding: 4px 10px;
+  border-radius: 16px;
+  font-size: 0.9em;
+`;
 
-  li {
-    margin-bottom: 4px;
+const DescriptionSection = styled.div`
+  margin-top: 16px;
+  strong { display: block; margin-bottom: 8px; color: #2d3748; }
+  blockquote {
+    margin: 0;
+    padding: 12px;
+    background-color: #f7fafc;
+    border-left: 4px solid #e2e8f0;
+    color: #4a5568;
+    white-space: pre-wrap;
+    line-height: 1.6;
   }
 `;
 
