@@ -1,13 +1,43 @@
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import styled, { keyframes } from "styled-components";
 import UtilizationDashboard from "./UtilizationDashboard";
 import ReactMarkdown from 'react-markdown';
+import { GoTriangleUp, GoTriangleDown } from 'react-icons/go';
 
 function MessageList({ messages, onCategorySelect, isTyping }) {
   const messageEndRef = useRef(null);
+  const scrollContainerRef = useRef(null);
+
+  const [showScrollTop, setShowScrollTop] = useState(false);
+  const [showScrollBottom, setShowScrollBottom] = useState(false);
+
   const scrollToBottom = () => {
     messageEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
+
+  const handleScrollToTop = () => {
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  };
+
+  const handleScroll = () => {
+    if (scrollContainerRef.current) {
+      const { scrollTop, scrollHeight, clientHeight } = scrollContainerRef.current;
+      const isAtTop = scrollTop < 50;
+      const isAtBottom = scrollHeight - scrollTop < clientHeight + 50; 
+
+      setShowScrollTop(!isAtTop);
+      setShowScrollBottom(!isAtBottom);
+    }
+  };
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+        handleScroll();
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [messages]);
 
   useEffect(() => {
     scrollToBottom();
@@ -15,7 +45,7 @@ function MessageList({ messages, onCategorySelect, isTyping }) {
 
   // props 추가
   return (
-    <MessageListContainer>
+    <MessageListContainer ref={scrollContainerRef} onScroll={handleScroll}>
       {messages.map((message) => (
         <MessageItem key={message.id} sender={message.sender}>
           {/* 특별한 메시지 타입 처리 */}
@@ -43,6 +73,15 @@ function MessageList({ messages, onCategorySelect, isTyping }) {
       )}
 
       <div ref={messageEndRef} />
+
+      <ScrollControls>
+        <ScrollButton onClick={handleScrollToTop} title="맨 위로" visible={showScrollTop}>
+          <GoTriangleUp />
+        </ScrollButton>
+        <ScrollButton onClick={scrollToBottom} title="맨 아래로" visible={showScrollBottom}>
+          <GoTriangleDown />
+        </ScrollButton>
+      </ScrollControls>
     </MessageListContainer>
   );
 }
@@ -80,6 +119,44 @@ const MessageListContainer = styled.div`
   display: flex;
   flex-direction: column;
   gap: 15px;
+  position: relative;
+`;
+
+const ScrollControls = styled.div`
+  position: fixed;
+  bottom: 100px;
+  right: 40px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  z-index: 10;
+`;
+
+const ScrollButton = styled.button`
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 1px solid #e0e9ff;
+  background-color: #ffffff;
+  color: #4a5568;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  cursor: pointer;
+  
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  
+  transition: all 0.2s ease;
+
+  opacity: ${props => (props.visible ? 1 : 0)};
+  visibility: ${props => (props.visible ? "visible" : "hidden")};
+  transform: ${props => (props.visible ? "scale(1)" : "scale(0.5)")};
+
+  &:hover {
+  background-color: #0099ffff;
+  color: white;
+  }
 `;
 
 const MessageItem = styled.div`
