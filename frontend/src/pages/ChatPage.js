@@ -167,6 +167,10 @@ export default function ChatPage() {
     lastDataName: null,
   };
 
+  useEffect(() => {
+    scrollToBottom();
+  }, [conv.messages]);
+
   const handleSend = async (e, overridePrompt = null, overrideLast = null) => {
     e.preventDefault();
     const prompt = overridePrompt ?? inputValue.trim();
