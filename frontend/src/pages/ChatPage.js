@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import styled from "styled-components";
 import MessageList from "../components/MessageList";
 import MessageForm from "../components/MessageForm";
@@ -6,6 +6,7 @@ import ContextSidebar from "../components/ContextSidebar";
 import axios from "axios";
 import { useAuth } from "../context/AuthContext";
 import { useNavigate } from "react-router-dom";
+import { GoTriangleUp, GoTriangleDown } from 'react-icons/go';
 
 /* ---------------------------- 기본 메시지 --------------------------- */
 const initialMessages = [
@@ -27,6 +28,36 @@ export default function ChatPage() {
   const [conversations, setConvs] = useState({});
   const [inputValue, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
+
+    const scrollContainerRef = useRef(null);
+  const messageEndRef = useRef(null);
+  const [showScrollTop, setShowScrollTop] = useState(false);
+  const [showScrollBottom, setShowScrollBottom] = useState(false);
+
+  const scrollToBottom = () => {
+      messageEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  const handleScrollToTop = () => {
+      if (scrollContainerRef.current) {
+          scrollContainerRef.current.scrollTo({ top: 0, behavior: "smooth" });
+      }
+  };
+
+  const handleScroll = () => {
+      const el = scrollContainerRef.current;
+      if (!el) return;
+      const { scrollTop, scrollHeight, clientHeight } = el;
+      const isAtTop = scrollTop < 50;
+      const isAtBottom = scrollHeight - scrollTop < clientHeight + 50;
+      setShowScrollTop(!isAtTop);
+      setShowScrollBottom(!isAtBottom);
+  };
+  
+  useEffect(() => {
+    const timer = setTimeout(() => handleScroll(), 300);
+    return () => clearTimeout(timer);
+  }, [conversations[activeContextId]?.messages]);
 
   /* ---------------------- 유틸 ---------------------- */
   const authHeaders = () => {
@@ -279,12 +310,31 @@ export default function ChatPage() {
         onDeleteContext={handleDeleteContext}
       />
       <ChatPane>
-        <MessageList messages={conv.messages} onCategorySelect={onCategory} isTyping={isTyping}/>
-        <MessageForm
-          inputValue={inputValue}
-          setInputValue={setInput}
-          handleSendMessage={handleSend}
-        />
+        <ChatWrapper>
+            <MessageList
+                messages={conv.messages}
+                onCategorySelect={onCategory}
+                isTyping={isTyping}
+                scrollContainerRef={scrollContainerRef}
+                messageEndRef={messageEndRef}
+                onScroll={handleScroll}
+            />
+            <MessageForm
+                inputValue={inputValue}
+                setInputValue={setInput}
+                handleSendMessage={handleSend}
+            />
+        </ChatWrapper>
+
+        <ScrollControls>
+            <ScrollButton onClick={handleScrollToTop} title="맨 위로" visible={showScrollTop}>
+                <GoTriangleUp />
+            </ScrollButton>
+            <ScrollButton onClick={scrollToBottom} title="맨 아래로" visible={showScrollBottom}>
+                <GoTriangleDown />
+            </ScrollButton>
+        </ScrollControls>
+
       </ChatPane>
     </Container>
   );
@@ -307,4 +357,51 @@ const ChatPane = styled.div`
   border-left: 1px solid #ccc;
   background: #fff;
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  position: relative;
+`;
+
+const ChatWrapper = styled.div`
+  width: 100%;
+  height: 100%;
+  background: #ffffff;
+  border-radius: 20px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+`;
+
+const ScrollControls = styled.div`
+  position: absolute;
+  bottom: 110px; /* MessageForm 높이(약 80px) + 여유 공간(30px) */
+  right: 40px;  /* ChatPane의 오른쪽 padding(1.5rem) 고려 */
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  z-index: 10;
+`;
+
+const ScrollButton = styled.button`
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 1px solid #e0e9ff;
+  background-color: #ffffff;
+  color: #4a5568;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  transition: all 0.2s ease;
+
+  opacity: ${props => (props.visible ? 1 : 0)};
+  visibility: ${props => (props.visible ? "visible" : "hidden")};
+  transform: ${props => (props.visible ? "scale(1)" : "scale(0.5)")};
+
+  &:hover {
+    background-color: #0099ffff;
+    color: white;
+  }
 `;
