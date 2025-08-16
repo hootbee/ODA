@@ -39,11 +39,8 @@ public class NewSearchPromptHandler implements PromptHandler {
         session.setLastDataName(null);
         chatSessionRepository.save(session);
 
-        List<String> resetMessage = List.of(
-                "🔄 데이터 선택이 해제되었습니다.",
-                "새로운 데이터를 검색하고 싶으시면 원하는 키워드를 입력해주세요.",
-                "예: '서울시 교통 데이터', '부산 관광 정보' 등"
-        );
-        return Mono.just(objectMapper.valueToTree(resetMessage));
+        com.fasterxml.jackson.databind.node.ObjectNode root = objectMapper.createObjectNode();
+        root.put("type", "context_reset");
+        return Mono.just(root);
     }
 }

@@ -9,9 +9,14 @@ function MessageList({ messages, onCategorySelect, isTyping, scrollContainerRef,
   return (
     <MessageListContainer ref={scrollContainerRef} onScroll={onScroll}>
       {messages.map((message) => (
-        <MessageItem key={message.id} sender={message.sender}>
-          {/* 특별한 메시지 타입 처리 */}
-          {message.type === "utilization-dashboard" ? (
+        <MessageItem key={message.id} sender={message.sender} type={message.type}>
+          {message.type === "context_reset" ? (
+            <ContextResetMessage>
+                <p>🔄 데이터 선택이 해제되었습니다.</p>
+                <span>새로운 데이터를 검색하고 싶으시면 원하는 키워드를 입력해주세요.</span>
+                <small>예: '서울시 교통 데이터', '부산 관광 정보' 등</small>
+            </ContextResetMessage>
+          ) : message.type === "utilization-dashboard" ? (
             <UtilizationDashboard
               data={message.data}
               fileName={message.fileName}
@@ -105,13 +110,14 @@ const MessageListContainer = styled.div`
 
 const MessageItem = styled.div`
   padding: ${(props) =>
-    props.children?.props?.data ? "0" : "10px 15px"}; // 대시보드일 때 패딩 제거
+    props.type === 'context_reset' || props.children?.props?.data ? "0" : "10px 15px"}; // 컨텍스트 리셋 또는 대시보드일 때 패딩 제거
   border-radius: 20px;
   max-width: ${(props) =>
-    props.children?.props?.data ? "95%" : "70%"}; // 대시보드일 때 더 넓게
+    props.type === 'context_reset' || props.children?.props?.data ? "95%" : "70%"}; // 컨텍스트 리셋 또는 대시보드일 때 더 넓게
   word-wrap: break-word;
   white-space: pre-wrap;
   background-color: ${(props) => {
+    if (props.type === 'context_reset') return `transparent`; // 컨텍스트 리셋 메시지는 투명 배경
     // 대시보드 메시지는 투명 배경
     if (props.children?.props?.data) return `background: transparent; padding: 0; box-shadow: none;`;
     return props.sender === "user" ? "#0099ffff" : "#e9e9eb";
@@ -174,6 +180,36 @@ const MessageText = styled.div`
     border-left: 4px solid #0099ffff;
     border-radius: 0 8px 8px 0;
     color: #4a5568;
+  }
+`;
+
+const ContextResetMessage = styled.div`
+  padding: 12px 18px;
+  border: 1px solid #e0e7ff;
+  background-color: #fafbff;
+  border-radius: 15px;
+  text-align: center;
+  width: 100%;
+  max-width: 100%;
+  align-self: center;
+
+  p {
+    font-weight: 600;
+    font-size: 1.05em;
+    color: #374151;
+    margin: 0 0 8px 0;
+  }
+
+  span {
+    font-size: 0.95em;
+    color: #6b7280;
+    display: block;
+    margin-bottom: 10px;
+  }
+
+  small {
+    font-size: 0.9em;
+    color: #9ca3af;
   }
 `;
 

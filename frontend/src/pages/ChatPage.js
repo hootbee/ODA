@@ -168,6 +168,9 @@ export default function ChatPage() {
                 messageObject.type = 'data_detail';
                 messageObject.text = content.detail;
                 messageObject.fileName = content.fileName;
+            // 컨텍스트 리셋
+            } else if (content.type === 'context_reset') {
+                messageObject.type = 'context_reset';
             // 기타 객체 또는 배열
             } else {
                 messageObject.text = Array.isArray(content) ? content.join('\n') : JSON.stringify(content, null, 2);
