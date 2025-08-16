@@ -50,14 +50,11 @@ public class DetailPromptHandler implements PromptHandler {
 
         return detailService.getDataDetails(effectiveFileName)
                 .map(detailText -> {
-                    String hint = "\n\n" +
-                            "💡 이 데이터를 어떻게 활용하고 싶으신가요? 자유롭게 질문해주세요!\n" +
-                            "예시:\n" +
-                            "• \"전체 활용\" - 모든 활용방안 대시보드 🔍\n" +
-                            "• \"해외 사례와 연관 지어 활용\"\n" +
-                            "• \"[특정 목적]을 위한 활용\" - 예: \"마케팅 전략 수립을 위한 활용\"\n" +
-                            "• \"이 데이터 CSV 파일 보여줘\" - (아직 구현되지 않았지만) CSV 파일 내용을 직접 확인";
-                    return objectMapper.createArrayNode().add(detailText + hint);
+                    com.fasterxml.jackson.databind.node.ObjectNode root = objectMapper.createObjectNode();
+                    root.put("type", "data_detail");
+                    root.put("detail", detailText);
+                    root.put("fileName", effectiveFileName);
+                    return root;
                 });
     }
 }

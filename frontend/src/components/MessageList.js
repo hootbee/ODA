@@ -37,6 +37,17 @@ function MessageList({ messages, onCategorySelect, isTyping, scrollContainerRef,
                   💡 다른 데이터 조회를 원하시면 '다른 데이터 활용'을 입력하시고, 다른 활용방안을 원하시면 프롬프트를 작성해주세요.
                 </TipMessage>
               )}
+              {message.type === "data_detail" && (
+                <DetailHint>
+                  <p>💡 이 데이터를 어떻게 활용하고 싶으신가요? 자유롭게 질문해주세요!</p>
+                  <strong>예시:</strong>
+                  <ul>
+                    <li>"전체 활용" - 모든 활용방안 대시보드 🔍</li>
+                    <li>"해외 사례와 연관 지어 활용"</li>
+                    <li>"[특정 목적]을 위한 활용" - 예: "마케팅 전략 수립을 위한 활용"</li>
+                  </ul>
+                </DetailHint>
+              )}
             </>
           )}
         </MessageItem>
@@ -194,6 +205,36 @@ const TipMessage = styled.div`
   color: #4a5568;
   line-height: 1.5;
   text-align: left;
+`;
+
+const DetailHint = styled.div`
+  margin-top: 12px;
+  padding: 10px 15px;
+  background-color: #f0f7ff;
+  border-radius: 15px;
+  font-size: 0.9em;
+  color: #4a5568;
+  line-height: 1.5;
+  text-align: left;
+
+  p {
+    margin: 0 0 8px 0;
+    font-weight: 500;
+  }
+
+  strong {
+    font-weight: 600;
+  }
+
+  ul {
+    list-style-type: '• ';
+    padding-left: 1.2em;
+    margin: 5px 0 0 0;
+  }
+
+  li {
+    margin-bottom: 4px;
+  }
 `;
 
 export default MessageList;

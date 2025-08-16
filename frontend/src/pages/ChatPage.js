@@ -147,14 +147,37 @@ export default function ChatPage() {
           } catch (e) {
             content = m.content; // 파싱 실패 시 일반 문자열로 간주
           }
-          return {
+
+          const messageObject = {
             id: `${m.sender}-${h.sessionId}-${m.createdAt}`,
             sender: m.sender.toLowerCase(),
-            text: Array.isArray(content)
-              ? content.join('\n') // 배열이면 줄바꿈으로 합칩니다.
-              : (typeof content === 'string' ? content : JSON.stringify(content, null, 2)),
-            ...(typeof content === 'object' && content !== null && content.success && content.data ? { type: 'utilization-dashboard', data: content.data, fileName: m.lastDataName } : {}),
           };
+
+          if (typeof content === 'object' && content !== null) {
+            // 전체 활용 대시보드
+            if (content.success && content.data) {
+                messageObject.type = 'utilization-dashboard';
+                messageObject.data = content.data;
+                messageObject.fileName = m.lastDataName;
+            // 단일/커스텀 활용 추천
+            } else if (content.type === 'simple_recommendation') {
+                messageObject.type = 'simple_recommendation';
+                messageObject.recommendations = content.recommendations;
+            // 데이터 상세 정보
+            } else if (content.type === 'data_detail') {
+                messageObject.type = 'data_detail';
+                messageObject.text = content.detail;
+                messageObject.fileName = content.fileName;
+            // 기타 객체 또는 배열
+            } else {
+                messageObject.text = Array.isArray(content) ? content.join('\n') : JSON.stringify(content, null, 2);
+            }
+          } else {
+            // 일반 문자열 응답
+            messageObject.text = String(content);
+          }
+          
+          return messageObject;
         });
         convs[h.sessionId] = {
           messages: msgs,
@@ -253,6 +276,15 @@ export default function ChatPage() {
             sender: 'bot',
             type: 'simple_recommendation',
             recommendations: botContent.recommendations
+          };
+        // 데이터 상세 정보
+        } else if (botContent.type === 'data_detail') {
+          botMessage = {
+            id: Date.now() + 1,
+            sender: 'bot',
+            type: 'data_detail',
+            text: botContent.detail,
+            fileName: botContent.fileName
           };
         // 기타 객체 또는 배열
         } else {
