@@ -50,11 +50,11 @@ const ProfileContainer = styled.div`
 
 const ProfileCard = styled.div`
   width: 90%;
-  max-width: 400px;
+  max-width: 420px;
   padding: 40px;
   background: white;
   border-radius: 20px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
   display: flex;
   flex-direction: column;
   align-items: center;

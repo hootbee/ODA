@@ -1,13 +1,19 @@
 import React from "react";
 import { useAuth } from "../context/AuthContext";
 import { Navigate } from "react-router-dom";
-import styled from "styled-components";
+import styled, { keyframes } from "styled-components";
+import { FcGoogle } from "react-icons/fc";
 
 const LoginPage = () => {
   const { login, isAuthenticated, loading } = useAuth();
 
   if (loading) {
-    return <StatusText>Loading...</StatusText>;
+    return (
+      <LoadingContainer>
+        <Spinner />
+        <StatusText>Loading...</StatusText>
+      </LoadingContainer>
+    );
   }
 
   if (isAuthenticated) {
@@ -17,10 +23,13 @@ const LoginPage = () => {
   return (
     <LoginContainer>
       <LoginBox>
-        <h2>로그인</h2>
-        <p>소셜 계정으로 간편하게 로그인하세요.</p>
+        <LogoImage src={`${process.env.PUBLIC_URL}/ODA_logo.png`} alt="ODA Logo" />
+        <TextContainer>
+          <Title>로그인</Title>
+          <Description>소셜 계정으로 간편하게 로그인하세요.</Description>
+        </TextContainer>
         <GoogleButton onClick={login}>
-          Google로 로그인
+          <FcGoogle /> Google 계정으로 로그인
         </GoogleButton>
       </LoginBox>
     </LoginContainer>
@@ -32,38 +41,99 @@ const LoginContainer = styled.div`
   justify-content: center;
   align-items: center;
   height: 100vh;
-  background-color: #f0f2f5;
+  background: linear-gradient(150deg, #f4f8ff 0%, #a1ceffff 100%);
 `;
 
 const LoginBox = styled.div`
-  padding: 40px;
+  padding: 35px;
   background: white;
-  border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  border-radius: 20px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
   text-align: center;
+  width: 90%;
+  max-width: 420px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+`;
+
+const LogoImage = styled.img`
+  width: 150px;
+  margin-bottom: 2rem;
+`;
+
+const TextContainer = styled.div`
+  margin-bottom: 2.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+`;
+
+const Title = styled.h2`
+  margin: 0;
+  font-size: 1.8rem;
+  font-weight: 600;
+  color: #34495e;
+`;
+
+const Description = styled.p`
+  margin: 0;
+  color: #868e96;
+  font-size: 1rem;
+  line-height: 1.6;
 `;
 
 const GoogleButton = styled.button`
-  padding: 10px 24px;
-  border: 1px solid #ddd;
+  width: 100%;
+  padding: 12px 24px;
+  border: 1px solid #e0e0e0;
   background-color: white;
-  border-radius: 4px;
-  font-size: 16px;
+  border-radius: 50px;
+  font-size: 1rem;
+  font-weight: 500;
+  color: #4a5568;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.3s ease;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
 
   &:hover {
-    background-color: #f5f5f5;
-    border-color: #ccc;
+    border-color: #c0c0c0;
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.1);
   }
 `;
 
 const StatusText = styled.div`
-    height: 100vh;
+    font-size: 1rem;
+    color: #4a5568;
+    margin-top: 1rem;
+`;
+
+const LoadingContainer = styled.div`
+    height: 100%;
     display: flex;
+    flex-direction: column;
     justify-content: center;
     align-items: center;
-    font-size: 18px;
+    background: linear-gradient(150deg, #f4f8ff 0%, #a1ceffff 100%);
+`;
+
+const spin = keyframes`
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+`;
+
+const Spinner = styled.div`
+  margin-top: 50px; 
+  width: 40px;
+  height: 40px;
+  border: 4px solid rgba(0, 0, 0, 0.1);
+  border-top-color: #888; 
+  border-radius: 50%;
+  animation: ${spin} 1s linear infinite;
 `;
 
 export default LoginPage;
