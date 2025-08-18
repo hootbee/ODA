@@ -1,16 +1,45 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import styled, { keyframes } from 'styled-components';
+import { FaInfoCircle, FaQuestionCircle, FaTerminal, FaTimes } from 'react-icons/fa';
 
 // 간단한 팝업 컴포넌트
 const Popup = ({ handleClose }) => {
   return (
     <PopupOverlay>
       <PopupContainer>
-        <h2>도움말</h2>
-        <p>이것은 프로토타입 도움말 팝업입니다.</p>
-        <p>챗봇 시작 버튼을 누르면 챗봇과 대화를 시작할 수 있습니다.</p>
-        <CloseButton onClick={handleClose}>닫기</CloseButton>
+        <PopupHeader>
+          <h2>도움말</h2>
+          <CloseButton onClick={handleClose}><FaTimes /></CloseButton>
+        </PopupHeader>
+        <PopupContent>
+          <Section>
+            <SectionTitle><FaInfoCircle /> 프로그램 소개</SectionTitle>
+            <p>
+              ODA는 Open Data Agent의 약자로, 공공 데이터를 찾고 분석 및 활용하는 것을 돕는 AI 챗봇입니다.
+            </p>
+          </Section>
+          
+          <Section>
+            <SectionTitle><FaQuestionCircle /> 기본 사용법</SectionTitle>
+            <OrderedList>
+              <li>원하는 공공 데이터를 질문해보세요. (예: "서울시 교통 데이터 보여줘")</li>
+              <li>챗봇이 찾아준 데이터의 '[파일명] 자세히' 또는 '[파일명] 상세정보'를 요청하여 데이터를 더 깊게 확인할 수 있습니다.</li>
+              <li>'[파일명] 전체 활용' 또는 [파일명] 비즈니스 활용'으로 특정 파일에 대한 활용 방안을 요청할 수 있습니다.</li>
+            </OrderedList>
+          </Section>
+
+          <Section>
+            <SectionTitle><FaTerminal /> 주요 명령어</SectionTitle>
+            <p>아래와 같은 키워드를 포함하여 질문하면 더 정확한 답변을 얻을 수 있습니다.</p>
+            <CommandList>
+              <li><code>[지역명] [데이터명] 데이터 보여줘</code> - 데이터 검색</li>
+              <li><code>[파일명] 자세히</code>, <code>[파일명] 상세정보</code> - 데이터의 상세 정보 확인</li>
+              <li><code>[파일명] 전체 활용</code>, <code>[파일명] 비즈니스 활용</code> - 데이터 활용 방안 확인</li>
+              <li><code>다른 데이터 조회</code> - 새로운 데이터 검색 시작</li>
+            </CommandList>
+          </Section>
+        </PopupContent>
       </PopupContainer>
     </PopupOverlay>
   );
@@ -36,10 +65,10 @@ const MainPage = () => {
 
   return (
     <MainContainer>
-      <FloatingBubble_Q1 top="20%" left="15%" delay="-2s">어떤 데이터 분석을 도와드릴까요?</FloatingBubble_Q1>
-      <FloatingBubble_A1 top="35%" left="10%" delay="0s">밥 먹는 시간을 분석해줘</FloatingBubble_A1>
-      <FloatingBubble_Q2 top="50%" left="75%" delay="-2s">어떤 도움이 필요하신가요?</FloatingBubble_Q2>
-      <FloatingBubble_A2 top="65%" left="77%" delay="0s">이 데이터의 활용 방안을 알려줘</FloatingBubble_A2>
+      <FloatingBubble_Q1 top="20%" left="15%" delay="-2s">어떤 도움이 필요하신가요?</FloatingBubble_Q1>
+      <FloatingBubble_A1 top="35%" left="10%" delay="0s">전주의 데이터 3개를 찾고 있어</FloatingBubble_A1>
+      <FloatingBubble_Q2 top="50%" left="65%" delay="-2s">이 데이터에 대한 자세한 정보가 필요하신가요?</FloatingBubble_Q2>
+      <FloatingBubble_A2 top="65%" left="73%" delay="0s">이 데이터의 활용 방안을 알려줘</FloatingBubble_A2>
       <ContentWrapper>
         <RotatingLogo src={`${process.env.PUBLIC_URL}/ODA_logo.png`} alt="ODA Logo" />
         <Title>ODA<br/>Data Analysis Chatbot</Title>
@@ -236,27 +265,111 @@ const PopupOverlay = styled.div`
   display: flex;
   justify-content: center;
   align-items: center;
+  z-index: 10;
 `;
 
 const PopupContainer = styled.div`
   background-color: #fff;
-  padding: 2rem;
-  border-radius: 8px;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-  text-align: center;
+  border-radius: 20px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15);
+  width: 90%;
+  max-width: 600px;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+`;
+
+const PopupHeader = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 1.5rem;
+  height: 60px;
+  border-bottom: 1px solid #e9ecef;
+  flex-shrink: 0;
+  box-sizing: border-box;
+
+  h2 {
+    margin: 0;
+    font-size: 1.2rem;
+    color: #2c3e50;
+  }
 `;
 
 const CloseButton = styled.button`
-  margin-top: 1rem;
-  padding: 0.5rem 1rem;
-  font-size: 1rem;
-  color: #fff;
-  background-color: #6c757d;
+  width: 32px;
+  height: 32px;
+
+  background: none;
   border: none;
-  border-radius: 5px;
+  font-size: 1.5rem;
+  color: #868e96;
   cursor: pointer;
+  padding: 5px;
+  line-height: 1;
+  transition: color 0.2s;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
 
   &:hover {
-    background-color: #5a6268;
+    color: #2c3e50;
   }
+`;
+
+const PopupContent = styled.div`
+  padding: 1.5rem;
+  overflow-y: auto;
+  text-align: left;
+  color: #495057;
+
+  p {
+    line-height: 1.6;
+    margin: 0.5rem 0 0 0;
+  }
+`;
+
+const Section = styled.section`
+  margin-bottom: 2rem;
+  &:last-child {
+    margin-bottom: 0;
+  }
+`;
+
+const SectionTitle = styled.h3`
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 1.1rem;
+  color: #34495e;
+  margin: 0 0 1rem 0;
+`;
+
+const OrderedList = styled.ol`
+  padding-left: 20px;
+  line-height: 1.7;
+  
+  li {
+    margin-bottom: 0.5rem;
+  }
+`;
+
+const CommandList = styled.ul`
+    list-style: none;
+    padding: 0;
+
+    li {
+        margin-bottom: 0.5rem;
+    }
+
+    code {
+        display: inline-block;
+        background-color: #eaf4ff;
+        color: #3b82f6;
+        padding: 4px 8px;
+        border-radius: 5px;
+        font-size: 0.95em;
+    }
 `;
