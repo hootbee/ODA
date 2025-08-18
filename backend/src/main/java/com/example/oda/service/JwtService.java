@@ -29,9 +29,10 @@ public class JwtService {
         return Keys.hmacShaKeyFor(jwtSecret.getBytes());
     }
 
-    public String createToken(String email, String name) {
+    public String createToken(String email, String name, String picture) {
         Map<String, Object> claims = new HashMap<>();
         claims.put("name", name);
+        claims.put("picture", picture);
 
         return Jwts.builder()
                 .setClaims(claims)
@@ -57,6 +58,10 @@ public class JwtService {
 
     public String getNameFromToken(String token) {
         return getClaims(token).get("name", String.class);
+    }
+
+    public String getPictureFromToken(String token) {
+        return getClaims(token).get("picture", String.class);
     }
 
     public Authentication getAuthentication(String token) {

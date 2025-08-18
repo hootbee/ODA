@@ -31,10 +31,12 @@ public class OAuth2SuccessHandler extends SimpleUrlAuthenticationSuccessHandler 
         OAuth2User oAuth2User = (OAuth2User) authentication.getPrincipal();
         String email = oAuth2User.getAttribute("email");
         String name = oAuth2User.getAttribute("name");
+        String picture = oAuth2User.getAttribute("picture");
+        
         System.out.println("✅ User Email: " + email);
         System.out.println("✅ User Name: " + name);
 
-        String token = jwtService.createToken(email, name);
+        String token = jwtService.createToken(email, name, picture);
         System.out.println("OAuth2SuccessHandler: Generated JWT token: " + token);
 
         String targetUrl = UriComponentsBuilder.fromUriString("http://localhost:3000/auth/callback")

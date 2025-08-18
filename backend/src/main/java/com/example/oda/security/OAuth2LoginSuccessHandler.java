@@ -37,7 +37,7 @@ public class OAuth2LoginSuccessHandler implements AuthenticationSuccessHandler {
         String picture = oAuth2User.getAttribute("picture");
 
         // JWT 토큰 생성
-        String token = jwtService.createToken(email, name);
+        String token = jwtService.createToken(email, name, picture);
 
         // 사용자 정보 구성
         Map<String, Object> userInfo = Map.of(

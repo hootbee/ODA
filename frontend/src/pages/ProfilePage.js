@@ -18,7 +18,7 @@ const ProfilePage = () => {
     <ProfileContainer>
         <ProfileCard>
             <h2>프로필 정보</h2>
-            <ProfileImage src={user.picture} alt="Profile" />
+            <ProfileImage src={user.picture} alt="Profile" referrerPolicy="no-referrer" />
             <p><strong>이름:</strong> {user.name}</p>
             <p><strong>이메일:</strong> {user.email}</p>
         </ProfileCard>

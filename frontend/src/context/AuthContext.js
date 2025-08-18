@@ -11,21 +11,27 @@ export const AuthProvider = ({ children }) => {
     const verifyUser = async () => {
       const token = localStorage.getItem("token");
       if (token) {
+        axios.defaults.headers.common["Authorization"] = `Bearer ${token}`;
         try {
-          // 백엔드의 /validate 엔드포인트를 사용하여 토큰 유효성 검증
-          const response = await axios.post("http://localhost:8080/api/auth/validate", { token });
-
-          if (response.data && response.data.valid) {
-            setUser({ name: response.data.name, email: response.data.email });
+          const response = await axios.get(
+            "http://localhost:8080/api/auth/user"
+          );
+          if (response.data && response.data.authenticated) {
+            setUser(response.data);
           } else {
             localStorage.removeItem("token");
+            delete axios.defaults.headers.common["Authorization"];
           }
         } catch (error) {
           console.error("Invalid token:", error);
           localStorage.removeItem("token");
+          delete axios.defaults.headers.common["Authorization"];
+        } finally {
+          setLoading(false);
         }
+      } else {
+        setLoading(false);
       }
-      setLoading(false);
     };
     verifyUser();
   }, []);
