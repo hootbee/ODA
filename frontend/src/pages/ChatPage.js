@@ -8,6 +8,7 @@ import { useAuth } from "../context/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { GoTriangleUp, GoTriangleDown } from "react-icons/go";
 import { parseBotMessage } from "../utils/messageParser";
+import { FaDatabase, FaTimes } from 'react-icons/fa';
 
 /* ---------------------------- 기본 메시지 --------------------------- */
 const initialMessages = [
@@ -176,10 +177,27 @@ export default function ChatPage() {
     scrollToBottom();
   }, [conv.messages]);
 
+const handleContextReset = () => {
+    // 1. 현재 대화의 lastDataName만 null로 변경
+    updateConv(currentConversation => ({
+      ...currentConversation,
+      lastDataName: null,
+    }));
+    // 2. 사용자에게 컨텍스트가 초기화되었음을 알리는 메시지 추가
+    const resetMessage = { id: Date.now(), sender: "bot", type: "context_reset" };
+    updateConv(c => ({ ...c, messages: [...c.messages, resetMessage] }));
+  };
+
   const handleSend = async (e, overridePrompt = null, overrideLast = null) => {
     e.preventDefault();
     const prompt = overridePrompt ?? inputValue.trim();
     if (!prompt) return;
+
+    if (prompt === "다른 데이터 조회" || prompt === "다른 데이터 활용" || prompt === "다른 데이터") {
+        handleContextReset();
+        setInput("");
+        return;
+    }
 
     const userMsg = { id: Date.now(), sender: "user", text: prompt };
     updateConv((c) => ({ ...c, messages: [...c.messages, userMsg] }));
@@ -261,6 +279,16 @@ export default function ChatPage() {
       />
       <ChatPane>
         <ChatWrapper>
+          <DataChoiceHeader visible={!!conv.lastDataName}>
+            <HeaderContent>
+              <FaDatabase />
+              <span>{conv.lastDataName}</span>
+            </HeaderContent>
+            <ResetButton onClick={handleContextReset} title="데이터 선택 초기화">
+              <FaTimes />
+            </ResetButton>
+          </DataChoiceHeader>
+
           <MessageList
             messages={conv.messages}
             onCategorySelect={onCategory}
@@ -326,6 +354,69 @@ const ChatWrapper = styled.div`
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  position: relative;
+`;
+
+const DataChoiceHeader = styled.div`
+  position: absolute;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  
+  width: auto;
+  min-width: 300px;
+  max-width: 60%;
+  padding: 8px 8px 8px 16px;
+  
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  border-radius: 50px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+  
+  z-index: 10;
+  transition: all 0.4s ease-in-out;
+
+  opacity: ${props => (props.visible ? 1 : 0)};
+  visibility: ${props => (props.visible ? 'visible' : 'hidden')};
+  transform: ${props => (props.visible ? 'translate(-50%, 0)' : 'translate(-50%, -20px)')};
+`;
+
+const HeaderContent = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #2c3e50;
+  font-weight: 500;
+  font-size: 0.9rem;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+`;
+
+const ResetButton = styled.button`
+  background: rgba(0, 0, 0, 0.05);
+  border: none;
+  border-radius: 50%;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #868e96;
+  cursor: pointer;
+  transition: all 0.2s;
+  flex-shrink: 0;
+  margin-left: 10px;
+
+  &:hover {
+    background: rgba(0, 0, 0, 0.1);
+    color: #2c3e50;
+  }
 `;
 
 const ScrollControls = styled.div`
