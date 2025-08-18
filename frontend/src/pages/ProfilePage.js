@@ -2,6 +2,7 @@ import React from "react";
 import { useAuth } from "../context/AuthContext";
 import { Navigate } from "react-router-dom";
 import styled, { keyframes } from "styled-components";
+import { FaUser } from 'react-icons/fa';
 
 const ProfilePage = () => {
   const { user, isAuthenticated, loading } = useAuth();
@@ -22,7 +23,7 @@ const ProfilePage = () => {
   return (
     <ProfileContainer>
       <ProfileCard>
-        <CardTitle>프로필 정보</CardTitle>
+        <CardTitle><FaUser />프로필 정보</CardTitle>
           <ProfileImage src={user.picture} alt="Profile" referrerPolicy="no-referrer" />
             <InfoContainer>
               <InfoBlock>
@@ -68,6 +69,11 @@ const CardTitle = styled.h2`
   padding-bottom: 10px;
   border-bottom: 1px solid #f0f2f5;
   text-align: center;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
 `;
 
 const ProfileImage = styled.img`
