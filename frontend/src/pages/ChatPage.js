@@ -129,15 +129,20 @@ export default function ChatPage() {
       hist.forEach((h) => {
         convs[h.sessionId] = {
           messages: h.messages.map((m) => {
+            const id = `${m.sender}-${h.sessionId}-${m.createdAt}`;
+            if (m.sender && m.sender.toLowerCase() === "user") {
+              return { id, sender: "user", text: m.content };
+            }
+
             let content;
             try {
               content = JSON.parse(m.content);
             } catch (e) {
               content = m.content;
             }
-            // parseBotMessage 유틸리티 함수 사용
+            
             return parseBotMessage(content, {
-              id: `${m.sender}-${h.sessionId}-${m.createdAt}`,
+              id,
               lastDataName: h.lastDataName,
             });
           }),
