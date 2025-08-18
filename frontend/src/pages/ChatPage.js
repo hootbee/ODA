@@ -302,13 +302,15 @@ const Container = styled.div`
   background: #f0f2f5;
   font-family: sans-serif;
 `;
+
 const ChatPane = styled.div`
   flex: 1;
   display: flex;
   flex-direction: column;
-  padding: 1.9rem 0 0 0;
   overflow: hidden;
   height: 100%;
+  padding: 0;
+  box-sizing: border-box;
   border-left: 1px solid #ccc;
   background: #fff;
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
