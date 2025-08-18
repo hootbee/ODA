@@ -362,22 +362,18 @@ const DataChoiceHeader = styled.div`
   top: 20px;
   left: 50%;
   transform: translateX(-50%);
-  
   display: flex;
   align-items: center;
   justify-content: space-between;
-  
   width: auto;
   min-width: 300px;
   max-width: 60%;
   padding: 8px 8px 8px 16px;
-  
   background: rgba(255, 255, 255, 0.7);
   backdrop-filter: blur(10px);
   border: 1px solid rgba(0, 0, 0, 0.05);
   border-radius: 50px;
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
-  
   z-index: 10;
   transition: all 0.4s ease-in-out;
 
