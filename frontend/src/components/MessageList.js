@@ -1,6 +1,7 @@
 import React from "react";
-import styled, { keyframes } from "styled-components";
+import styled, { css, keyframes } from "styled-components";
 import ReactMarkdown from 'react-markdown';
+import { FaUser } from 'react-icons/fa';
 
 // Message Type Components
 import UtilizationDashboard from "./UtilizationDashboard";
@@ -66,19 +67,43 @@ const MessageBody = ({ message }) => {
 function MessageList({ messages, isTyping, scrollContainerRef, messageEndRef, onScroll }) {
   return (
     <MessageListContainer ref={scrollContainerRef} onScroll={onScroll}>
-      {messages.map((message) => (
-        <MessageItem key={message.id} sender={message.sender} type={message.type}>
-          <MessageBody message={message} />
-        </MessageItem>
-      ))}
+      {messages.map((message, index) => {
+        const prevMessage = messages[index - 1];
+        const nextMessage = messages[index + 1];
+        const isFirst = !prevMessage || prevMessage.sender !== message.sender;
+        const isLast = !nextMessage || nextMessage.sender !== message.sender;
+        
+        return (
+          <MessageRow key={message.id} sender={message.sender} isFirst={isFirst}>
+            {isFirst ? (
+              <Avatar sender={message.sender}>
+                {message.sender === "user" ? (
+                  <FaUser />
+                ) : (
+                  <img src={`${process.env.PUBLIC_URL}/ODA_logo.png`} alt="Bot Avatar" />
+                )}
+              </Avatar>
+            ) : <AvatarPlaceholder />}
+
+            <MessageItem key={message.id} sender={message.sender} type={message.type} isFirst={isFirst} isLast={isLast}>
+              <MessageBody message={message} />
+            </MessageItem>
+          </MessageRow>
+        );
+      })}
 
       {isTyping && (
-        <MessageItem sender="bot">
-          <TypingIndicator>
-            <Spinner />
-            <span>입력 중...</span>
-          </TypingIndicator>
-        </MessageItem>
+        <MessageRow sender="bot" isFirst={true}>
+          <Avatar sender="bot">
+            <img src={`${process.env.PUBLIC_URL}/ODA_logo.png`} alt="Bot Avatar" />
+          </Avatar>
+          <MessageItem sender="bot" isFirst={true} isLast={true}>
+            <TypingIndicator>
+              <Spinner />
+              <span>입력 중...</span>
+            </TypingIndicator>
+          </MessageItem>
+        </MessageRow>
       )}
 
       <div ref={messageEndRef} />
@@ -118,6 +143,48 @@ const MessageListContainer = styled.div`
   flex-direction: column;
   gap: 15px;
   position: relative;
+`;
+
+const MessageRow = styled.div`
+  display: flex;
+  align-items: flex-end;
+  justify-content: ${props => props.sender === "user" ? "flex-end" : "flex-start"};
+  margin-top: ${props => props.isFirst ? "15px" : "5px"};
+`;
+
+const Avatar = styled.div`
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background-color: ${props => (props.sender === "user" ? "#0099ffff" : "#ffffff")};
+  color: ${props => (props.sender === "user" ? "white" : "#4b5563")};
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
+  margin: 0 10px;
+  flex-shrink: 0;
+  overflow: hidden;
+  border: 1px solid rgba(0, 0, 0, 0.05);
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  ${props => props.sender === "user" && css`
+    order: 2;
+  `}
+`;
+
+const AvatarPlaceholder = styled.div`
+  width: 60px;
+  flex-shrink: 0;
+
+  ${props => props.sender === "user" && css`
+    order: 2;
+  `}
 `;
 
 const MessageItem = styled.div`

@@ -5,7 +5,7 @@ import { BsChatDots } from "react-icons/bs";
 
 const SidebarContainer = styled.div`
   width: 250px;
-  height: 100%;
+  height: 96vh;
   background: linear-gradient(150deg, #f4f8ff 0%, #a1ceffff 100%);
   border-right: 1px solid #e9ecef;
   padding: 1rem;
