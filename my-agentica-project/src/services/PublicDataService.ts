@@ -124,7 +124,7 @@ export class PublicDataService {
   public async downloadFileByPk(
     publicDataPk: string,
     savePath: string
-  ): Promise<void> {
+  ): Promise<string> {
     console.log(`[PublicDataService] 파일 다운로드 요청: PK=${publicDataPk}`);
     return this.downloaderService.downloadDataFile(publicDataPk, savePath);
   }

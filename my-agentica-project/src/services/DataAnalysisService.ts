@@ -28,6 +28,10 @@ export class DataAnalysisService {
       // Decode from EUC-KR to UTF-8 string
       const decodedCsvData = iconv.decode(fileBuffer, "euc-kr");
 
+      // Limit data to the first 100 lines for testing and efficiency
+      const lines = decodedCsvData.split("\n");
+      const partialData = lines.slice(0, 10).join("\n");
+
       const model = this.genAI.getGenerativeModel({
         model: "gemini-2.0-flash-lite",
       });
@@ -40,9 +44,10 @@ export class DataAnalysisService {
         1.  **Summarize the data:** Briefly describe what the data in the file represents based on its headers and content.
         2.  **Identify Key Insights:** Extract the most important trends, patterns, or significant outliers from the data.
         3.  **Suggest Potential Uses:** Briefly suggest how this data could be used or what further analysis might be interesting.
+        4.  **Data Examples:** Include 3 example rows from the CSV data to illustrate the data structure.
 
         --- CSV DATA START ---
-        ${decodedCsvData}
+        ${partialData}
         --- CSV DATA END ---
 
         Please provide the entire analysis in Korean.

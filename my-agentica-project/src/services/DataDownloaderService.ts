@@ -21,7 +21,7 @@ export class DataDownloaderService {
     publicDataPk: string,
     savePath: string,
     opts?: { fileDetailSn?: number }
-  ): Promise<void> {
+  ): Promise<string> {
     const abs = path.resolve(savePath);
     fs.mkdirSync(path.dirname(abs), { recursive: true });
 
@@ -122,6 +122,7 @@ export class DataDownloaderService {
         );
       }
     }
+    return finalPath;
   }
 
   /**
