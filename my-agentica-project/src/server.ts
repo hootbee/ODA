@@ -1,6 +1,10 @@
 import express, { Request, Response, NextFunction } from "express";
 import { PublicDataService } from "./services/PublicDataService";
 import dotenv from "dotenv";
+import { DataDownloaderService } from "./services/DataDownloaderService";
+import { DataAnalysisService } from "./services/DataAnalysisService";
+import * as fs from "fs/promises";
+import * as path from "path";
 
 dotenv.config();
 
@@ -35,6 +39,67 @@ function getErrorMessage(error: unknown): string {
 // ================================
 // 🎯 AI 서비스 엔드포인트
 // ================================
+
+const downloaderService = new DataDownloaderService();
+const analysisService = new DataAnalysisService(process.env.GEMINI_API_KEY!);
+
+// 새로운 통합 분석 엔드포인트
+app.post("/api/analyze-data-by-pk", async (req: Request, res: Response) => {
+  const { publicDataPk } = req.body;
+  if (!publicDataPk) {
+    return res.status(400).json({
+      error: "publicDataPk is required",
+      code: "MISSING_PUBLIC_DATA_PK",
+    });
+  }
+
+  const downloadsDir = path.resolve(__dirname, '../downloads');
+  let downloadedFilePath: string | null = null;
+
+  try {
+    console.log(`[Workflow] 1. Downloading data for PK: ${publicDataPk}`);
+    downloadedFilePath = await downloaderService.downloadDataFile(publicDataPk, downloadsDir);
+    console.log(`[Workflow] File downloaded to: ${downloadedFilePath}`);
+
+    if (!downloadedFilePath.toLowerCase().endsWith('.csv')) {
+      console.log(`[Workflow] 2. File is not a CSV (${path.basename(downloadedFilePath)}). Deleting.`);
+      await fs.unlink(downloadedFilePath);
+      return res.status(200).json({ 
+        message: "Downloaded file was not a CSV and has been deleted.",
+        analysis: null 
+      });
+    }
+
+    console.log(`[Workflow] 2. Analyzing CSV file: ${path.basename(downloadedFilePath)}`);
+    const analysisResult = await analysisService.analyzeCsvFile(downloadedFilePath);
+    
+    console.log(`[Workflow] 3. Deleting analyzed file.`);
+    await fs.unlink(downloadedFilePath);
+
+    console.log("[Workflow] 4. Workflow completed successfully.");
+    res.json({
+      success: true,
+      analysis: analysisResult,
+    });
+
+  } catch (error) {
+    console.error("[Workflow] Error occurred:", error);
+    // If a file was downloaded, try to clean it up even if the process failed.
+    if (downloadedFilePath) {
+      try {
+        await fs.unlink(downloadedFilePath);
+        console.log(`[Workflow] Cleaned up downloaded file due to error: ${path.basename(downloadedFilePath)}`);
+      } catch (cleanupError) {
+        console.error(`[Workflow] Failed to cleanup file after error: ${path.basename(downloadedFilePath)}`, cleanupError);
+      }
+    }
+    res.status(500).json({
+      error: "Failed to complete the analysis workflow",
+      code: "WORKFLOW_ERROR",
+      message: getErrorMessage(error),
+    });
+  }
+});
 
 // 전체 활용방안 (대시보드용)
 app.post("/api/data-utilization/full", async (req: Request, res: Response) => {

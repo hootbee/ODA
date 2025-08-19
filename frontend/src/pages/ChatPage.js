@@ -8,7 +8,7 @@ import { useAuth } from "../context/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { GoTriangleUp, GoTriangleDown } from "react-icons/go";
 import { parseBotMessage } from "../utils/messageParser";
-import { FaDatabase, FaTimes } from 'react-icons/fa';
+import { FaDatabase, FaTimes } from "react-icons/fa";
 
 /* ---------------------------- 기본 메시지 --------------------------- */
 const initialMessages = [
@@ -90,29 +90,36 @@ export default function ChatPage() {
   }, []);
 
   /* -------------------- 대화 삭제 -------------------- */
-  const handleDeleteContext = useCallback(async (idToDelete) => {
-    try {
-      const isNewChat = typeof idToDelete === 'string' && idToDelete.startsWith('new-');
-      if (!isNewChat) {
-        await axios.delete(`http://localhost:8080/api/chat/session/${idToDelete}`, { headers: authHeaders() });
-      }
-      const newContexts = contexts.filter(ctx => ctx.id !== idToDelete);
-      const newConvs = { ...conversations };
-      delete newConvs[idToDelete];
-      setContexts(newContexts);
-      setConvs(newConvs);
-      if (activeContextId === idToDelete) {
-        if (newContexts.length > 0) {
-          setActiveId(newContexts[0].id);
-        } else {
-          handleNewChat();
+  const handleDeleteContext = useCallback(
+    async (idToDelete) => {
+      try {
+        const isNewChat =
+          typeof idToDelete === "string" && idToDelete.startsWith("new-");
+        if (!isNewChat) {
+          await axios.delete(
+            `http://localhost:8080/api/chat/session/${idToDelete}`,
+            { headers: authHeaders() }
+          );
         }
+        const newContexts = contexts.filter((ctx) => ctx.id !== idToDelete);
+        const newConvs = { ...conversations };
+        delete newConvs[idToDelete];
+        setContexts(newContexts);
+        setConvs(newConvs);
+        if (activeContextId === idToDelete) {
+          if (newContexts.length > 0) {
+            setActiveId(newContexts[0].id);
+          } else {
+            handleNewChat();
+          }
+        }
+      } catch (error) {
+        console.error("Error deleting chat session:", error);
+        alert(`채팅 삭제 중 오류 발생: ${error.message}`);
       }
-    } catch (error) {
-      console.error("Error deleting chat session:", error);
-      alert(`채팅 삭제 중 오류 발생: ${error.message}`);
-    }
-  }, [activeContextId, contexts, conversations, handleNewChat]);
+    },
+    [activeContextId, contexts, conversations, handleNewChat]
+  );
 
   const fetchHistory = useCallback(async () => {
     try {
@@ -141,7 +148,7 @@ export default function ChatPage() {
             } catch (e) {
               content = m.content;
             }
-            
+
             return parseBotMessage(content, {
               id,
               lastDataName: h.lastDataName,
@@ -177,27 +184,25 @@ export default function ChatPage() {
     scrollToBottom();
   }, [conv.messages]);
 
-const handleContextReset = () => {
+  const handleContextReset = () => {
     // 1. 현재 대화의 lastDataName만 null로 변경
-    updateConv(currentConversation => ({
+    updateConv((currentConversation) => ({
       ...currentConversation,
       lastDataName: null,
     }));
     // 2. 사용자에게 컨텍스트가 초기화되었음을 알리는 메시지 추가
-    const resetMessage = { id: Date.now(), sender: "bot", type: "context_reset" };
-    updateConv(c => ({ ...c, messages: [...c.messages, resetMessage] }));
+    const resetMessage = {
+      id: Date.now(),
+      sender: "bot",
+      type: "context_reset",
+    };
+    updateConv((c) => ({ ...c, messages: [...c.messages, resetMessage] }));
   };
 
   const handleSend = async (e, overridePrompt = null, overrideLast = null) => {
     e.preventDefault();
     const prompt = overridePrompt ?? inputValue.trim();
     if (!prompt) return;
-
-    if (prompt === "다른 데이터 조회" || prompt === "다른 데이터 활용" || prompt === "다른 데이터") {
-        handleContextReset();
-        setInput("");
-        return;
-    }
 
     const userMsg = { id: Date.now(), sender: "user", text: prompt };
     updateConv((c) => ({ ...c, messages: [...c.messages, userMsg] }));
@@ -284,7 +289,10 @@ const handleContextReset = () => {
               <FaDatabase />
               <span>{conv.lastDataName}</span>
             </HeaderContent>
-            <ResetButton onClick={handleContextReset} title="데이터 선택 초기화">
+            <ResetButton
+              onClick={handleContextReset}
+              title="데이터 선택 초기화"
+            >
               <FaTimes />
             </ResetButton>
           </DataChoiceHeader>
@@ -377,9 +385,10 @@ const DataChoiceHeader = styled.div`
   z-index: 10;
   transition: all 0.4s ease-in-out;
 
-  opacity: ${props => (props.visible ? 1 : 0)};
-  visibility: ${props => (props.visible ? 'visible' : 'hidden')};
-  transform: ${props => (props.visible ? 'translate(-50%, 0)' : 'translate(-50%, -20px)')};
+  opacity: ${(props) => (props.visible ? 1 : 0)};
+  visibility: ${(props) => (props.visible ? "visible" : "hidden")};
+  transform: ${(props) =>
+    props.visible ? "translate(-50%, 0)" : "translate(-50%, -20px)"};
 `;
 
 const HeaderContent = styled.div`

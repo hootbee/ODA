@@ -88,4 +88,24 @@ public class GeminiService implements AiModelService {
 
     // getClassificationSystem and getRecommendations methods are now obsolete
     // and will be removed in the next step.
+
+    public Mono<JsonNode> analyzeDataByPk(Long publicDataPk) {
+        Map<String, Long> requestBody = Map.of("publicDataPk", publicDataPk);
+        log.info("Requesting data analysis from agent for PK: {}", publicDataPk);
+
+        return webClient.post()
+                .uri("/api/analyze-data-by-pk")
+                .header("Content-Type", "application/json")
+                .bodyValue(requestBody)
+                .retrieve()
+                .bodyToMono(JsonNode.class)
+                .map(response -> {
+                    // Add a "type" field for the frontend to identify the message
+                    if (response.has("analysis") && !response.get("analysis").isNull()) {
+                        ((com.fasterxml.jackson.databind.node.ObjectNode) response).put("type", "data_analysis");
+                    }
+                    return response;
+                })
+                .doOnError(e -> log.error("Error calling agent service for data analysis", e));
+    }
 }
