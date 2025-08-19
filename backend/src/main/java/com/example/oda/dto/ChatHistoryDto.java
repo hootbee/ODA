@@ -15,4 +15,5 @@ public class ChatHistoryDto {
     private Long sessionId;
     private String sessionTitle;
     private List<ChatMessageDto> messages;
+    private String lastDataName; // Last used data name in the session
 }

@@ -23,6 +23,7 @@ const initialMessages = [
 /* ============================ 컴포넌트 ============================= */
 export default function ChatPage() {
   const { isAuthenticated, loading } = useAuth();
+  console.log("[ChatPage] isAuthenticated:", isAuthenticated, "loading:", loading);
   const navigate = useNavigate();
 
   const [contexts, setContexts] = useState([]);
@@ -162,6 +163,7 @@ export default function ChatPage() {
       setContexts(ctxs);
       setConvs(convs);
       setActiveId(ctxs[0].id);
+      console.log("[ChatPage] fetchHistory completed. Active context lastDataName:", convs[ctxs[0].id]?.lastDataName);
     } catch (e) {
       console.error(e);
       handleNewChat();
@@ -169,9 +171,15 @@ export default function ChatPage() {
   }, [handleNewChat]);
 
   useEffect(() => {
+    console.log("[ChatPage] useEffect for fetchHistory triggered.");
     if (loading) return;
-    if (!isAuthenticated) navigate("/login");
-    else fetchHistory();
+    if (!isAuthenticated) {
+      console.log("[ChatPage] Not authenticated, navigating to login.");
+      navigate("/login");
+    } else {
+      console.log("[ChatPage] Authenticated, fetching history.");
+      fetchHistory();
+    }
   }, [isAuthenticated, loading, navigate, fetchHistory]);
 
   const conv = conversations[activeContextId] ?? {
@@ -179,6 +187,7 @@ export default function ChatPage() {
     sessionId: null,
     lastDataName: null,
   };
+  console.log("[ChatPage] Current conv.lastDataName in render:", conv.lastDataName);
 
   useEffect(() => {
     scrollToBottom();

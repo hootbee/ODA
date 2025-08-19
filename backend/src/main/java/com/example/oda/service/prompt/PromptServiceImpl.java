@@ -203,6 +203,7 @@ public class PromptServiceImpl implements PromptService {
         return ChatHistoryDto.builder()
                 .sessionId(session.getId())
                 .sessionTitle(session.getSessionTitle())
+                .lastDataName(session.getLastDataName())
                 .messages(messages)
                 .build();
     }
