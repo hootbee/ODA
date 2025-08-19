@@ -193,11 +193,7 @@ const handleContextReset = () => {
     const prompt = overridePrompt ?? inputValue.trim();
     if (!prompt) return;
 
-    if (prompt === "다른 데이터 조회" || prompt === "다른 데이터 활용" || prompt === "다른 데이터") {
-        handleContextReset();
-        setInput("");
-        return;
-    }
+    
 
     const userMsg = { id: Date.now(), sender: "user", text: prompt };
     updateConv((c) => ({ ...c, messages: [...c.messages, userMsg] }));
