@@ -1,22 +1,30 @@
 {
   "name": "agentica-template-standalone",
-  "version": "0.0.1",
-  "description": "",
+  "version": "0.0.2",
   "scripts": {
-    "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
+    "bridge:min": "node -r dotenv/config -r ts-node/register src/mcp/httpBridge.ts",
+    "bridge:pw": "node -r dotenv/config -r ts-node/register src/mcp/playwrightBridge.ts",
     "start": "node dist/server.js",
-    "build": "tsc",
-    "test": "curl http://localhost:3001/health"
+
+    "dev:pw": "concurrently -k -n pw,api -c green,magenta \"npm:bridge:pw\" \"npm:server\"",
+    "dev:sp": "concurrently -k -n sp,api -c cyan,magenta \"npm:bridge:sp\" \"npm:server\"",
+    "server": "node -r dotenv/config -r ts-node/register src/server.ts",
+
+    "dev": "concurrently -k -n pw,sp,api -c green,cyan,magenta \"npm:bridge:pw\" \"npm:bridge:sp\" \"npm:server\""
   },
   "devDependencies": {
+    "@playwright/mcp": "^0.0.34",
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.3",
+    "concurrently": "^9.1.0",
     "ts-node": "^10.9.2",
-    "ts-patch": "^3.3.0",
-    "typescript": "^5.8.3"
+    "typescript": "^5.6.3"
   },
   "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.4.0",
     "@agentica/core": "^0.30.5",
     "@google/generative-ai": "^0.24.1",
-    "@types/express": "^5.0.3",
+    "@wrtnlabs/agentica": "^1.0.0",
     "@wrtnlabs/connector-arxiv-search": "^0.1.506",
     "@wrtnlabs/connector-aws-s3": "^0.1.506",
     "@wrtnlabs/connector-calendly": "^0.1.506",
@@ -68,9 +76,10 @@
     "@wrtnlabs/connector-youtube-transcript": "^0.1.506",
     "@wrtnlabs/connector-zoom": "^0.1.506",
     "axios": "^1.11.0",
+    "cors": "^2.8.5",
     "dotenv": "^16.6.1",
     "express": "^5.1.0",
-    "openai": "^5.10.2",
-    "typia": "^9.6.0"
+    "openai": "^5.12.2",
+    "typia": "^9.7.1"
   }
 }

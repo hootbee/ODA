@@ -1,5 +1,6 @@
 // services/HybridQueryPlannerService.ts
-import { GoogleGenerativeAI, SchemaType } from "@google/generative-ai";
+import { GoogleGenerativeAI } from "@google/generative-ai";
+
 export class HybridQueryPlannerService {
   // QueryPlannerService는 이제 백엔드에서 처리합니다.
 
@@ -308,6 +309,7 @@ JSON 형식으로만 응답해주세요.
       hasDateFilter: false,
       limit: 10,
       isAIEnhanced: false,
+      prompt,
     };
   }
 }
