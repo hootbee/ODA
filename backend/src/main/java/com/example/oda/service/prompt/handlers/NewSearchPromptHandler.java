@@ -38,7 +38,7 @@ public class NewSearchPromptHandler implements PromptHandler {
     public Mono<JsonNode> handle(ChatSession session, String prompt, String lastDataName) {
         session.setLastDataName(null);
         chatSessionRepository.save(session);
-
+        System.out.println("데이터초기화");
         com.fasterxml.jackson.databind.node.ObjectNode root = objectMapper.createObjectNode();
         root.put("type", "context_reset");
         return Mono.just(root);

@@ -35,6 +35,9 @@ public class GeneralSearchPromptHandler implements PromptHandler {
 
     @Override
     public Mono<JsonNode> handle(ChatSession session, String prompt, String lastDataName) {
+        System.out.println("[GeneralSearchPromptHandler] Handler executed.");
+        System.out.println("[GeneralSearchPromptHandler] Received prompt: " + prompt);
+        System.out.println("[GeneralSearchPromptHandler] Received lastDataName: " + lastDataName);
         try {
             QueryPlanDto plan = queryPlannerService.createQueryPlan(prompt);
 

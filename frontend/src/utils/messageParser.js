@@ -32,6 +32,10 @@ export const parseBotMessage = (content, metadata = {}) => {
       case 'help':
         messageObject.type = 'help';
         break;
+      case 'data_analysis': // Add this case for data analysis results
+        messageObject.type = 'data_analysis';
+        messageObject.data = { analysis: content.analysis }; // Wrap analysis content in a data object
+        break;
       default:
         // `utilization-dashboard`는 `success` 필드를 사용하므로 별도 처리
         if (content.success && content.data) {

@@ -53,6 +53,11 @@ public class PromptServiceImpl implements PromptService {
         final Long   sessionId = dto.getSessionId();
         final String reqLastDataName = dto.getLastDataName();
 
+        System.out.println("========================================================");
+        System.out.println("[PromptServiceImpl] Received new prompt.");
+        System.out.println("[PromptServiceImpl] User Input (Prompt): " + prompt);
+        System.out.println("[PromptServiceImpl] Request DTO lastDataName: " + reqLastDataName);
+
         log.info("=== 프롬프트 처리 시작 ===");
         log.info("입력 프롬프트: '{}'", prompt);
         log.info("세션 ID: {}", sessionId);
@@ -70,12 +75,15 @@ public class PromptServiceImpl implements PromptService {
                             : chatSessionRepository.findById(sessionId)
                             .orElseThrow(() -> new RuntimeException("세션을 찾을 수 없습니다: " + sessionId));
 
+                    System.out.println("[PromptServiceImpl] Session lastDataName (before logic): " + session.getLastDataName());
+
                     /* 세션에서 lastDataName 복구 */
                     String effectiveLastDataName = (reqLastDataName == null || reqLastDataName.isBlank())
                             ? session.getLastDataName()
                             : reqLastDataName;
 
                     log.info("최종 lastDataName: {}", effectiveLastDataName);
+                    System.out.println("[PromptServiceImpl] Effective lastDataName for dispatch: " + effectiveLastDataName);
 
                     return new SessionData(session, effectiveLastDataName, prompt, email);
                 })
@@ -97,10 +105,15 @@ public class PromptServiceImpl implements PromptService {
                 .findFirst()
                 .orElseThrow(() -> new IllegalStateException("처리할 수 있는 핸들러를 찾을 수 없습니다."));
 
+        System.out.println("[PromptServiceImpl] Dispatching to handler: " + handler.getClass().getSimpleName());
+
         return handler.handle(session, prompt, lastDataName).flatMap(json -> {
             log.info("최종 응답 JSON: {}", json.toPrettyString());
             saveSingleChatMessage(session, email, MessageSender.USER, prompt);
             saveSingleChatMessage(session, email, MessageSender.BOT, json.toPrettyString());
+
+            System.out.println("[PromptServiceImpl] Session lastDataName (after handler execution): " + session.getLastDataName());
+            System.out.println("========================================================");
 
             return Mono.just(new ChatResponseDto(
                     json,

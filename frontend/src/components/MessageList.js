@@ -12,6 +12,7 @@ import SimpleRecommendation from "./messages/SimpleRecommendation";
 import HelpMessage from "./messages/HelpMessage";
 import ContextResetMessage from "./messages/ContextResetMessage";
 import ErrorMessage from "./messages/ErrorMessage";
+import DataAnalysisResult from "./messages/DataAnalysisResult"; // Import DataAnalysisResult
 
 // A simple component to render normal text messages
 const TextMessage = ({ content }) => (
@@ -59,6 +60,8 @@ const MessageBody = ({ message }) => {
                     </TipMessage>
                 </>
             );
+        case "data_analysis": // Add this case for DataAnalysisResult
+            return <DataAnalysisResult data={message.data} />;
         default:
             return <TextMessage content={message.text} />;
     }
