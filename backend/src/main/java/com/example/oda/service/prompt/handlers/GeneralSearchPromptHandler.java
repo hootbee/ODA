@@ -72,7 +72,7 @@ public class GeneralSearchPromptHandler implements PromptHandler {
                 root.put("type", "search_results");
                 ObjectNode payload = objectMapper.createObjectNode();
                 payload.set("results", objectMapper.valueToTree(resultNames));
-                payload.put("totalCount", sortedResults.size());
+                payload.put("totalCount", resultNames.size()); // Corrected to reflect the actual number of results returned
                 root.set("payload", payload);
             }
 
