@@ -68,9 +68,11 @@
     "@wrtnlabs/connector-youtube-transcript": "^0.1.506",
     "@wrtnlabs/connector-zoom": "^0.1.506",
     "axios": "^1.11.0",
+    "axios-cookiejar-support": "^6.0.4",
     "dotenv": "^16.6.1",
     "express": "^5.1.0",
     "openai": "^5.10.2",
+    "tough-cookie": "^5.1.2",
     "typia": "^9.6.0"
   }
 }

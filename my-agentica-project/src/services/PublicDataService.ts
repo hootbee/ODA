@@ -1,12 +1,12 @@
 // services/PublicDataService.ts
-import * as fs from "fs";
-import * as path from "path";
 import { HybridQueryPlannerService } from "./HybridQueryPlannerService";
 import { DataUtilizationService } from "./DataUtilizationService";
+import { DataDownloaderService } from "./DataDownloaderService"; // 새로 분리된 다운로더 서비스를 import
 
 export class PublicDataService {
   private readonly queryPlanner = new HybridQueryPlannerService();
   private readonly utilizationService = new DataUtilizationService();
+  private readonly downloaderService = new DataDownloaderService(); // 다운로더 인스턴스 생성
 
   /**
    * 하이브리드 쿼리 계획 생성 (Agentica 호환)
@@ -23,23 +23,14 @@ export class PublicDataService {
     candidates: string[];
   }): Promise<{ recommendations: string[] }> {
     const { prompt, candidates } = input;
-
-    // await 추가 - Promise 해결
     const queryPlan = await this.queryPlanner.createQueryPlan(prompt);
-
-    // await 추가 - filterByRelevance도 Promise를 반환하므로
     const filtered = await this.filterByRelevance(
       prompt,
       candidates,
       queryPlan.majorCategory
     );
-
-    // 이제 filtered는 string[] 타입이므로 slice 사용 가능
     const finalRecommendations = filtered.slice(0, queryPlan.limit);
-
-    return {
-      recommendations: finalRecommendations,
-    };
+    return { recommendations: finalRecommendations };
   }
 
   /**
@@ -51,11 +42,8 @@ export class PublicDataService {
     majorCategory: string
   ): Promise<string[]> {
     const lowerPrompt = prompt.toLowerCase();
-
-    // await 추가 - Promise 해결
     const queryPlan = await this.queryPlanner.createQueryPlan(prompt);
     const promptTokens = queryPlan.keywords;
-
     return candidates
       .map((candidate) => ({
         name: candidate,
@@ -81,35 +69,16 @@ export class PublicDataService {
   ): number {
     const lowerCandidate = candidate.toLowerCase();
     let score = 0;
-
-    // 1. 프롬프트 토큰 매칭 (각 토큰당 15점)
     promptTokens.forEach((token) => {
-      if (lowerCandidate.includes(token.toLowerCase())) {
-        score += 15;
-      }
+      if (lowerCandidate.includes(token.toLowerCase())) score += 15;
     });
-
-    // 2. 대분류 관련성 (25점)
-    if (lowerCandidate.includes(majorCategory.toLowerCase())) {
-      score += 25;
-    }
-
-    // 3. 완전 단어 매칭 보너스 (10점)
+    if (lowerCandidate.includes(majorCategory.toLowerCase())) score += 25;
     const candidateTokens = lowerCandidate.split(/[\s_-]+/);
     promptTokens.forEach((token) => {
-      if (candidateTokens.includes(token.toLowerCase())) {
-        score += 10;
-      }
+      if (candidateTokens.includes(token.toLowerCase())) score += 10;
     });
-
-    // 4. 길이 기반 패널티/보너스
-    if (candidate.length > 100) {
-      score -= 10; // 너무 긴 이름 패널티
-    } else if (candidate.length < 20) {
-      score -= 5; // 너무 짧은 이름 패널티
-    }
-
-    // 5. 특수 키워드 보너스
+    if (candidate.length > 100) score -= 10;
+    else if (candidate.length < 20) score -= 5;
     const specialKeywords = ["최신", "신규", "업데이트", "개선"];
     specialKeywords.forEach((keyword) => {
       if (
@@ -119,8 +88,7 @@ export class PublicDataService {
         score += 5;
       }
     });
-
-    return Math.max(0, score); // 음수 점수 방지
+    return Math.max(0, score);
   }
 
   /**
@@ -148,5 +116,16 @@ export class PublicDataService {
       input.dataInfo,
       input.analysisType
     );
+  }
+
+  /**
+   * publicDataPk를 이용해 파일을 다운로드합니다. (다운로더 서비스 호출)
+   */
+  public async downloadFileByPk(
+    publicDataPk: string,
+    savePath: string
+  ): Promise<void> {
+    console.log(`[PublicDataService] 파일 다운로드 요청: PK=${publicDataPk}`);
+    return this.downloaderService.downloadDataFile(publicDataPk, savePath);
   }
 }
