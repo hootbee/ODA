@@ -7,24 +7,55 @@ import { CookieJar } from "tough-cookie";
 
 export class DataDownloaderService {
   /**
-   * 데모: 소상공인 상가(상권)정보 다운로드
+   * 데모: 소상공인 상가(상권)정보 다운로드 (파일로 저장)
    */
   public async downloadStoreInfoData(savePath: string): Promise<void> {
-    const publicDataPk = "3074462"; // ✅ PK만 사용
+    const publicDataPk = "3074462";
     await this.downloadDataFile(publicDataPk, savePath);
   }
 
   /**
-   * 핵심: publicDataPk를 기반으로 UDDI/atchFileId/fileSn을 추적 후 파일 다운로드
+   * [파일 저장용] publicDataPk를 기반으로 파일을 다운로드하여 지정된 경로에 저장합니다.
    */
   public async downloadDataFile(
     publicDataPk: string,
     savePath: string,
     opts?: { fileDetailSn?: number }
   ): Promise<string> {
-    const abs = path.resolve(savePath);
-    fs.mkdirSync(path.dirname(abs), { recursive: true });
+    // 💡 1. 핵심 로직을 수행하는 내부 함수를 호출하여 버퍼와 파일명을 받습니다.
+    const { buffer, fileName } = await this.downloadCore(publicDataPk, opts);
 
+    const abs = path.resolve(savePath);
+    const dir = path.dirname(abs);
+    // 파일명은 서버에서 받은 실제 파일명을 사용합니다.
+    const finalPath = path.join(dir, fileName);
+
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(finalPath, buffer);
+
+    console.log(`✅ 저장 완료: ${finalPath}`);
+    return finalPath;
+  }
+
+  /**
+   * [메모리 처리용] publicDataPk를 기반으로 파일을 다운로드하여 Buffer 객체로 반환합니다.
+   */
+  public async downloadDataFileAsBuffer(
+    publicDataPk: string,
+    opts?: { fileDetailSn?: number }
+  ): Promise<{ buffer: Buffer; fileName: string; contentType: string }> {
+    // 💡 2. 동일한 내부 함수를 호출하여 결과를 바로 반환합니다.
+    return this.downloadCore(publicDataPk, opts);
+  }
+
+  /**
+   * 💡 [리팩토링] 다운로드 핵심 로직을 처리하는 비공개(private) 메소드
+   * 중복 코드를 제거하고 두 public 메소드가 이 메소드를 호출하도록 변경했습니다.
+   */
+  private async downloadCore(
+    publicDataPk: string,
+    opts?: { fileDetailSn?: number }
+  ): Promise<{ buffer: Buffer; fileName: string; contentType: string }> {
     const jar = new CookieJar();
     const client = wrapper(
       axios.create({
@@ -95,34 +126,22 @@ export class DataDownloaderService {
       responseType: "arraybuffer",
     });
 
-    const ct = String(res.headers["content-type"] || "").toLowerCase();
-    const buf = Buffer.from(res.data);
+    const buffer = Buffer.from(res.data);
+    const contentType = String(
+      res.headers["content-type"] || "application/octet-stream"
+    ).toLowerCase();
 
-    let finalPath = abs;
-    if (meta.orgFileNm) {
-      const outDir = path.dirname(abs);
-      finalPath = path.join(outDir, meta.orgFileNm);
+    // 5) 파일명 결정
+    let fileName = meta.orgFileNm;
+    if (!fileName) {
+      const cd = String(res.headers["content-disposition"] || "");
+      fileName =
+        getFilenameFromContentDisposition(cd) ||
+        `downloaded-file-${publicDataPk}`;
     }
 
-    const cd = String(res.headers["content-disposition"] || "");
-    const cdFile = getFilenameFromContentDisposition(cd);
-    if (!meta.orgFileNm && cdFile) {
-      const outDir = path.dirname(abs);
-      finalPath = path.join(outDir, cdFile);
-    }
-
-    fs.writeFileSync(finalPath, buf);
-    console.log(`✅ 저장 완료: ${finalPath} (CT=${ct})`);
-
-    if (finalPath.toLowerCase().endsWith(".zip")) {
-      const sig = buf.subarray(0, 4).toString("binary");
-      if (!ct.includes("zip") && sig !== "PK\u0003\u0004") {
-        console.warn(
-          "⚠️ ZIP 시그니처가 보이지 않습니다. 파일 형식을 확인하세요."
-        );
-      }
-    }
-    return finalPath;
+    console.log(`✅ 다운로드 완료 (버퍼): ${fileName}`);
+    return { buffer, fileName, contentType };
   }
 
   /**
