@@ -80,6 +80,7 @@ app.post("/api/analyze-data-by-pk", async (req: Request, res: Response) => {
     res.json({
       success: true,
       analysis: analysisResult,
+      publicDataPk: publicDataPk // 분석 요청에 사용된 PK를 응답에 포함
     });
 
   } catch (error) {
@@ -160,6 +161,43 @@ app.post(
 // ================================
 // 🩺 헬스 체크
 // ================================
+
+// ================================
+// 🎯 파일 다운로드 엔드포인트
+// ================================
+app.get("/api/download-by-pk/:publicDataPk", async (req: Request, res: Response) => {
+  console.log("\n\n=== DOWNLOAD API CALLED! ===\n\n"); // 테스트용 로그
+  const { publicDataPk } = req.params;
+
+  if (!publicDataPk) {
+    return res.status(400).json({ error: "publicDataPk is required" });
+  }
+
+  try {
+    console.log(`[Download] 1. Downloading data for PK: ${publicDataPk}`);
+    const { buffer, fileName, contentType } = await downloaderService.downloadDataFileAsBuffer(publicDataPk);
+    
+    console.log(`[Download] 2. Streaming file to client: ${fileName}`);
+
+    // 캐시 비활성화 헤더 추가
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+
+    // RFC 5987 표준에 따라 Content-Disposition 설정
+    res.setHeader('Content-Disposition', `attachment; filename*=UTF-8''${encodeURIComponent(fileName)}`);
+    res.setHeader('Content-Type', contentType);
+    
+    res.send(buffer);
+
+  } catch (error) {
+    console.error(`[Download] Error occurred for PK ${publicDataPk}:`, error);
+    res.status(500).json({
+      error: "Failed to download the file",
+      message: getErrorMessage(error),
+    });
+  }
+});
 
 app.get("/health", (req: Request, res: Response) => {
   res.json({

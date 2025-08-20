@@ -34,7 +34,7 @@ export const parseBotMessage = (content, metadata = {}) => {
         break;
       case 'data_analysis': // Add this case for data analysis results
         messageObject.type = 'data_analysis';
-        messageObject.data = { analysis: content.analysis }; // Wrap analysis content in a data object
+                messageObject.data = content; // content 객체 전체를 전달하여 publicDataPk가 유지되도록 함
         break;
       default:
         // `utilization-dashboard`는 `success` 필드를 사용하므로 별도 처리

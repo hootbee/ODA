@@ -46,7 +46,15 @@ public class GeneralSearchPromptHandler implements PromptHandler {
             log.info("AI 분류 결과: {}", plan.getMajorCategory());
             log.info("결과 개수 제한: {}", plan.getLimit());
 
+            // --- 시간 측정 시작 ---
+            long startTime = System.currentTimeMillis();
+            System.out.println("[GeneralSearchPromptHandler] 데이터 조회 시작...");
+
             List<PublicData> allResults = searchService.searchAndFilterData(plan.getKeywords(), plan.getMajorCategory());
+
+            long endTime = System.currentTimeMillis();
+            System.out.println("[GeneralSearchPromptHandler] 데이터 조회 완료. 소요 시간: " + (endTime - startTime) + "ms");
+            // --- 시간 측정 종료 ---
             List<PublicData> uniqueResults = searchService.deduplicateResults(allResults);
             List<PublicData> sortedResults = searchService.sortResultsByRelevance(uniqueResults, plan.getKeywords(), prompt);
 

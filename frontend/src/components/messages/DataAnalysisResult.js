@@ -1,18 +1,47 @@
-import React from 'react';
-import styled from 'styled-components';
-import ReactMarkdown from 'react-markdown';
+import React from "react";
+import styled from "styled-components";
+import ReactMarkdown from "react-markdown";
 
 const DataAnalysisResult = ({ data }) => {
-    const analysisContent = data.analysis || '분석 결과를 불러오는 데 실패했습니다.';
+  const analysisContent =
+    data.analysis || "분석 결과를 불러오는 데 실패했습니다.";
+  const publicDataPk = data.publicDataPk;
 
-    return (
-        <AnalysisContainer>
-            <h4><span role="img" aria-label="icon">📊</span> 데이터 분석 결과</h4>
-            <Content>
-                <ReactMarkdown>{analysisContent}</ReactMarkdown>
-            </Content>
-        </AnalysisContainer>
-    );
+    const handleDownload = () => {
+    if (!publicDataPk) {
+      alert("다운로드할 파일의 고유 ID가 없습니다.");
+      return;
+    }
+
+    // ChatPage.js의 방식과 동일하게, 전체 URL을 직접 지정합니다.
+    const downloadUrl = `http://localhost:8080/api/download/${publicDataPk}`;
+
+    const link = document.createElement("a");
+    link.href = downloadUrl;
+
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  return (
+    <AnalysisContainer>
+      <Header>
+        <h4>
+          <span role="img" aria-label="icon">
+            📊
+          </span>{" "}
+          데이터 분석 결과
+        </h4>
+        <DownloadButton onClick={handleDownload}>
+          원본 데이터 다운로드
+        </DownloadButton>
+      </Header>
+      <Content>
+        <ReactMarkdown>{analysisContent}</ReactMarkdown>
+      </Content>
+    </AnalysisContainer>
+  );
 };
 
 export default DataAnalysisResult;
@@ -23,20 +52,45 @@ const AnalysisContainer = styled.div`
   border-radius: 16px;
   padding: 20px;
   margin: 10px 0;
-  h4 { 
-    font-size: 1.2em; 
-    color: #0c4a6e; 
-    margin: 0 0 12px 0; 
-    padding-bottom: 8px;
-    border-bottom: 2px solid #e0f2fe;
+`;
+
+const Header = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 2px solid #e0f2fe;
+  margin-bottom: 12px;
+
+  h4 {
+    font-size: 1.2em;
+    color: #0c4a6e;
+    margin: 0 0 8px 0;
+  }
+`;
+
+const DownloadButton = styled.button`
+  background-color: #1d4ed8;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 8px 16px;
+  font-size: 0.9em;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background-color 0.2s;
+
+  &:hover {
+    background-color: #1e40af;
   }
 `;
 
 const Content = styled.div`
   color: #374151;
   line-height: 1.6;
-  
-  h1, h2, h3 {
+
+  h1,
+  h2,
+  h3 {
     color: #1e3a8a;
     margin-top: 1em;
     margin-bottom: 0.5em;
@@ -50,7 +104,8 @@ const Content = styled.div`
     color: #1e40af;
   }
 
-  ul, ol {
+  ul,
+  ol {
     padding-left: 20px;
     margin-bottom: 1em;
   }
@@ -63,6 +118,6 @@ const Content = styled.div`
     background-color: #e5e7eb;
     padding: 2px 5px;
     border-radius: 4px;
-    font-family: 'Courier New', Courier, monospace;
+    font-family: "Courier New", Courier, monospace;
   }
 `;
