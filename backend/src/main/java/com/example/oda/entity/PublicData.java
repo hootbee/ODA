@@ -8,7 +8,9 @@ import lombok.Setter;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "file_data", schema = "public")
+@Table(name = "test_data", schema = "public", indexes = {
+        @Index(name = "idx_publicdata_filedataname", columnList = "파일데이터명")
+})
 @Setter
 @Getter
 @NoArgsConstructor
@@ -39,6 +41,8 @@ public class PublicData {
 
     @Column(name = "설명", columnDefinition = "TEXT")
     private String description;
+    @Column(name="publicDataPk",unique = true)
+    private Long publicDataPk;
 
     // 누락된 컬럼 추가
 //    @Column(name = "수정일_backup", columnDefinition = "TEXT")

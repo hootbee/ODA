@@ -12,7 +12,10 @@ import java.time.LocalDateTime;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-@Table(name = "chat_message")
+@Table(name = "chat_message", indexes = {
+        @Index(name = "idx_chatmessage_user_email_created_at", columnList = "userEmail, createdAt"),
+        @Index(name = "idx_chatmessage_chatsession_created_at", columnList = "chat_session_id, createdAt")
+})
 public class ChatMessage {
 
     @Id
