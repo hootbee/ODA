@@ -23,7 +23,12 @@ const initialMessages = [
 /* ============================ 컴포넌트 ============================= */
 export default function ChatPage() {
   const { isAuthenticated, loading } = useAuth();
-  console.log("[ChatPage] isAuthenticated:", isAuthenticated, "loading:", loading);
+  console.log(
+    "[ChatPage] isAuthenticated:",
+    isAuthenticated,
+    "loading:",
+    loading
+  );
   const navigate = useNavigate();
 
   const [contexts, setContexts] = useState([]);
@@ -163,7 +168,10 @@ export default function ChatPage() {
       setContexts(ctxs);
       setConvs(convs);
       setActiveId(ctxs[0].id);
-      console.log("[ChatPage] fetchHistory completed. Active context lastDataName:", convs[ctxs[0].id]?.lastDataName);
+      console.log(
+        "[ChatPage] fetchHistory completed. Active context lastDataName:",
+        convs[ctxs[0].id]?.lastDataName
+      );
     } catch (e) {
       console.error(e);
       handleNewChat();
@@ -187,7 +195,10 @@ export default function ChatPage() {
     sessionId: null,
     lastDataName: null,
   };
-  console.log("[ChatPage] Current conv.lastDataName in render:", conv.lastDataName);
+  console.log(
+    "[ChatPage] Current conv.lastDataName in render:",
+    conv.lastDataName
+  );
 
   useEffect(() => {
     scrollToBottom();
