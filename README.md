@@ -17,22 +17,19 @@ Supabase 데이터베이스 비밀번호: 프로젝트의 데이터베이스 접
 1. 백엔드 (Backend) 설정
 backend/src/main/resources/application.properties 파일을 열고, 아래 내용으로 전체를 교체한 뒤 < >로 표시된 부분을 실제 값으로 채워주세요.
 
-# Spring Application
+
 spring.application.name=oda
 
-# Database Configuration (PostgreSQL on Supabase)
 spring.datasource.url=jdbc:postgresql://aws-0-ap-northeast-2.pooler.supabase.com:5432/postgres?sslmode=require
 spring.datasource.username=postgres.hjxpeyuebcofzlbnwzse
 spring.datasource.password=<YOUR_SUPABASE_DATABASE_PASSWORD>
 spring.datasource.driver-class-name=org.postgresql.Driver
 
-# JPA & Hibernate Configuration
 spring.jpa.hibernate.ddl-auto=update
 spring.jpa.properties.hibernate.dialect=org.hibernate.dialect.PostgreSQLDialect
 spring.jpa.show-sql=true
 spring.jpa.properties.hibernate.format_sql=true
 
-# Spring Security & OAuth2 (Google) Configuration
 spring.security.oauth2.client.registration.google.client-id=${GOOGLE_CLIENT_ID:<YOUR_GOOGLE_CLIENT_ID>}
 spring.security.oauth2.client.registration.google.client-secret=${GOOGLE_CLIENT_SECRET:<YOUR_GOOGLE_CLIENT_SECRET>}
 spring.security.oauth2.client.registration.google.scope=email,profile
@@ -42,10 +39,8 @@ spring.security.oauth2.client.provider.google.token-uri=https://oauth2.googleapi
 spring.security.oauth2.client.provider.google.user-info-uri=https://www.googleapis.com/oauth2/v2/userinfo
 spring.security.oauth2.client.provider.google.user-name-attribute=email
 
-# JWT Configuration
 jwt.secret=${JWT_SECRET:your-super-secret-jwt-key-here-make-it-long-and-secure}
 
-# HikariCP Connection Pool Configuration (for Supabase/PgBouncer)
 spring.datasource.hikari.maximum-pool-size=5
 jwt.expiration=86400000
 
