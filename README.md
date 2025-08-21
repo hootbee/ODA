@@ -1,6 +1,6 @@
 ODA: AI 기반 공공 데이터 활용 플랫폼
 🚀 시작하기
-이 가이드는 ODA(Open Data Assistant) 프로젝트를 로컬 환경에서 설정하고 실행하는 전체 과정을 안내합니다. 프로젝트는 Backend (Spring), Frontend (React), Agentica (Node.js) 세 가지 서비스로 구성되어 있습니다.
+이 가이드는 ODA(Open Data Agent) 프로젝트를 로컬 환경에서 설정하고 실행하는 전체 과정을 안내합니다. 프로젝트는 Backend (Spring), Frontend (React), Agentica (Node.js) 세 가지 서비스로 구성되어 있습니다.
 
 📋 사전 준비 (Prerequisites)
 애플리케이션을 실행하기 전에, 아래 API 키들을 미리 발급받아 준비해주세요.
