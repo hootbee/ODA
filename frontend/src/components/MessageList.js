@@ -1,7 +1,7 @@
 import React from "react";
 import styled, { css, keyframes } from "styled-components";
-import ReactMarkdown from 'react-markdown';
-import { FaUser } from 'react-icons/fa';
+import ReactMarkdown from "react-markdown";
+import { FaUser } from "react-icons/fa";
 
 // Message Type Components
 import UtilizationDashboard from "./UtilizationDashboard";
@@ -16,59 +16,86 @@ import DataAnalysisResult from "./messages/DataAnalysisResult"; // Import DataAn
 
 // A simple component to render normal text messages
 const TextMessage = ({ content }) => (
-    <MessageText>
-        <ReactMarkdown>{content || ''}</ReactMarkdown>
-    </MessageText>
+  <MessageText>
+    <ReactMarkdown>{content || ""}</ReactMarkdown>
+  </MessageText>
 );
 
 // A component to render the hint/tip below a message
 const TipMessage = ({ children }) => (
-    <StyledTipMessage>{children}</StyledTipMessage>
+  <StyledTipMessage>{children}</StyledTipMessage>
 );
 
 // This component acts as a router to render the correct message body based on its type.
 const MessageBody = ({ message }) => {
-    switch (message.type) {
-        case "search_results":
-            return <SearchResults data={message.data} />;
-        case "search_not_found":
-            return <SearchNotFound data={message.data} />;
-        case "context_reset":
-            return <ContextResetMessage />;
-        case "utilization-dashboard":
-            return <UtilizationDashboard data={message.data} fileName={message.fileName} />;
-        case "data_detail":
-            return (
-                <>
-                    <DataDetailView data={message.data} />
-                    <TipMessage>
-                        💡 '데이터 확인'을 입력하면 데이터 다운로드 및 분석 후 결과를 알려드립니다. 분석이 끝나면 데이터는 삭제됩니다.<br />
-                        다른 활용 방안이 궁금하시면 자유롭게 질문해주세요!<br />
-                        <strong>예시:</strong> "데이터 확인", "전체 활용", "비즈니스 활용", "해외 사례와 연관지어 활용" 등
-                    </TipMessage>
-                </>
-            );
-        case "help":
-            return <HelpMessage />;
-        case "error":
-            return <ErrorMessage>{message.text}</ErrorMessage>;
-        case "simple_recommendation":
-            return (
-                <>
-                    <SimpleRecommendation recommendations={message.recommendations} />
-                    <TipMessage>
-                        💡 다른 데이터 조회를 원하시면 '다른 데이터 활용'을 입력하시고, 다른 활용방안을 원하시면 프롬프트를 작성해주세요.
-                    </TipMessage>
-                </>
-            );
-        case "data_analysis": // Add this case for DataAnalysisResult
-            return <DataAnalysisResult data={message.data} />;
-        default:
-            return <TextMessage content={message.text} />;
-    }
+  switch (message.type) {
+    case "search_results":
+      return <SearchResults data={message.data} />;
+    case "search_not_found":
+      return <SearchNotFound data={message.data} />;
+    case "context_reset":
+      return <ContextResetMessage />;
+    case "utilization-dashboard":
+      return (
+        <UtilizationDashboard data={message.data} fileName={message.fileName} />
+      );
+    case "data_detail":
+      return (
+        <>
+          <DataDetailView data={message.data} />
+          <TipMessage>
+            💡 '데이터 확인'을 입력하면 데이터 다운로드 및 분석 후 결과를
+            알려드립니다. 분석이 끝나면 데이터는 삭제됩니다.
+            <br />
+            다른 활용 방안이 궁금하시면 자유롭게 질문해주세요!
+            <br />
+            <strong>예시:</strong> "데이터 확인", "전체 활용", "비즈니스 활용",
+            "해외 사례와 연관지어 활용" 등
+          </TipMessage>
+        </>
+      );
+    case "help":
+      return <HelpMessage />;
+    case "error":
+      return <ErrorMessage>{message.text}</ErrorMessage>;
+    case "simple_recommendation":
+      return (
+        <>
+          <SimpleRecommendation recommendations={message.recommendations} />
+          <TipMessage>
+            💡 다른 데이터 조회를 원하시면 '다른 데이터 활용'을 입력하시고, 다른
+            활용방안을 원하시면 프롬프트를 작성해주세요.
+            <br />
+            데이터 다운 및 분석, 미리보기가 필요하다면 데이터 확인을 입력하세요
+          </TipMessage>
+        </>
+      );
+    case "data_analysis":
+      // ✅ [수정된 부분] 데이터 분석 결과 아래에 다음 행동을 유도하는 TipMessage를 추가합니다.
+      return (
+        <>
+          <DataAnalysisResult data={message.data} />
+          <TipMessage>
+            📊 데이터 분석이 완료되었습니다.
+            <br />
+            <strong>예시:</strong> "이 데이터로 사업 아이템 추천해줘"와 같이
+            구체적인 활용 방안을 질문하시거나,{" "}
+            <strong>'다른 데이터 조회'</strong>을 통해 다른 데이터를 찾아보세요.
+          </TipMessage>
+        </>
+      );
+    default:
+      return <TextMessage content={message.text} />;
+  }
 };
 
-function MessageList({ messages, isTyping, scrollContainerRef, messageEndRef, onScroll }) {
+function MessageList({
+  messages,
+  isTyping,
+  scrollContainerRef,
+  messageEndRef,
+  onScroll,
+}) {
   return (
     <MessageListContainer ref={scrollContainerRef} onScroll={onScroll}>
       {messages.map((message, index) => {
@@ -76,20 +103,35 @@ function MessageList({ messages, isTyping, scrollContainerRef, messageEndRef, on
         const nextMessage = messages[index + 1];
         const isFirst = !prevMessage || prevMessage.sender !== message.sender;
         const isLast = !nextMessage || nextMessage.sender !== message.sender;
-        
+
         return (
-          <MessageRow key={message.id} sender={message.sender} isFirst={isFirst}>
+          <MessageRow
+            key={message.id}
+            sender={message.sender}
+            isFirst={isFirst}
+          >
             {isFirst ? (
               <Avatar sender={message.sender}>
                 {message.sender === "user" ? (
                   <FaUser />
                 ) : (
-                  <img src={`${process.env.PUBLIC_URL}/ODA_logo.png`} alt="Bot Avatar" />
+                  <img
+                    src={`${process.env.PUBLIC_URL}/ODA_logo.png`}
+                    alt="Bot Avatar"
+                  />
                 )}
               </Avatar>
-            ) : <AvatarPlaceholder />}
+            ) : (
+              <AvatarPlaceholder />
+            )}
 
-            <MessageItem key={message.id} sender={message.sender} type={message.type} isFirst={isFirst} isLast={isLast}>
+            <MessageItem
+              key={message.id}
+              sender={message.sender}
+              type={message.type}
+              isFirst={isFirst}
+              isLast={isLast}
+            >
               <MessageBody message={message} />
             </MessageItem>
           </MessageRow>
@@ -99,7 +141,10 @@ function MessageList({ messages, isTyping, scrollContainerRef, messageEndRef, on
       {isTyping && (
         <MessageRow sender="bot" isFirst={true}>
           <Avatar sender="bot">
-            <img src={`${process.env.PUBLIC_URL}/ODA_logo.png`} alt="Bot Avatar" />
+            <img
+              src={`${process.env.PUBLIC_URL}/ODA_logo.png`}
+              alt="Bot Avatar"
+            />
           </Avatar>
           <MessageItem sender="bot" isFirst={true} isLast={true}>
             <TypingIndicator>
@@ -134,7 +179,7 @@ const Spinner = styled.div`
   width: 18px;
   height: 18px;
   border: 3px solid rgba(0, 0, 0, 0.1);
-  border-top-color: #888; 
+  border-top-color: #888;
   border-radius: 50%;
   animation: ${spin} 1s linear infinite;
 `;
@@ -152,16 +197,18 @@ const MessageListContainer = styled.div`
 const MessageRow = styled.div`
   display: flex;
   align-items: flex-end;
-  justify-content: ${props => props.sender === "user" ? "flex-end" : "flex-start"};
-  margin-top: ${props => props.isFirst ? "15px" : "5px"};
+  justify-content: ${(props) =>
+    props.sender === "user" ? "flex-end" : "flex-start"};
+  margin-top: ${(props) => (props.isFirst ? "15px" : "5px")};
 `;
 
 const Avatar = styled.div`
   width: 40px;
   height: 40px;
   border-radius: 50%;
-  background-color: ${props => (props.sender === "user" ? "#0099ffff" : "#ffffff")};
-  color: ${props => (props.sender === "user" ? "white" : "#4b5563")};
+  background-color: ${(props) =>
+    props.sender === "user" ? "#0099ffff" : "#ffffff"};
+  color: ${(props) => (props.sender === "user" ? "white" : "#4b5563")};
   display: flex;
   align-items: center;
   justify-content: center;
@@ -177,31 +224,63 @@ const Avatar = styled.div`
     object-fit: cover;
   }
 
-  ${props => props.sender === "user" && css`
-    order: 2;
-  `}
+  ${(props) =>
+    props.sender === "user" &&
+    css`
+      order: 2;
+    `}
 `;
 
 const AvatarPlaceholder = styled.div`
   width: 60px;
   flex-shrink: 0;
 
-  ${props => props.sender === "user" && css`
-    order: 2;
-  `}
+  ${(props) =>
+    props.sender === "user" &&
+    css`
+      order: 2;
+    `}
 `;
 
 const MessageItem = styled.div`
   padding: ${(props) =>
     // Render messages with custom components without padding
-    ['search_results', 'search_not_found', 'context_reset', 'data_detail', 'help', 'utilization-dashboard'].includes(props.type) ? "0" : "10px 15px"};
+    [
+      "search_results",
+      "search_not_found",
+      "context_reset",
+      "data_detail",
+      "help",
+      "utilization-dashboard",
+    ].includes(props.type)
+      ? "0"
+      : "10px 15px"};
   border-radius: 20px;
   max-width: ${(props) =>
-    ['search_results', 'search_not_found', 'context_reset', 'data_detail', 'help', 'utilization-dashboard'].includes(props.type) ? "95%" : "70%"};
+    [
+      "search_results",
+      "search_not_found",
+      "context_reset",
+      "data_detail",
+      "help",
+      "utilization-dashboard",
+    ].includes(props.type)
+      ? "95%"
+      : "70%"};
   word-wrap: break-word;
   white-space: pre-wrap;
   background-color: ${(props) => {
-    if (['search_results', 'search_not_found', 'context_reset', 'data_detail', 'help', 'utilization-dashboard'].includes(props.type)) return `transparent`;
+    if (
+      [
+        "search_results",
+        "search_not_found",
+        "context_reset",
+        "data_detail",
+        "help",
+        "utilization-dashboard",
+      ].includes(props.type)
+    )
+      return `transparent`;
     return props.sender === "user" ? "#0099ffff" : "#e9e9eb";
   }};
   color: ${(props) => (props.sender === "user" ? "white" : "black")};
@@ -212,14 +291,40 @@ const MessageItem = styled.div`
 const MessageText = styled.div`
   line-height: 1.5;
   text-align: left;
-  p { margin: 0; }
-  strong { font-weight: 600; color: #000000ff; }
-  h3 { font-size: 1.2em; margin: 0; padding-bottom: 10px; border-bottom: 1px solid #bcbcbcff; }
-  hr { display: none; }
-  p > strong { margin-right: 3px; }
-  ul { padding-left: 20px; margin: 0; }
-  li { margin-bottom: 0px; }
-  blockquote { margin: 0; padding: 0 15px; background-color: #f7f9fc; border-left: 4px solid #0099ffff; border-radius: 0 8px 8px 0; color: #4a5568; }
+  p {
+    margin: 0;
+  }
+  strong {
+    font-weight: 600;
+    color: #000000ff;
+  }
+  h3 {
+    font-size: 1.2em;
+    margin: 0;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #bcbcbcff;
+  }
+  hr {
+    display: none;
+  }
+  p > strong {
+    margin-right: 3px;
+  }
+  ul {
+    padding-left: 20px;
+    margin: 0;
+  }
+  li {
+    margin-bottom: 0px;
+  }
+  blockquote {
+    margin: 0;
+    padding: 0 15px;
+    background-color: #f7f9fc;
+    border-left: 4px solid #0099ffff;
+    border-radius: 0 8px 8px 0;
+    color: #4a5568;
+  }
 `;
 
 const StyledTipMessage = styled.div`
