@@ -1,6 +1,3 @@
-backend디렉토리에서 ./gradlew build를 통해 빌드하기
-frontend, agentica 디렉토리에서 npm start를 통해 빌드하기
-
 ODA: AI 기반 공공 데이터 활용 플랫폼
 🚀 시작하기
 이 가이드는 ODA(Open Data Assistant) 프로젝트를 로컬 환경에서 설정하고 실행하는 전체 과정을 안내합니다. 프로젝트는 Backend (Spring), Frontend (React), Agentica (Node.js) 세 가지 서비스로 구성되어 있습니다.
