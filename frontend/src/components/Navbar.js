@@ -35,8 +35,8 @@ const Popup = ({ handleClose }) => {
             <p>아래와 같은 키워드를 포함하여 질문하면 더 정확한 답변을 얻을 수 있습니다.</p>
             <CommandList>
               <li><code>[지역명] [데이터명] 데이터 보여줘</code> - 데이터 검색</li>
-              <li><code>데이터 확인</code> - 데이터 미리보기, 다운로드, 분석</li>
               <li><code>[파일명] 자세히</code>, <code>[파일명] 상세정보</code> - 데이터의 상세 정보 확인</li>
+              <li><code>데이터 확인</code> - 데이터 미리보기, 다운로드, 분석</li>
               <li><code>전체 활용</code>, <code>비즈니스 활용</code> - 데이터 활용 방안 확인</li>
               <li><code>다른 데이터 조회</code> - 새로운 데이터 검색 시작</li>
             </CommandList>

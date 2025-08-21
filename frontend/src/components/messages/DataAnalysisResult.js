@@ -87,9 +87,9 @@ export default DataAnalysisResult;
 // --- 기존 스타일 컴포넌트들 ---
 
 const AnalysisContainer = styled.div`
-  background-color: #f0f9ff;
+  background-color: #f9fafb;
   border: 1px solid #e0f2fe;
-  border-radius: 16px;
+  border-radius: 20px;
   padding: 20px;
   margin: 10px 0;
 `;
@@ -109,18 +109,19 @@ const Header = styled.div`
 `;
 
 const DownloadButton = styled.button`
-  background-color: #1d4ed8;
+  background-color: #0099ffff;
   color: white;
   border: none;
-  border-radius: 8px;
+  border-radius: 20px;
   padding: 8px 16px;
+  margin-bottom: 20px;
   font-size: 0.9em;
   font-weight: bold;
   cursor: pointer;
   transition: background-color 0.2s;
 
   &:hover {
-    background-color: #1e40af;
+    background-color: #0073ffff;
   }
 `;
 
