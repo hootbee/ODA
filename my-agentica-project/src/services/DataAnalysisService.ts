@@ -37,20 +37,36 @@ export class DataAnalysisService {
       });
 
       const prompt = `
-        You are a world-class data analysis AI. The following is the content of a CSV file.
-        Your task is to first understand the structure and content of this data, and then provide a clear and concise analysis.
+        당신은 CSV 데이터를 분석하여 보고서를 작성하는 최고의 데이터 분석 전문가입니다.
+        주어진 CSV 데이터의 일부를 보고, 아래 지시사항에 따라 한국어로 상세한 분석 보고서를 작성해주세요.
 
-        Please perform the following steps:
-        1.  **Summarize the data:** Briefly describe what the data in the file represents based on its headers and content.
-        2.  **Identify Key Insights:** Extract the most important trends, patterns, or significant outliers from the data.
-        3.  **Suggest Potential Uses:** Briefly suggest how this data could be used or what further analysis might be interesting.
-        4.  **Data Examples:** Include 3 example rows from the CSV data to illustrate the data structure.
-
-        --- CSV DATA START ---
+        ### 분석할 CSV 데이터 (일부)
+        \`\`\`csv
         ${partialData}
-        --- CSV DATA END ---
+        \`\`\`
 
-        Please provide the entire analysis in Korean.
+        ### 보고서에 반드시 포함할 4가지 항목:
+
+        1.  **데이터 요약:**
+            이 데이터가 무엇에 대한 내용인지 한두 문장으로 요약해주세요.
+
+        2.  **핵심 인사이트:**
+            데이터의 헤더와 내용을 바탕으로 발견할 수 있는 중요한 경향, 패턴, 또는 특이점을 2~3가지 찾아주세요.
+
+        3.  **잠재적 활용 방안:**
+            이 데이터를 활용하여 만들 수 있는 비즈니스 모델이나 공공 정책 아이디어를 구체적으로 제안해주세요.
+
+        4.  **데이터 구조 예시 (JSON 형식):**
+            데이터의 구조를 파악할 수 있도록, 헤더(첫 번째 줄)와 실제 데이터 3줄을 추출하여 아래 예시와 같은 JSON 형식으로 정리해주세요.
+            (JSON 코드 블록 안에 넣어주세요)
+            {
+              "headers": ["헤더1", "헤더2", ...],
+              "rows": [
+                ["데이터1-1", "데이터1-2", ...],
+                ["데이터2-1", "데이터2-2", ...],
+                ["데이터3-1", "데이터3-2", ...]
+              ]
+            }
       `;
 
       console.log("Sending data to Gemini for analysis...");
