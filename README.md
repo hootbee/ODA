@@ -21,14 +21,12 @@ backend/src/main/resources/application.properties 파일을 열고, 아래 내�
 spring.application.name=oda
 
 # Database Configuration (PostgreSQL on Supabase)
-# ?sslmode=require 는 Supabase 연결에 필요합니다.
 spring.datasource.url=jdbc:postgresql://aws-0-ap-northeast-2.pooler.supabase.com:5432/postgres?sslmode=require
 spring.datasource.username=postgres.hjxpeyuebcofzlbnwzse
 spring.datasource.password=<YOUR_SUPABASE_DATABASE_PASSWORD>
 spring.datasource.driver-class-name=org.postgresql.Driver
 
 # JPA & Hibernate Configuration
-# 'update': 기존 데이터는 유지하면서 변경사항만 반영합니다.
 spring.jpa.hibernate.ddl-auto=update
 spring.jpa.properties.hibernate.dialect=org.hibernate.dialect.PostgreSQLDialect
 spring.jpa.show-sql=true
@@ -48,17 +46,13 @@ spring.security.oauth2.client.provider.google.user-name-attribute=email
 jwt.secret=${JWT_SECRET:your-super-secret-jwt-key-here-make-it-long-and-secure}
 
 # HikariCP Connection Pool Configuration (for Supabase/PgBouncer)
-# Supabase 연결을 위해 최대 풀 사이즈를 5 이하로 권장합니다.
 spring.datasource.hikari.maximum-pool-size=5
 jwt.expiration=86400000
 
 2. 에이전트 (Agentica) 설정
 my-agentica-project/.env 파일을 열고, 아래 내용으로 전체를 교체한 뒤 < >로 표시된 부분을 실제 값으로 채워주세요.
 
-# Google AI Studio에서 발급받은 Gemini API 키
 GEMINI_API_KEY=<YOUR_GEMINI_API_KEY>
-
-# (선택) 다른 Google API 사용 시 필요한 키
 GOOGLE_API_KEY=
 
 ▶️ 2. 애플리케이션 실행
