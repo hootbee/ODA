@@ -252,7 +252,17 @@ JSON 형식으로만 응답해주세요.
     });
 
     const result = await simpleModel.generateContent(prompt);
-    return result.response.text();
+    const response = result.response;
+
+    if (response.usageMetadata) {
+      const { promptTokenCount, candidatesTokenCount, totalTokenCount } =
+        response.usageMetadata;
+      console.log(
+        `[Gemini 토큰 사용량] AI 쿼리 계획 상세 생성 | 입력: ${promptTokenCount} 토큰 | 출력: ${candidatesTokenCount} 토큰 | 총합: ${totalTokenCount} 토큰`
+      );
+    }
+
+    return response.text();
   }
 
   private parseEnhancedPlan(response: string, fallback: any) {

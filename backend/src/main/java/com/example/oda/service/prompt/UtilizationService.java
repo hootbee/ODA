@@ -4,6 +4,7 @@ import com.example.oda.dto.SingleUtilizationRequestDto;
 import com.example.oda.entity.PublicData;
 import com.example.oda.repository.PublicDataRepository;
 import com.example.oda.service.AiModelService;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
@@ -15,6 +16,8 @@ import reactor.core.scheduler.Schedulers;
 
 import java.util.List;
 import java.util.Optional;
+
+import static com.fasterxml.jackson.databind.type.LogicalType.Map;
 
 @Service
 public class UtilizationService {
@@ -37,7 +40,7 @@ public class UtilizationService {
                 .subscribeOn(Schedulers.boundedElastic());
     }
 
-    public Mono<List<String>> getSingleUtilizationRecommendation(SingleUtilizationRequestDto requestDto) {
+    public Mono<JsonNode> getSingleUtilizationRecommendation(SingleUtilizationRequestDto requestDto) {
         String fileName = requestDto.getDataInfo().getFileName();
         String userPrompt = requestDto.getAnalysisType();
         log.info("단일 활용 추천 요청: 파일명='{}', 사용자 프롬프트='{}'", fileName, userPrompt);
@@ -47,10 +50,21 @@ public class UtilizationService {
                     if (optionalData.isPresent()) {
                         return aiModelService.getSingleUtilizationRecommendation(optionalData.get(), userPrompt);
                     }
-                    return Mono.just(List.of("❌ 해당 파일명을 찾을 수 없습니다: " + fileName));
+                    // 파일을 찾지 못한 경우 에러 JsonNode 생성
+                    return Mono.just(createErrorNode("파일 없음", "해당 파일명을 찾을 수 없습니다: " + fileName));
                 })
                 .doOnError(e -> log.error("단일 활용 추천 생성 실패", e))
-                .onErrorReturn(List.of("단일 활용 방안을 가져오는 데 실패했습니다."));
+                .onErrorResume(e -> {
+                    // 에러 발생 시 에러 JsonNode 생성
+                    return Mono.just(createErrorNode("오류", "단일 활용 방안을 가져오는 데 실패했습니다."));
+                });
+    }
+
+    private JsonNode createErrorNode(String title, String content) {
+        ObjectNode errorNode = objectMapper.createObjectNode();
+        errorNode.put("title", title);
+        errorNode.put("content", content);
+        return errorNode;
     }
 
     public Mono<JsonNode> getFullUtilizationRecommendations(SingleUtilizationRequestDto requestDto) {

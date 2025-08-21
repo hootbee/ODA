@@ -10,5 +10,5 @@ import java.util.List;
 public interface AiModelService {
     Mono<JsonNode> getQueryPlan(String prompt);
     Mono<JsonNode> getUtilizationRecommendations(PublicData data);
-    Mono<List<String>> getSingleUtilizationRecommendation(PublicData data, String analysisType);
+    Mono<JsonNode> getSingleUtilizationRecommendation(PublicData data, String analysisType);
 }

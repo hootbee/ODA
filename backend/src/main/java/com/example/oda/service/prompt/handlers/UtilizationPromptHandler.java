@@ -72,11 +72,13 @@ public class UtilizationPromptHandler implements PromptHandler {
         dto.setDataInfo(dataInfo);
         dto.setAnalysisType(userPrompt);
 
+        // utilizationService.getSingleUtilizationRecommendation(dto)는 이제 Mono<JsonNode>를 반환합니다.
         return utilizationService.getSingleUtilizationRecommendation(dto)
-                .map(recommendations -> {
+                .map(recommendationsNode -> { // 변수명 변경으로 명확화 (recommendations -> recommendationsNode)
                     com.fasterxml.jackson.databind.node.ObjectNode root = objectMapper.createObjectNode();
                     root.put("type", "simple_recommendation");
-                    root.set("recommendations", objectMapper.valueToTree(recommendations));
+                    // 이미 JsonNode이므로 valueToTree 변환 없이 바로 설정합니다.
+                    root.set("recommendations", recommendationsNode);
                     return root;
                 });
     }

@@ -62,7 +62,7 @@ public class GeminiService implements AiModelService {
     }
 
     @Override
-    public Mono<List<String>> getSingleUtilizationRecommendation(PublicData data, String analysisType) {
+    public Mono<JsonNode> getSingleUtilizationRecommendation(PublicData data, String analysisType) {
         Map<String, Object> dataInfo = Map.of(
             "fileName", data.getFileDataName() != null ? data.getFileDataName() : "",
             "title", data.getTitle() != null ? data.getTitle() : "",
@@ -82,7 +82,7 @@ public class GeminiService implements AiModelService {
                 .header("Content-Type", "application/json")
                 .bodyValue(requestBody)
                 .retrieve()
-                .bodyToMono(new ParameterizedTypeReference<List<String>>() {})
+                .bodyToMono(JsonNode.class)
                 .doOnError(e -> log.error("Error calling AI service for single utilization recommendation", e));
     }
 

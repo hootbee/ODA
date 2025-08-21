@@ -72,6 +72,15 @@ export class DataAnalysisService {
       console.log("Sending data to Gemini for analysis...");
       const result = await model.generateContent(prompt);
       const response = await result.response;
+
+      if (response.usageMetadata) {
+        const { promptTokenCount, candidatesTokenCount, totalTokenCount } =
+          response.usageMetadata;
+        console.log(
+          `[Gemini 토큰 사용량] 데이터 분석 보고서 생성 | 입력: ${promptTokenCount} 토큰 | 출력: ${candidatesTokenCount} 토큰 | 총합: ${totalTokenCount} 토큰`
+        );
+      }
+
       const text = response.text();
 
       console.log("Successfully received analysis from Gemini.");

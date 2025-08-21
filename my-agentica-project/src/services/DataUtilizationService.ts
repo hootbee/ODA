@@ -68,12 +68,12 @@ export class DataUtilizationService {
     keywords: string;
     description: string;
     providerAgency: string;
-  }): Promise<{
-    businessApplications: string[];
-    researchApplications: string[];
-    policyApplications: string[];
-    combinationSuggestions: string[];
-    analysisTools: string[];
+  }): Promise<{ 
+    businessApplications: { title: string; content: string }[];
+    researchApplications: { title: string; content: string }[];
+    policyApplications: { title: string; content: string }[];
+    combinationSuggestions: { title: string; content: string }[];
+    analysisTools: { title: string; content: string }[];
   }> {
     console.log(
       `🔍 Agentica + Gemini Function Calling 활용 추천 생성: ${dataInfo.fileName}`
@@ -95,8 +95,14 @@ export class DataUtilizationService {
   public async generateSingleRecommendation(
     dataInfo: any,
     analysisTypeOrPrompt: string // "business" 같은 카테고리 또는 사용자 전체 프롬프트
-  ): Promise<string[]> {
-    const predefinedTypes = ["business", "research", "policy", "combination", "tools"];
+  ): Promise<{ title: string; content: string }[]> {
+    const predefinedTypes = [
+      "business",
+      "research",
+      "policy",
+      "combination",
+      "tools",
+    ];
 
     // 입력이 미리 정의된 카테고리 중 하나인지 확인
     if (predefinedTypes.includes(analysisTypeOrPrompt)) {
@@ -104,13 +110,19 @@ export class DataUtilizationService {
       console.log(
         `[DataUtilizationService] 카테고리 기반 단일 활용 추천 생성: ${dataInfo.fileName} (${analysisTypeOrPrompt})`
       );
-      return this.executeSingleAgenticAnalysis(dataInfo, analysisTypeOrPrompt);
+      return this.executeSingleAgenticAnalysis(
+        dataInfo,
+        analysisTypeOrPrompt
+      );
     } else {
       // 새로운 로직: 사용자 프롬프트 기반의 유연한 분석
       console.log(
         `[DataUtilizationService] 유연한 단일 활용 추천 생성: ${dataInfo.fileName}`
       );
-      const detailedPrompt = this.buildFlexibleDetailedPrompt(dataInfo, analysisTypeOrPrompt);
+      const detailedPrompt = this.buildFlexibleDetailedPrompt(
+        dataInfo,
+        analysisTypeOrPrompt
+      );
       const result = await this.callGenerativeAI(detailedPrompt);
       return this.parseSpecificAnalysis(result, "사용자 맞춤 활용 방안");
     }
@@ -122,7 +134,7 @@ export class DataUtilizationService {
   private async executeSingleAgenticAnalysis(
     dataInfo: any,
     analysisType: string
-  ): Promise<string[]> {
+  ): Promise<{ title: string; content: string }[]> {
     const prompt = `
 데이터 정보:
 ${JSON.stringify(dataInfo)}
@@ -133,6 +145,14 @@ ${analysisType} 관점에서 analyze_data_utilization 함수를 호출하여 분
 
     const result = await this.model.generateContent(prompt);
     const response = result.response;
+
+    if (response.usageMetadata) {
+      const { promptTokenCount, candidatesTokenCount, totalTokenCount } =
+        response.usageMetadata;
+      console.log(
+        `[Gemini 토큰 사용량] Agentic 분석 (${analysisType}) | 입력: ${promptTokenCount} 토큰 | 출력: ${candidatesTokenCount} 토큰 | 총합: ${totalTokenCount} 토큰`
+      );
+    }
 
     if (response.functionCalls && response.functionCalls().length > 0) {
       return await this.processFunctionCall(
@@ -184,41 +204,19 @@ ${analysisType} 관점에서 analyze_data_utilization 함수를 호출하여 분
    * 분석 유형별 상세 프롬프트 생성
    */
   private buildDetailedPrompt(analysisType: string, dataInfo: any): string {
+    const basePrompt = `다음 공공데이터의 활용방안 3가지를 JSON 배열 형식으로 제시해주세요.\n각 항목은 제목(title)과 내용(content)을 포함하는 객체여야 합니다. 내용은 마크다운 형식으로 작성해도 좋습니다.\n\n데이터 정보: ${JSON.stringify(
+      dataInfo
+    )}\n`;
+
+    const formatInstruction = `\n응답 형식:\n[\n  {\"title\": \"활용 아이디어 1\", \"content\": \"아이디어에 대한 상세 설명...\" },\n  {\"title\": \"활용 아이디어 2\", \"content\": \"아이디어에 대한 상세 설명...\" },\n  {\"title\": \"활용 아이디어 3\", \"content\": \"아이디어에 대한 상세 설명...\" }
+]`;
+
     const typePrompts = {
-      business: `다음 공공데이터의 비즈니스 활용방안 3가지를 JSON 배열 형식으로 제시해주세요.
-각 항목은 구체적이고 실현 가능한 비즈니스 아이디어여야 합니다.
-
-데이터 정보: ${JSON.stringify(dataInfo)}
-
-응답 형식: ["비즈니스 아이디어 1", "비즈니스 아이디어 2", "비즈니스 아이디어 3"]`,
-
-      research: `다음 공공데이터의 연구 활용방안 3가지를 JSON 배열 형식으로 제시해주세요.
-각 항목은 학술적 가치가 있는 연구 주제여야 합니다.
-
-데이터 정보: ${JSON.stringify(dataInfo)}
-
-응답 형식: ["연구 주제 1", "연구 주제 2", "연구 주제 3"]`,
-
-      policy: `다음 공공데이터의 정책 활용방안 3가지를 JSON 배열 형식으로 제시해주세요.
-각 항목은 정부나 공공기관에서 활용할 수 있는 정책 아이디어여야 합니다.
-
-데이터 정보: ${JSON.stringify(dataInfo)}
-
-응답 형식: ["정책 아이디어 1", "정책 아이디어 2", "정책 아이디어 3"]`,
-
-      combination: `다음 공공데이터와 결합하면 시너지를 낼 수 있는 다른 데이터 3가지를 JSON 배열 형식으로 제시해주세요.
-각 항목은 구체적인 데이터 종류와 결합 효과를 포함해야 합니다.
-
-데이터 정보: ${JSON.stringify(dataInfo)}
-
-응답 형식: ["결합 데이터 1", "결합 데이터 2", "결합 데이터 3"]`,
-
-      tools: `다음 공공데이터를 분석하고 시각화하는데 적합한 도구 3가지를 JSON 배열 형식으로 제시해주세요.
-각 항목은 구체적인 도구명과 활용 방법을 포함해야 합니다.
-
-데이터 정보: ${JSON.stringify(dataInfo)}
-
-응답 형식: ["분석 도구 1", "분석 도구 2", "분석 도구 3"]`,
+      business: `비즈니스 관점에서의 ${basePrompt}${formatInstruction}`,
+      research: `연구 관점에서의 ${basePrompt}${formatInstruction}`,
+      policy: `정책 관점에서의 ${basePrompt}${formatInstruction}`,
+      combination: `데이터 결합 관점에서의 ${basePrompt}${formatInstruction}`,
+      tools: `분석 도구 추천 관점에서의 ${basePrompt}${formatInstruction}`,
     };
 
     return typePrompts[analysisType as keyof typeof typePrompts] || "";
@@ -227,16 +225,19 @@ ${analysisType} 관점에서 analyze_data_utilization 함수를 호출하여 분
   /**
    * ✅ 새로 추가된 유연한 프롬프트 빌더
    */
-  private buildFlexibleDetailedPrompt(dataInfo: any, userPrompt: string): string {
+  private buildFlexibleDetailedPrompt(
+    dataInfo: any,
+    userPrompt: string
+  ): string {
     const prompt = `
 당신은 데이터 분석 및 활용 전략 전문가입니다. 주어진 공공데이터 정보와 사용자의 구체적인 요청을 바탕으로, 실행 가능하고 창의적인 데이터 활용 방안 3가지를 제안해주세요.
 
 ### 공공데이터 정보:
 - **데이터명**: ${dataInfo.title || dataInfo.fileName}
-- **제공 기관**: ${dataInfo.providerAgency || '정보 없음'}
-- **데이터 분류**: ${dataInfo.category || '정보 없음'}
-- **키워드**: ${dataInfo.keywords || '정보 없음'}
-- **상세 설명**: ${dataInfo.description || '정보 없음'}
+- **제공 기관**: ${dataInfo.providerAgency || "정보 없음"}
+- **데이터 분류**: ${dataInfo.category || "정보 없음"}
+- **키워드**: ${dataInfo.keywords || "정보 없음"}
+- **상세 설명**: ${dataInfo.description || "정보 없음"}
 
 ### 사용자의 구체적인 요청:
 "${userPrompt}"
@@ -244,17 +245,20 @@ ${analysisType} 관점에서 analyze_data_utilization 함수를 호출하여 분
 ### 지시사항:
 1.  사용자의 요청을 깊이 이해하고, 요청의 핵심 의도에 정확히 부합하는 답변을 생성하세요.
 2.  제안하는 아이디어는 구체적이고, 현실적으로 실행 가능해야 합니다.
-3.  각 아이디어는 2-3문장으로 상세히 설명해주세요.
-4.  결과는 반드시 JSON 문자열 배열(string array) 형식으로 반환해주세요.
+3.  각 아이디어는 제목(title)과 내용(content)을 가져야 합니다. 내용은 2-3문장으로 상세히 설명해주세요.
+4.  결과는 반드시 제목(title)과 내용(content)을 포함하는 객체들의 JSON 배열 형식으로 반환해주세요. 내용은 마크다운 사용이 가능합니다.
 
 ### 응답 형식 예시:
 [
-  "첫 번째 활용 방안: (구체적인 설명)",
-  "두 번째 활용 방안: (구체적인 설명)",
-  "세 번째 활용 방안: (구체적인 설명)"
+  {"title": "첫 번째 활용 방안", "content": "(구체적인 설명)"},
+  {"title": "두 번째 활용 방안", "content": "(구체적인 설명)"},
+  {"title": "세 번째 활용 방안", "content": "(구체적인 설명)"}
 ]
 `;
-    console.log("[DataUtilizationService] 생성된 유연한 상세 프롬프트:", prompt);
+    console.log(
+      "[DataUtilizationService] 생성된 유연한 상세 프롬프트:",
+      prompt
+    );
     return prompt;
   }
 
@@ -287,18 +291,31 @@ ${analysisType} 관점에서 analyze_data_utilization 함수를 호출하여 분
     });
 
     const result = await simpleModel.generateContent(prompt);
-    return result.response.text();
+    const response = result.response;
+
+    if (response.usageMetadata) {
+      const { promptTokenCount, candidatesTokenCount, totalTokenCount } =
+        response.usageMetadata;
+      console.log(
+        `[Gemini 토큰 사용량] 상세 활용방안 생성 | 입력: ${promptTokenCount} 토큰 | 출력: ${candidatesTokenCount} 토큰 | 총합: ${totalTokenCount} 토큰`
+      );
+    }
+
+    return response.text();
   }
 
   /**
    * ✅ 방법 2: 유연하고 강력한 응답 파싱 로직
    */
-  private parseSpecificAnalysis(response: string, type: string): string[] {
+  private parseSpecificAnalysis(
+    response: string,
+    type: string
+  ): { title: string; content: string }[] {
     try {
       console.log(`🔍 Raw response for ${type}:`, response);
 
       // JSON 정리
-      const cleaned = response.replace(/``````/g, "").trim();
+      const cleaned = response.replace(/```json|```/g, "").trim();
       let parsed;
 
       // JSON 파싱 시도
@@ -308,7 +325,7 @@ ${analysisType} 관점에서 analyze_data_utilization 함수를 호출하여 분
         console.error(`❌ JSON parsing error for ${type}:`, jsonError);
 
         // JSON 파싱 실패 시 배열 패턴 추출 시도
-        const arrayMatch = cleaned.match(/\[[\s\S]*?\]/);
+        const arrayMatch = cleaned.match(/[\[\s\S]*?\]/);
         if (arrayMatch && arrayMatch[0]) {
           try {
             parsed = JSON.parse(arrayMatch[0]);
@@ -317,10 +334,20 @@ ${analysisType} 관점에서 analyze_data_utilization 함수를 호출하여 분
               `❌ Inner JSON parsing error for ${type}:`,
               innerJsonError
             );
-            return [`${type} 분석 중 파싱 오류가 발생했습니다.`];
+            return [
+              {
+                title: "파싱 오류",
+                content: `분석 중 파싱 오류가 발생했습니다.`,
+              },
+            ];
           }
         } else {
-          return [`${type} 분석 중 JSON 형식을 찾을 수 없습니다.`];
+          return [
+            {
+              title: "형식 오류",
+              content: `${type} 분석 중 JSON 형식을 찾을 수 없습니다.`,
+            },
+          ];
         }
       }
 
@@ -328,87 +355,64 @@ ${analysisType} 관점에서 analyze_data_utilization 함수를 호출하여 분
 
       // 배열이 아닌 경우 처리
       if (!Array.isArray(parsed)) {
-        if (typeof parsed === "object" && parsed !== null) {
-          // 객체 내부에서 배열 찾기
-          for (const key in parsed) {
-            if (Array.isArray(parsed[key])) {
-              parsed = parsed[key];
-              break;
-            }
-          }
-
-          // 여전히 배열이 아니면 객체를 배열로 변환
-          if (!Array.isArray(parsed)) {
-            return [`${type} 분석: ${JSON.stringify(parsed)}`];
-          }
-        } else {
-          return [`${type} 분석 결과를 배열로 변환할 수 없습니다.`];
-        }
-      }
-
-      // ✅ 유연한 매핑: 객체의 모든 값을 조합하여 의미있는 문자열 생성
-      const results = parsed.map((item: any, index: number) => {
-        // 이미 문자열인 경우
-        if (typeof item === "string" && item.trim().length > 0) {
-          return item.trim();
-        }
-
-        // 객체인 경우 값들을 조합
-        if (typeof item === "object" && item !== null) {
-          const values = Object.values(item)
-            .filter((val) => typeof val === "string" && val.trim().length > 0)
-            .map((val) => (val as string).trim());
-
-          if (values.length >= 2) {
-            // "활용분야: 세부내용" 형식으로 조합
-            return `${values[0]}: ${values.slice(1).join(" ")}`;
-          } else if (values.length === 1) {
-            return values[0];
-          } else {
-            // 값이 없으면 키-값 쌍을 문자열로 변환
-            const keyValuePairs = Object.entries(item)
-              .filter(
-                ([key, value]) =>
-                  typeof value === "string" && value.trim().length > 0
-              )
-              .map(([key, value]) => `${key}: ${value}`)
-              .join(", ");
-
-            return keyValuePairs || JSON.stringify(item);
-          }
-        }
-
-        // 기타 타입의 경우
-        if (item !== null && item !== undefined) {
-          return String(item);
-        }
-
-        // 마지막 폴백
-        return `${this.getAnalysisTypeKorean(type)} ${index + 1}`;
-      });
-
-      // 빈 결과 필터링 및 최종 검증
-      const filteredResults = results.filter(
-        (result) =>
-          result && typeof result === "string" && result.trim().length > 0
-      );
-
-      if (filteredResults.length === 0) {
         return [
-          `${this.getAnalysisTypeKorean(type)} 1`,
-          `${this.getAnalysisTypeKorean(type)} 2`,
-          `${this.getAnalysisTypeKorean(type)} 3`,
+          {
+            title: "형식 오류",
+            content: "AI 응답이 배열 형식이 아닙니다.",
+          },
         ];
       }
 
-      console.log(`🎯 Final ${type} result:`, filteredResults);
-      return filteredResults;
+      // ✅ 유연한 매핑: 객체의 모든 값을 조합하여 의미있는 문자열 생성
+      const results = parsed
+        .map((item: any) => {
+          if (
+            item &&
+            typeof item.title === "string" &&
+            typeof item.content === "string"
+          ) {
+            return { title: item.title.trim(), content: item.content.trim() };
+          }
+          return null;
+        })
+        .filter(
+          (
+            item
+          ): item is {
+            title: string;
+            content: string;
+          } =>
+            item !== null && item.title.length > 0 && item.content.length > 0
+        );
+
+      if (results.length === 0) {
+        return [
+          {
+            title: `${this.getAnalysisTypeKorean(type)} 1`,
+            content: "생성된 추천 내용이 없습니다.",
+          },
+          {
+            title: `${this.getAnalysisTypeKorean(type)} 2`,
+            content: "생성된 추천 내용이 없습니다.",
+          },
+          {
+            title: `${this.getAnalysisTypeKorean(type)} 3`,
+            content: "생성된 추천 내용이 없습니다.",
+          },
+        ];
+      }
+
+      console.log(`🎯 Final ${type} result:`, results);
+      return results;
     } catch (error) {
       console.error(`💥 Error parsing ${type} analysis:`, error);
       return [
-        `${this.getAnalysisTypeKorean(type)} 분석 중 오류 발생`,
-        `오류 내용: ${error instanceof Error ? error.message : String(error)}`,
-        `기본 ${this.getAnalysisTypeKorean(type)} 방안`,
+        {
+          title: `${this.getAnalysisTypeKorean(type)} 분석 중 오류 발생`,
+          content: `오류 내용: ${ 
+            error instanceof Error ? error.message : String(error) 
+          }`,
+        },
       ];
     }
   }
@@ -438,31 +442,32 @@ ${analysisType} 관점에서 analyze_data_utilization 함수를 호출하여 분
   }
 
   private getDefaultRecommendations() {
+    const defaultContent = "기본 추천 내용입니다.";
     return {
       businessApplications: [
-        "데이터 기반 비즈니스 모델 개발",
-        "관련 분야 컨설팅 서비스 제공",
-        "정부 사업 입찰 참여 시 활용",
+        { title: "데이터 기반 비즈니스 모델 개발", content: defaultContent },
+        { title: "관련 분야 컨설팅 서비스 제공", content: defaultContent },
+        { title: "정부 사업 입찰 참여 시 활용", content: defaultContent },
       ],
       researchApplications: [
-        "현황 분석 및 트렌드 연구",
-        "정책 효과성 분석 연구",
-        "지역별 비교 분석 연구",
+        { title: "현황 분석 및 트렌드 연구", content: defaultContent },
+        { title: "정책 효과성 분석 연구", content: defaultContent },
+        { title: "지역별 비교 분석 연구", content: defaultContent },
       ],
       policyApplications: [
-        "정책 수립 시 근거 자료로 활용",
-        "예산 배정 및 우선순위 결정",
-        "성과 측정 및 평가 지표 개발",
+        { title: "정책 수립 시 근거 자료로 활용", content: defaultContent },
+        { title: "예산 배정 및 우선순위 결정", content: defaultContent },
+        { title: "성과 측정 및 평가 지표 개발", content: defaultContent },
       ],
       combinationSuggestions: [
-        "인구 통계 데이터와 결합 분석",
-        "경제 지표와 상관관계 분석",
-        "지리 정보와 공간 분석",
+        { title: "인구 통계 데이터와 결합 분석", content: defaultContent },
+        { title: "경제 지표와 상관관계 분석", content: defaultContent },
+        { title: "지리 정보와 공간 분석", content: defaultContent },
       ],
       analysisTools: [
-        "Excel 및 Google Sheets 활용",
-        "Python (pandas, matplotlib)",
-        "R 통계 분석 및 시각화",
+        { title: "Excel 및 Google Sheets 활용", content: defaultContent },
+        { title: "Python (pandas, matplotlib)", content: defaultContent },
+        { title: "R 통계 분석 및 시각화", content: defaultContent },
       ],
     };
   }
