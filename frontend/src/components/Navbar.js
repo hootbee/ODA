@@ -2,7 +2,12 @@ import React, { useState } from "react";
 import { NavLink } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import styled from "styled-components";
-import { FaInfoCircle, FaQuestionCircle, FaTerminal, FaTimes } from 'react-icons/fa';
+import {
+  FaInfoCircle,
+  FaQuestionCircle,
+  FaTerminal,
+  FaTimes,
+} from "react-icons/fa";
 
 const Popup = ({ handleClose }) => {
   return (
@@ -10,35 +15,71 @@ const Popup = ({ handleClose }) => {
       <PopupContainer>
         <PopupHeader>
           <h2>도움말</h2>
-          <CloseButton onClick={handleClose}><FaTimes /></CloseButton>
+          <CloseButton onClick={handleClose}>
+            <FaTimes />
+          </CloseButton>
         </PopupHeader>
         <PopupContent>
           <Section>
-            <SectionTitle><FaInfoCircle /> 프로그램 소개</SectionTitle>
+            <SectionTitle>
+              <FaInfoCircle /> 프로그램 소개
+            </SectionTitle>
             <p>
-              ODA는 Open Data Agent의 약자로, 공공 데이터를 찾고 분석 및 활용하는 것을 돕는 AI 챗봇입니다.
+              ODA는 Open Data Agent의 약자로, 공공 데이터를 찾고 분석 및
+              활용하는 것을 돕는 AI 챗봇입니다.
             </p>
           </Section>
-          
+
           <Section>
-            <SectionTitle><FaQuestionCircle /> 기본 사용법</SectionTitle>
+            <SectionTitle>
+              <FaQuestionCircle /> 기본 사용법
+            </SectionTitle>
             <OrderedList>
-              <li>원하는 공공 데이터를 질문해보세요. (예: "서울시 교통 데이터 보여줘")</li>
-              <li>챗봇이 찾아준 데이터의 '[파일명] 자세히' 또는 '[파일명] 상세정보'를 요청하여 데이터를 더 깊게 확인할 수 있습니다.</li>
-              <li>'전체 활용' 또는 '비즈니스 활용'으로 특정 파일에 대한 활용 방안을 요청할 수 있습니다.</li>
-              <li>해외 사례와 연관된 활용 방안 혹은 더욱 세부적인 사항도 요청할 수 있습니다.</li>
+              <li>
+                원하는 공공 데이터를 질문해보세요. (예: "서울시 교통 데이터
+                보여줘")
+              </li>
+              <li>
+                챗봇이 찾아준 데이터의 '[파일명] 자세히' 또는 '[파일명]
+                상세정보'를 요청하여 데이터를 더 깊게 확인할 수 있습니다.
+              </li>
+              <li>
+                '전체 활용' 또는 '비즈니스 활용'으로 특정 파일에 대한 활용
+                방안을 요청할 수 있습니다.
+              </li>
+              <li>
+                해외 사례와 연관된 활용 방안 혹은 더욱 세부적인 사항도 요청할 수
+                있습니다.
+              </li>
             </OrderedList>
           </Section>
 
           <Section>
-            <SectionTitle><FaTerminal /> 주요 명령어</SectionTitle>
-            <p>아래와 같은 키워드를 포함하여 질문하면 더 정확한 답변을 얻을 수 있습니다.</p>
+            <SectionTitle>
+              <FaTerminal /> 주요 명령어
+            </SectionTitle>
+            <p>
+              아래와 같은 키워드를 포함하여 질문하면 더 정확한 답변을 얻을 수
+              있습니다.
+            </p>
             <CommandList>
-              <li><code>[지역명] [데이터명] 데이터 보여줘</code> - 데이터 검색</li>
-              <li><code>[파일명] 자세히</code>, <code>[파일명] 상세정보</code> - 데이터의 상세 정보 확인</li>
-              <li><code>데이터 확인</code> - 데이터 미리보기, 다운로드, 분석</li>
-              <li><code>전체 활용</code>, <code>비즈니스 활용</code> - 데이터 활용 방안 확인</li>
-              <li><code>다른 데이터 조회</code> - 새로운 데이터 검색 시작</li>
+              <li>
+                <code>[지역명] [데이터명] 데이터 보여줘</code> - 데이터 검색
+              </li>
+              <li>
+                <code>[파일명] 자세히</code>, <code>[파일명] 상세정보</code> -
+                데이터의 상세 정보 확인
+              </li>
+              <li>
+                <code>데이터 확인</code> - 데이터 미리보기, 다운로드, 분석
+              </li>
+              <li>
+                <code>전체 활용</code>, <code>비즈니스 활용</code> - 데이터 활용
+                방안 확인
+              </li>
+              <li>
+                <code>다른 데이터 조회</code> - 새로운 데이터 검색 시작
+              </li>
             </CommandList>
           </Section>
         </PopupContent>
@@ -56,23 +97,28 @@ const Navbar = () => {
     <>
       <Nav>
         <NavLinks>
-          <NavLink to="/"><LogoImage src={`${process.env.PUBLIC_URL}/ODA_logo.png`} alt="ODA Logo" /></NavLink>
+          <NavLink to="/">
+            <LogoImage
+              src={`${process.env.PUBLIC_URL}/ODA_logo.png`}
+              alt="ODA Logo"
+            />
+          </NavLink>
           <StyledLink to="/chat">Chat</StyledLink>
           <HelpButton onClick={togglePopup}>Help</HelpButton>
           <StyledLink to="/profile">Profile</StyledLink>
-      </NavLinks>
-      <AuthControls>
-        {isAuthenticated ? (
-          <>
-            <WelcomeText>환영합니다, {user.name}님!</WelcomeText>
-            <LogoutButton onClick={logout}>로그아웃</LogoutButton>
-          </>
-        ) : (
-          <StyledLink to="/login">로그인</StyledLink>
-        )}
-      </AuthControls>
-    </Nav>
-    {showPopup && <Popup handleClose={togglePopup} />}
+        </NavLinks>
+        <AuthControls>
+          {isAuthenticated ? (
+            <>
+              <WelcomeText>환영합니다, 홍길동님!</WelcomeText>
+              <LogoutButton onClick={logout}>로그아웃</LogoutButton>
+            </>
+          ) : (
+            <StyledLink to="/login">로그인</StyledLink>
+          )}
+        </AuthControls>
+      </Nav>
+      {showPopup && <Popup handleClose={togglePopup} />}
     </>
   );
 };
@@ -90,8 +136,8 @@ const Nav = styled.nav`
 `;
 
 const NavLinks = styled.div`
-    display: flex;
-    align-items: center;
+  display: flex;
+  align-items: center;
 `;
 
 const LogoImage = styled.img`
@@ -101,8 +147,8 @@ const LogoImage = styled.img`
 `;
 
 const AuthControls = styled.div`
-    display: flex;
-    align-items: center;
+  display: flex;
+  align-items: center;
 `;
 
 const StyledLink = styled(NavLink)`
@@ -111,7 +157,7 @@ const StyledLink = styled(NavLink)`
   padding: 1rem;
   transition: color 0.2s;
   font-weight: 500;
-  font-family: 'Poppins', sans-serif;
+  font-family: "Poppins", sans-serif;
 
   &:hover {
     color: #0099ffff;
@@ -124,8 +170,8 @@ const StyledLink = styled(NavLink)`
 `;
 
 const WelcomeText = styled.span`
-    margin-right: 1rem;
-    color: #555;
+  margin-right: 1rem;
+  color: #555;
 `;
 
 const LogoutButton = styled.button`
@@ -151,9 +197,9 @@ const HelpButton = styled.button`
   padding: 1rem;
   transition: color 0.2s;
   font-weight: 500;
-  font-family: 'Poppins', sans-serif;
+  font-family: "Poppins", sans-serif;
   font-size: 1em;
-  
+
   &:hover {
     color: #0099ffff;
   }
@@ -254,28 +300,28 @@ const SectionTitle = styled.h3`
 const OrderedList = styled.ol`
   padding-left: 20px;
   line-height: 1.7;
-  
+
   li {
     margin-bottom: 0.5rem;
   }
 `;
 
 const CommandList = styled.ul`
-    list-style: none;
-    padding: 0;
+  list-style: none;
+  padding: 0;
 
-    li {
-        margin-bottom: 0.5rem;
-    }
+  li {
+    margin-bottom: 0.5rem;
+  }
 
-    code {
-        display: inline-block;
-        background-color: #eaf4ff;
-        color: #3b82f6;
-        padding: 4px 8px;
-        border-radius: 5px;
-        font-size: 0.95em;
-    }
+  code {
+    display: inline-block;
+    background-color: #eaf4ff;
+    color: #3b82f6;
+    padding: 4px 8px;
+    border-radius: 5px;
+    font-size: 0.95em;
+  }
 `;
 
 export default Navbar;
