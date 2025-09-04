@@ -2,8 +2,6 @@
 import * as fs from "fs";
 import * as path from "path";
 import axios, { AxiosInstance } from "axios";
-import { wrapper } from "axios-cookiejar-support";
-import { CookieJar } from "tough-cookie";
 
 export class DataDownloaderService {
   /**
@@ -22,12 +20,10 @@ export class DataDownloaderService {
     savePath: string,
     opts?: { fileDetailSn?: number }
   ): Promise<string> {
-    // 💡 1. 핵심 로직을 수행하는 내부 함수를 호출하여 버퍼와 파일명을 받습니다.
     const { buffer, fileName } = await this.downloadCore(publicDataPk, opts);
 
     const abs = path.resolve(savePath);
     const dir = path.dirname(abs);
-    // 파일명은 서버에서 받은 실제 파일명을 사용합니다.
     const finalPath = path.join(dir, fileName);
 
     fs.mkdirSync(dir, { recursive: true });
@@ -44,33 +40,27 @@ export class DataDownloaderService {
     publicDataPk: string,
     opts?: { fileDetailSn?: number }
   ): Promise<{ buffer: Buffer; fileName: string; contentType: string }> {
-    // 💡 2. 동일한 내부 함수를 호출하여 결과를 바로 반환합니다.
     return this.downloadCore(publicDataPk, opts);
   }
 
   /**
-   * 💡 [리팩토링] 다운로드 핵심 로직을 처리하는 비공개(private) 메소드
-   * 중복 코드를 제거하고 두 public 메소드가 이 메소드를 호출하도록 변경했습니다.
+   * 다운로드 핵심 로직을 처리하는 비공개(private) 메소드
    */
   private async downloadCore(
     publicDataPk: string,
     opts?: { fileDetailSn?: number }
   ): Promise<{ buffer: Buffer; fileName: string; contentType: string }> {
-    const jar = new CookieJar();
-    const client = wrapper(
-      axios.create({
-        withCredentials: true,
-        jar,
-        timeout: 30000,
-        maxRedirects: 5,
-        validateStatus: () => true,
-        headers: {
-          "User-Agent":
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36",
-          "Accept-Language": "ko,en;q=0.9",
-        },
-      })
-    );
+    // 간단한 axios 클라이언트 사용 (쿠키 지원 없음)
+    const client = axios.create({
+      timeout: 30000,
+      maxRedirects: 5,
+      validateStatus: () => true,
+      headers: {
+        "User-Agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36",
+        "Accept-Language": "ko,en;q=0.9",
+      },
+    });
 
     const referer = `https://www.data.go.kr/data/${encodeURIComponent(
       publicDataPk
