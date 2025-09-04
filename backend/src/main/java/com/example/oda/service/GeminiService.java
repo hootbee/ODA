@@ -10,6 +10,8 @@ import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
+import org.springframework.beans.factory.annotation.Value; // ← 이 import 추가!
+
 
 import java.util.List;
 import java.util.Map;
@@ -21,10 +23,11 @@ public class GeminiService implements AiModelService {
     private final WebClient webClient;
     private final ObjectMapper objectMapper;
 
-    public GeminiService(ObjectMapper objectMapper, WebClient.Builder webClientBuilder) {
+    public GeminiService(ObjectMapper objectMapper, WebClient.Builder webClientBuilder, 
+                        @Value("${agent.server.url:http://agent:3001}") String agentServerUrl) {
         this.objectMapper = objectMapper;
         this.webClient = webClientBuilder
-                .baseUrl("http://localhost:3001") // ai-service의 주소
+                .baseUrl(agentServerUrl) // ← 환경변수 사용
                 .build();
     }
 
