@@ -1,0 +1,38 @@
+version: "3.8"
+
+services:
+  agent:
+    build: ./my-agentica-project
+    container_name: agent
+    ports:
+      - "3001:3001"
+    environment:
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+
+  backend:
+    build: ./backend
+    container_name: oda-backend
+    ports:
+      - "8080:8080"
+    environment:
+      - AGENT_SERVER_URL=http://agent:3001
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID} # 변경
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET} # 변경
+      - JWT_SECRET=${JWT_SECRET} # 변경
+      # Spring Boot가 사용할 환경 변수들을 여기서 주입해줍니다.
+      - SPRING_DATASOURCE_URL=${DB_URL}
+      - SPRING_DATASOURCE_USERNAME=${DB_USERNAME}
+      - SPRING_DATASOURCE_PASSWORD=${DB_PASSWORD}
+      - OAUTH_REDIRECT_URI=${OAUTH_REDIRECT_URI}
+    depends_on:
+      - agent
+    # 디버깅을 위해 잠시 추가
+    command: sh -c "echo 'AGENT_SERVER_URL='$$AGENT_SERVER_URL && java -jar build/libs/oda-0.0.1-SNAPSHOT.jar"
+
+  frontend:
+    build: ./frontend
+    container_name: frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - backend
