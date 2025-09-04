@@ -16,7 +16,10 @@ export const parseBotMessage = (content, metadata = {}) => {
         break;
       case 'simple_recommendation':
         messageObject.type = 'simple_recommendation';
-        messageObject.recommendations = content.recommendations;
+        // Ensure recommendations is always an array to prevent .map errors
+        messageObject.recommendations = Array.isArray(content.recommendations)
+          ? content.recommendations
+          : [content.recommendations].filter(Boolean); // Wrap single object/string in an array, filter out null/undefined
         break;
       case 'data_detail':
         messageObject.type = 'data_detail';
