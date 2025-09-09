@@ -4,7 +4,6 @@ import com.example.oda.dto.SingleUtilizationRequestDto;
 import com.example.oda.entity.PublicData;
 import com.example.oda.repository.PublicDataRepository;
 import com.example.oda.service.AiModelService;
-import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
@@ -14,10 +13,7 @@ import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
 
-import java.util.List;
 import java.util.Optional;
-
-import static com.fasterxml.jackson.databind.type.LogicalType.Map;
 
 @Service
 public class UtilizationService {
@@ -28,11 +24,10 @@ public class UtilizationService {
     private final AiModelService aiModelService;
     private final ObjectMapper objectMapper;
 
-
     public UtilizationService(PublicDataRepository publicDataRepository, AiModelService aiModelService, ObjectMapper objectMapper) {
         this.publicDataRepository = publicDataRepository;
         this.aiModelService = aiModelService;
-        this.objectMapper = new ObjectMapper();
+        this.objectMapper = objectMapper; // ObjectMapper 주입 확인
     }
 
     private Mono<Optional<PublicData>> findDataByName(String fileName) {
@@ -50,21 +45,14 @@ public class UtilizationService {
                     if (optionalData.isPresent()) {
                         return aiModelService.getSingleUtilizationRecommendation(optionalData.get(), userPrompt);
                     }
-                    // 파일을 찾지 못한 경우 에러 JsonNode 생성
-                    return Mono.just(createErrorNode("파일 없음", "해당 파일명을 찾을 수 없습니다: " + fileName));
+                    // 파일을 찾지 못한 경우 일관된 에러 형식으로 반환
+                    return Mono.just(createErrorNode("파일을 찾을 수 없습니다: " + fileName));
                 })
                 .doOnError(e -> log.error("단일 활용 추천 생성 실패", e))
                 .onErrorResume(e -> {
-                    // 에러 발생 시 에러 JsonNode 생성
-                    return Mono.just(createErrorNode("오류", "단일 활용 방안을 가져오는 데 실패했습니다."));
+                    // 그 외 에러 발생 시에도 일관된 에러 형식으로 반환
+                    return Mono.just(createErrorNode("AI 모델로부터 단일 활용 방안을 가져오는 데 실패했습니다."));
                 });
-    }
-
-    private JsonNode createErrorNode(String title, String content) {
-        ObjectNode errorNode = objectMapper.createObjectNode();
-        errorNode.put("title", title);
-        errorNode.put("content", content);
-        return errorNode;
     }
 
     public Mono<JsonNode> getFullUtilizationRecommendations(SingleUtilizationRequestDto requestDto) {
@@ -75,29 +63,32 @@ public class UtilizationService {
                 .flatMap(optionalData -> {
                     if (optionalData.isPresent()) {
                         PublicData data = optionalData.get();
-                        return aiModelService.getUtilizationRecommendations(data)
-                                .map(aiResponse -> {
-                                    ObjectNode resultNode = objectMapper.createObjectNode();
-                                    resultNode.put("success", true);
-                                    resultNode.set("data", aiResponse);
-                                    return (JsonNode) resultNode;
-                                })
-                                .doOnError(e -> log.error("전체 활용 추천 생성 실패", e))
-                                // [수정됨] 기본값 대신 에러 노드를 반환합니다.
-                                .onErrorReturn(createErrorNode("AI 모델로부터 전체 활용 방안을 가져오는 데 실패했습니다."));
+                        return aiModelService.getUtilizationRecommendations(data);
                     }
-                    // 파일을 찾지 못했을 때도 일관된 에러 형식을 사용합니다.
+                    // 파일을 찾지 못했을 때도 일관된 에러 형식을 사용
                     return Mono.just(createErrorNode("파일을 찾을 수 없습니다: " + fileName));
-                });
+                })
+                .doOnError(e -> log.error("전체 활용 추천 생성 실패", e))
+                .onErrorResume(e ->
+                     Mono.just(createErrorNode("AI 모델로부터 전체 활용 방안을 가져오는 데 실패했습니다."))
+                );
     }
 
-    // [새로 추가됨] 일관된 에러 응답을 생성하는 헬퍼 메소드
+    // --- 일관된 응답을 위한 헬퍼 메소드 ---
+
+    // 성공 응답용 헬퍼
+    private JsonNode createSuccessNode(JsonNode data) {
+        ObjectNode resultNode = objectMapper.createObjectNode();
+        resultNode.put("success", true);
+        resultNode.set("data", data);
+        return resultNode;
+    }
+
+    // 에러 응답용 헬퍼
     private JsonNode createErrorNode(String errorMessage) {
         ObjectNode errorNode = objectMapper.createObjectNode();
         errorNode.put("success", false);
         errorNode.put("error", errorMessage);
         return errorNode;
     }
-
-
 }

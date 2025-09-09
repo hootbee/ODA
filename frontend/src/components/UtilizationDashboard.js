@@ -1,94 +1,8 @@
 // components/UtilizationDashboard.jsx
-import React, { useState } from "react";
+import React from "react";
 import styled from "styled-components";
 
-const UtilizationDashboard = ({ data, fileName, onCategorySelect }) => {
-  const [expandedCategory, setExpandedCategory] = useState(null);
-
-  const categories = [
-    {
-      key: "businessApplications",
-      title: "비즈니스 활용",
-      type: "business",
-      icon: "💼",
-      description: "수익 창출 및 사업 아이디어",
-    },
-    {
-      key: "researchApplications",
-      title: "연구 활용",
-      type: "research",
-      icon: "🔬",
-      description: "학술 연구 및 기술 개발",
-    },
-    {
-      key: "policyApplications",
-      title: "정책 활용",
-      type: "policy",
-      icon: "🏛️",
-      description: "공공 정책 및 행정 개선",
-    },
-    {
-      key: "combinationSuggestions",
-      title: "데이터 결합",
-      type: "combination",
-      icon: "🔗",
-      description: "다른 데이터와의 융합 활용",
-    },
-    {
-      key: "analysisTools",
-      title: "분석 도구",
-      type: "tools",
-      icon: "🛠️",
-      description: "추천 분석 및 시각화 도구",
-    },
-  ];
-
-  const handleCategoryClick = (category) => {
-    onCategorySelect(category.type, fileName);
-  };
-
-  return (
-    <DashboardContainer>
-      <DashboardHeader>
-        <h3>📊 {fileName} 활용방안 대시보드</h3>
-        <p>관심 있는 분야를 클릭하면 상세 분석을 확인할 수 있습니다.</p>
-      </DashboardHeader>
-
-      <CategoriesGrid>
-        {categories.map((category) => (
-          <CategoryCard
-            key={category.key}
-            onClick={() => handleCategoryClick(category)}
-          >
-            <CategoryHeader>
-              <CategoryIcon>{category.icon}</CategoryIcon>
-              <CategoryTitle>{category.title}</CategoryTitle>
-            </CategoryHeader>
-
-            <CategoryDescription>{category.description}</CategoryDescription>
-
-            <PreviewList>
-              {data?.data?.[category.key]
-                ?.slice(0, 2)
-                .map((item, index) => (
-                  <PreviewItem key={index}>
-                    • {item.length > 50 ? `${item.substring(0, 50)}...` : item}
-                  </PreviewItem>
-                )) || ["분석 중..."]}
-            </PreviewList>
-
-            <MoreButton>
-              상세 보기 ({data?.data?.[category.key]?.length || 0}개)
-            </MoreButton>
-          </CategoryCard>
-        ))}
-      </CategoriesGrid>
-    </DashboardContainer>
-  );
-};
-
-// ============== Styled Components ===============
-
+// ============ Styled Components (시작) ============
 const DashboardContainer = styled.div`
   background: #e9e9eb;
   border-radius: 20px;
@@ -100,12 +14,10 @@ const DashboardContainer = styled.div`
 const DashboardHeader = styled.div`
   text-align: center;
   margin-bottom: 20px;
-
   h3 {
     margin: 0 0 8px 0;
     font-size: 1.4em;
   }
-
   p {
     margin: 0;
     opacity: 0.9;
@@ -121,13 +33,11 @@ const CategoriesGrid = styled.div`
 
 const CategoryCard = styled.div`
   background: rgba(141, 141, 141, 0.1);
-  backdrop-filter: blur(10px);
   border: 1px solid rgba(181, 181, 181, 0.2);
   border-radius: 10px;
   padding: 16px;
   cursor: pointer;
   transition: all 0.3s ease;
-
   &:hover {
     background: rgba(255, 255, 255, 0.2);
     transform: translateY(-2px);
@@ -138,7 +48,7 @@ const CategoryCard = styled.div`
 const CategoryHeader = styled.div`
   display: flex;
   align-items: center;
-  margin-bottom: 8px;
+  margin-bottom: 12px; // 간격 조정
 `;
 
 const CategoryIcon = styled.span`
@@ -152,37 +62,124 @@ const CategoryTitle = styled.h4`
   font-weight: 600;
 `;
 
-const CategoryDescription = styled.p`
-  margin: 0 0 12px 0;
-  font-size: 0.85em;
-  opacity: 0.8;
-  line-height: 1.4;
+const ErrorDisplay = styled.div`
+  background: #ffebee;
+  color: #c62828;
+  border: 1px solid #ef9a9a;
+  border-radius: 8px;
+  padding: 16px;
+  margin: 10px 0;
+  white-space: pre-wrap;
 `;
 
+// 🔴 1. 미리보기를 표시할 styled-component 추가
 const PreviewList = styled.div`
-  margin-bottom: 12px;
+  padding-left: 5px;
+  border-left: 2px solid rgba(0, 0, 0, 0.1);
 `;
 
 const PreviewItem = styled.div`
-  font-size: 0.8em;
-  opacity: 0.9;
-  margin-bottom: 4px;
-  line-height: 1.3;
-`;
-
-const MoreButton = styled.div`
-  background: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(161, 161, 161, 0.2);
-  border-radius: 6px;
-  padding: 8px 12px;
-  text-align: center;
   font-size: 0.85em;
-  font-weight: 500;
-  transition: all 0.2s ease;
+  opacity: 0.8;
+  margin-bottom: 6px;
+  line-height: 1.4;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 
-  &:hover {
-    background: rgba(255, 255, 255, 0.3);
+  &:last-child {
+    margin-bottom: 0;
   }
 `;
+// ============ Styled Components (끝) ============
+
+const UtilizationDashboard = ({ data, fileName, onCategorySelect }) => {
+  if (!data || !data.success) {
+    const errorMessage =
+      data?.error || "데이터를 분석하는 중 알 수 없는 오류가 발생했습니다.";
+    return (
+      <DashboardContainer>
+        <DashboardHeader>
+          <h3>분석 실패</h3>
+        </DashboardHeader>
+        <ErrorDisplay>{errorMessage}</ErrorDisplay>
+      </DashboardContainer>
+    );
+  }
+
+  const actualData = data.data;
+
+  const categories = [
+    {
+      key: "businessApplications",
+      title: "비즈니스 활용",
+      type: "business",
+      icon: "💼",
+    },
+    {
+      key: "researchApplications",
+      title: "연구 활용",
+      type: "research",
+      icon: "🔬",
+    },
+    {
+      key: "policyApplications",
+      title: "정책 활용",
+      type: "policy",
+      icon: "🏛️",
+    },
+    {
+      key: "combinationSuggestions",
+      title: "데이터 결합",
+      type: "combination",
+      icon: "🔗",
+    },
+    { key: "analysisTools", title: "분석 도구", type: "tools", icon: "🛠️" },
+  ];
+
+  const handleCategoryClick = (category) => {
+    onCategorySelect(category.type, fileName);
+  };
+
+  return (
+    <DashboardContainer>
+      <DashboardHeader>
+        <h3>"{fileName}" 데이터 활용 방안</h3>
+        <p>아래 카테고리를 선택하여 더 자세한 AI 추천을 받아보세요.</p>
+      </DashboardHeader>
+
+      <CategoriesGrid>
+        {categories.map((cat) => (
+          <CategoryCard key={cat.key} onClick={() => handleCategoryClick(cat)}>
+            <CategoryHeader>
+              <CategoryIcon>{cat.icon}</CategoryIcon>
+              <CategoryTitle>{cat.title}</CategoryTitle>
+            </CategoryHeader>
+
+            {/* 🔴 2. 카드 내부에 실제 데이터를 매핑하여 미리보기 생성 */}
+            <PreviewList>
+              {actualData[cat.key] && actualData[cat.key].length > 0 ? (
+                actualData[cat.key].slice(0, 2).map(
+                  (
+                    item,
+                    index // 최대 2개 항목만 표시
+                  ) => (
+                    <PreviewItem key={index} title={item.title}>
+                      - {item.title}
+                    </PreviewItem>
+                  )
+                )
+              ) : (
+                <PreviewItem>추천 내용이 없습니다.</PreviewItem>
+              )}
+            </PreviewList>
+          </CategoryCard>
+        ))}
+      </CategoriesGrid>
+
+      {/* 🔴 3. 디버깅용 <pre> 태그는 이제 필요 없으므로 제거합니다. */}
+    </DashboardContainer>
+  );
+};
 
 export default UtilizationDashboard;

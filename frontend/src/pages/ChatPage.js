@@ -1,3 +1,4 @@
+// src/pages/ChatPage.jsx
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import styled from "styled-components";
 import MessageList from "../components/MessageList";
@@ -20,15 +21,19 @@ const initialMessages = [
   },
 ];
 
+/* ---------------------- 안전 파서 유틸 ---------------------- */
+const safeParseIfJson = (x) => {
+  if (typeof x !== "string") return x;
+  try {
+    return JSON.parse(x);
+  } catch {
+    return x; // JSON 문자열이 아니면 원문 유지
+  }
+};
+
 /* ============================ 컴포넌트 ============================= */
 export default function ChatPage() {
   const { isAuthenticated, loading } = useAuth();
-  console.log(
-    "[ChatPage] isAuthenticated:",
-    isAuthenticated,
-    "loading:",
-    loading
-  );
   const navigate = useNavigate();
 
   const [contexts, setContexts] = useState([]);
@@ -127,6 +132,7 @@ export default function ChatPage() {
     [activeContextId, contexts, conversations, handleNewChat]
   );
 
+  /* -------------------- 히스토리 불러오기 (중요: JSON.parse 고침) -------------------- */
   const fetchHistory = useCallback(async () => {
     try {
       const { data: hist } = await axios.get(
@@ -139,6 +145,7 @@ export default function ChatPage() {
         id: h.sessionId,
         title: h.sessionTitle,
       }));
+
       const convs = {};
       hist.forEach((h) => {
         convs[h.sessionId] = {
@@ -148,13 +155,8 @@ export default function ChatPage() {
               return { id, sender: "user", text: m.content };
             }
 
-            let content;
-            try {
-              content = JSON.parse(m.content);
-            } catch (e) {
-              content = m.content;
-            }
-
+            // 🔧 여기! 문자열일 때만 안전하게 파싱
+            const content = safeParseIfJson(m.content);
             return parseBotMessage(content, {
               id,
               lastDataName: h.lastDataName,
@@ -168,10 +170,6 @@ export default function ChatPage() {
       setContexts(ctxs);
       setConvs(convs);
       setActiveId(ctxs[0].id);
-      console.log(
-        "[ChatPage] fetchHistory completed. Active context lastDataName:",
-        convs[ctxs[0].id]?.lastDataName
-      );
     } catch (e) {
       console.error(e);
       handleNewChat();
@@ -179,13 +177,10 @@ export default function ChatPage() {
   }, [handleNewChat]);
 
   useEffect(() => {
-    console.log("[ChatPage] useEffect for fetchHistory triggered.");
     if (loading) return;
     if (!isAuthenticated) {
-      console.log("[ChatPage] Not authenticated, navigating to login.");
       navigate("/login");
     } else {
-      console.log("[ChatPage] Authenticated, fetching history.");
       fetchHistory();
     }
   }, [isAuthenticated, loading, navigate, fetchHistory]);
@@ -195,22 +190,17 @@ export default function ChatPage() {
     sessionId: null,
     lastDataName: null,
   };
-  console.log(
-    "[ChatPage] Current conv.lastDataName in render:",
-    conv.lastDataName
-  );
 
   useEffect(() => {
     scrollToBottom();
   }, [conv.messages]);
 
+  /* -------------------- 컨텍스트 리셋 -------------------- */
   const handleContextReset = () => {
-    // 1. 현재 대화의 lastDataName만 null로 변경
     updateConv((currentConversation) => ({
       ...currentConversation,
       lastDataName: null,
     }));
-    // 2. 사용자에게 컨텍스트가 초기화되었음을 알리는 메시지 추가
     const resetMessage = {
       id: Date.now(),
       sender: "bot",
@@ -219,6 +209,7 @@ export default function ChatPage() {
     updateConv((c) => ({ ...c, messages: [...c.messages, resetMessage] }));
   };
 
+  /* -------------------- 메시지 전송 -------------------- */
   const handleSend = async (e, overridePrompt = null, overrideLast = null) => {
     e.preventDefault();
     const prompt = overridePrompt ?? inputValue.trim();
@@ -240,14 +231,9 @@ export default function ChatPage() {
         { headers: authHeaders() }
       );
 
-      let botContent;
-      try {
-        botContent = JSON.parse(data.response);
-      } catch (e) {
-        botContent = data.response;
-      }
+      // 🔧 핵심: 이미 객체라면 파싱 금지
+      const botContent = safeParseIfJson(data.response);
 
-      // parseBotMessage 유틸리티 함수 사용
       const botMessage = parseBotMessage(botContent, {
         lastDataName: data.lastDataName,
       });
@@ -258,6 +244,7 @@ export default function ChatPage() {
         lastDataName: data.lastDataName,
       }));
 
+      // 새 세션 아이디 치환
       if (conv.sessionId == null && data.sessionId) {
         const newId = data.sessionId;
         const oldId = activeContextId;
@@ -280,7 +267,8 @@ export default function ChatPage() {
       console.error("Error sending message:", error);
       const errorMsg = parseBotMessage({
         type: "error",
-        message: "백엔드 통신 오류가 발생했습니다.",
+        message:
+          "백엔드 통신 중 오류가 발생했습니다. 서버 로그를 확인해주세요.",
       });
       updateConv((c) => ({ ...c, messages: [...c.messages, errorMsg] }));
     } finally {
@@ -351,6 +339,8 @@ export default function ChatPage() {
     </Container>
   );
 }
+
+/* -------------------------- styled-components -------------------------- */
 
 const Container = styled.div`
   display: flex;
