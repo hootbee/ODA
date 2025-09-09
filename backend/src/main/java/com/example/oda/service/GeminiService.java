@@ -92,6 +92,7 @@ public class GeminiService implements AiModelService {
     // getClassificationSystem and getRecommendations methods are now obsolete
     // and will be removed in the next step.
 
+    @Override
     public Mono<JsonNode> analyzeDataByPk(Long publicDataPk) {
         Map<String, Long> requestBody = Map.of("publicDataPk", publicDataPk);
         log.info("Requesting data analysis from agent for PK: {}", publicDataPk);

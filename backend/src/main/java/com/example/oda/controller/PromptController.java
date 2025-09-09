@@ -1,9 +1,12 @@
 package com.example.oda.controller;
 
-import com.example.oda.dto.*;
+import com.example.oda.prompt.dto.ChatHistoryDto;
+import com.example.oda.prompt.dto.ChatResponseDto;
+import com.example.oda.prompt.dto.PromptRequestDto;
+import com.example.oda.prompt.dto.QueryPlanDto;
 import com.example.oda.entity.ChatMessage;
-import com.example.oda.service.PromptService;
-import com.example.oda.service.QueryPlannerService;
+import com.example.oda.prompt.PromptService;
+import com.example.oda.prompt.QueryPlannerService;
 import com.fasterxml.jackson.databind.JsonNode;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
