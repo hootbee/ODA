@@ -1,8 +1,8 @@
-// components/UtilizationDashboard.jsx
+// src/components/UtilizationDashboard.jsx
 import React from "react";
 import styled from "styled-components";
+import ReactMarkdown from "react-markdown";
 
-// ============ Styled Components (시작) ============
 const DashboardContainer = styled.div`
   background: #e9e9eb;
   border-radius: 20px;
@@ -48,7 +48,7 @@ const CategoryCard = styled.div`
 const CategoryHeader = styled.div`
   display: flex;
   align-items: center;
-  margin-bottom: 12px; // 간격 조정
+  margin-bottom: 12px;
 `;
 
 const CategoryIcon = styled.span`
@@ -72,31 +72,70 @@ const ErrorDisplay = styled.div`
   white-space: pre-wrap;
 `;
 
-// 🔴 1. 미리보기를 표시할 styled-component 추가
 const PreviewList = styled.div`
   padding-left: 5px;
   border-left: 2px solid rgba(0, 0, 0, 0.1);
 `;
 
 const PreviewItem = styled.div`
-  font-size: 0.85em;
-  opacity: 0.8;
-  margin-bottom: 6px;
-  line-height: 1.4;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-
+  font-size: 0.9em;
+  opacity: 0.9;
+  margin-bottom: 12px;
+  line-height: 1.5;
+  strong {
+    font-weight: 600;
+    color: #333;
+  }
+  p {
+    margin: 6px 0 0 0;
+    padding-left: 8px;
+    font-size: 0.95em;
+  }
   &:last-child {
     margin-bottom: 0;
   }
 `;
-// ============ Styled Components (끝) ============
+
+// 들어온 데이터가 단일/이중 래핑이든 안전하게 payload 꺼내기
+function extractPayload(data) {
+  if (!data) return null;
+  // 단일 래핑 { success: true, data: {...} }
+  if (data.success && data.data && !data.data.success) return data.data;
+  // 이중 래핑 { success: true, data: { success: true, data: {...} } }
+  if (data.success && data.data && data.data.success && data.data.data) {
+    return data.data.data;
+  }
+  // 혹시 바로 카테고리일 수도 있음
+  const maybe = data.data || data;
+  if (maybe && typeof maybe === "object") return maybe;
+  return null;
+}
+
+// content를 항상 문자열로 변환
+function getItemText(item) {
+  const c = item?.content;
+  if (typeof c === "string") return c;
+  if (c && typeof c === "object") {
+    if (typeof c.text === "string") return c.text;
+    if (typeof c.markdown === "string") return c.markdown;
+    if (Array.isArray(c)) return c.map((x) => String(x ?? "")).join("\n");
+    try {
+      return JSON.stringify(c, null, 2);
+    } catch {
+      return String(c);
+    }
+  }
+  if (c == null) return "";
+  return String(c);
+}
 
 const UtilizationDashboard = ({ data, fileName, onCategorySelect }) => {
-  if (!data || !data.success) {
+  const actualData = extractPayload(data);
+
+  if (!actualData) {
     const errorMessage =
-      data?.error || "데이터를 분석하는 중 알 수 없는 오류가 발생했습니다.";
+      (data && data.error) ||
+      "데이터를 분석하는 중 알 수 없는 오류가 발생했습니다.";
     return (
       <DashboardContainer>
         <DashboardHeader>
@@ -106,8 +145,6 @@ const UtilizationDashboard = ({ data, fileName, onCategorySelect }) => {
       </DashboardContainer>
     );
   }
-
-  const actualData = data.data;
 
   const categories = [
     {
@@ -138,46 +175,56 @@ const UtilizationDashboard = ({ data, fileName, onCategorySelect }) => {
   ];
 
   const handleCategoryClick = (category) => {
-    onCategorySelect(category.type, fileName);
+    if (typeof onCategorySelect === "function") {
+      onCategorySelect(category.type, fileName);
+    }
   };
 
   return (
     <DashboardContainer>
       <DashboardHeader>
-        <h3>"{fileName}" 데이터 활용 방안</h3>
-        <p>아래 카테고리를 선택하여 더 자세한 AI 추천을 받아보세요.</p>
+        <h3>"{fileName}" 데이터 활용 방안 요약</h3>
+        <p>카테고리를 눌러 자세한 추천을 받아보세요.</p>
       </DashboardHeader>
 
       <CategoriesGrid>
-        {categories.map((cat) => (
-          <CategoryCard key={cat.key} onClick={() => handleCategoryClick(cat)}>
-            <CategoryHeader>
-              <CategoryIcon>{cat.icon}</CategoryIcon>
-              <CategoryTitle>{cat.title}</CategoryTitle>
-            </CategoryHeader>
+        {categories.map((cat) => {
+          const items = Array.isArray(actualData[cat.key])
+            ? actualData[cat.key]
+            : [];
+          return (
+            <CategoryCard
+              key={cat.key}
+              onClick={() => handleCategoryClick(cat)}
+            >
+              <CategoryHeader>
+                <CategoryIcon>{cat.icon}</CategoryIcon>
+                <CategoryTitle>{cat.title}</CategoryTitle>
+              </CategoryHeader>
 
-            {/* 🔴 2. 카드 내부에 실제 데이터를 매핑하여 미리보기 생성 */}
-            <PreviewList>
-              {actualData[cat.key] && actualData[cat.key].length > 0 ? (
-                actualData[cat.key].slice(0, 2).map(
-                  (
-                    item,
-                    index // 최대 2개 항목만 표시
-                  ) => (
-                    <PreviewItem key={index} title={item.title}>
-                      - {item.title}
-                    </PreviewItem>
-                  )
-                )
-              ) : (
-                <PreviewItem>추천 내용이 없습니다.</PreviewItem>
-              )}
-            </PreviewList>
-          </CategoryCard>
-        ))}
+              <PreviewList>
+                {items.length > 0 ? (
+                  items.slice(0, 2).map((item, idx) => {
+                    const itemText = getItemText(item); // ✅ JSX 밖에서 선언
+                    return (
+                      <PreviewItem key={idx}>
+                        <strong>• {item?.title || "제목 없음"}</strong>
+                        {itemText ? (
+                          <ReactMarkdown>{itemText}</ReactMarkdown> // ✅ 문자열화된 텍스트 사용
+                        ) : (
+                          <p>내용 없음</p>
+                        )}
+                      </PreviewItem>
+                    );
+                  })
+                ) : (
+                  <PreviewItem>추천 내용이 없습니다.</PreviewItem>
+                )}
+              </PreviewList>
+            </CategoryCard>
+          );
+        })}
       </CategoriesGrid>
-
-      {/* 🔴 3. 디버깅용 <pre> 태그는 이제 필요 없으므로 제거합니다. */}
     </DashboardContainer>
   );
 };

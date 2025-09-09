@@ -1,41 +1,62 @@
 // src/utils/messageParser.js
 
+// 내부 헬퍼: 다양한 래핑을 단일 포맷으로 정규화
+// src/utils/messageParser.js
+
+function normalizeUtilizationPayload(content) {
+  // unwrap 최대 3회까지 방어적으로 벗겨보기
+  let node = content;
+  for (let i = 0; i < 3; i++) {
+    if (node && node.success === true && node.data) {
+      node = node.data;
+    }
+  }
+
+  // 이제 node가 카테고리 묶음을 바로 들고 있으면 성공
+  if (node && typeof node === "object") {
+    const keys = Object.keys(node);
+    const hasCategories = [
+      "businessApplications",
+      "researchApplications",
+      "policyApplications",
+      "combinationSuggestions",
+      "analysisTools",
+    ].some((k) => keys.includes(k));
+    if (hasCategories) {
+      return { success: true, data: node };
+    }
+  }
+
+  return null;
+}
+
 export const parseBotMessage = (content, metadata = {}) => {
   const messageObject = {
     id: metadata.id || Date.now(),
     sender: "bot",
   };
 
-  // First, ensure content is an object if it's a JSON string
-  if (typeof content === 'string') {
+  // 문자열이면 JSON 시도
+  if (typeof content === "string") {
     try {
       content = JSON.parse(content);
-    } catch (e) {
-      // It's not a JSON string, treat it as plain text
+    } catch {
       messageObject.type = "text";
       messageObject.text = String(content ?? "");
       return messageObject;
     }
   }
 
-  // --- Check for Utilization Dashboard (Single-Wrapped) ---
-  if (content && content.success && content.data) {
-    const payload = content.data;
-    const keys = (payload && typeof payload === 'object') ? Object.keys(payload) : [];
-    const hasCategories = [
-      "businessApplications", "researchApplications", "policyApplications",
-      "combinationSuggestions", "analysisTools"
-    ].some(k => keys.includes(k));
-
-    if (hasCategories) {
-      messageObject.type = 'utilization-dashboard';
-      messageObject.data = content; // Pass the whole single-wrapped object
-      messageObject.fileName = metadata.lastDataName;
-      return messageObject;
-    }
+  // --- Utilization Dashboard: 다양한 래핑 정규화 후 판단 ---
+  const normalized = normalizeUtilizationPayload(content);
+  if (normalized) {
+    messageObject.type = "utilization-dashboard";
+    messageObject.data = normalized; // 항상 { success:true, data:{카테고리들} } 형태로 전달
+    messageObject.fileName = metadata.lastDataName;
+    return messageObject;
   }
 
-  // --- Check for other explicit types ---
+  // --- 명시적 type 처리 ---
   if (content && content.type) {
     switch (content.type) {
       case "simple_recommendation":
@@ -71,15 +92,16 @@ export const parseBotMessage = (content, metadata = {}) => {
         messageObject.data = content;
         return messageObject;
       default:
-        // Fallback for objects with a 'type' property we don't recognize
         messageObject.type = "text";
-        messageObject.text = "알 수 없는 형식의 응답입니다:\n" + JSON.stringify(content, null, 2);
+        messageObject.text =
+          "알 수 없는 형식의 응답입니다:\n" + JSON.stringify(content, null, 2);
         return messageObject;
     }
   }
 
-  // --- Fallback for any other kind of object ---
+  // --- 기타 객체는 안전하게 텍스트로 ---
   messageObject.type = "text";
-  messageObject.text = "알 수 없는 형식의 응답입니다:\n" + JSON.stringify(content, null, 2);
+  messageObject.text =
+    "알 수 없는 형식의 응답입니다:\n" + JSON.stringify(content, null, 2);
   return messageObject;
 };

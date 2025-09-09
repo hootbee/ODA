@@ -12,7 +12,7 @@ import SimpleRecommendation from "./messages/SimpleRecommendation";
 import HelpMessage from "./messages/HelpMessage";
 import ContextResetMessage from "./messages/ContextResetMessage";
 import ErrorMessage from "./messages/ErrorMessage";
-import DataAnalysisResult from "./messages/DataAnalysisResult"; // Import DataAnalysisResult
+import DataAnalysisResult from "./messages/DataAnalysisResult";
 
 // A simple component to render normal text messages
 const TextMessage = ({ content }) => (
@@ -21,13 +21,12 @@ const TextMessage = ({ content }) => (
   </MessageText>
 );
 
-// A component to render the hint/tip below a message
+// hint/tip
 const TipMessage = ({ children }) => (
   <StyledTipMessage>{children}</StyledTipMessage>
 );
 
-// This component acts as a router to render the correct message body based on its type.
-const MessageBody = ({ message }) => {
+const MessageBody = ({ message, onCategorySelect }) => {
   switch (message.type) {
     case "search_results":
       return <SearchResults data={message.data} />;
@@ -37,7 +36,11 @@ const MessageBody = ({ message }) => {
       return <ContextResetMessage />;
     case "utilization-dashboard":
       return (
-        <UtilizationDashboard data={message.data} fileName={message.fileName} />
+        <UtilizationDashboard
+          data={message.data}
+          fileName={message.fileName}
+          onCategorySelect={onCategorySelect} // ★ 전달
+        />
       );
     case "data_detail":
       return (
@@ -47,10 +50,7 @@ const MessageBody = ({ message }) => {
             💡 '데이터 확인'을 입력하면 데이터 다운로드 및 분석 후 결과를
             알려드립니다. 분석이 끝나면 데이터는 삭제됩니다.
             <br />
-            다른 활용 방안이 궁금하시면 자유롭게 질문해주세요!
-            <br />
-            <strong>예시:</strong> "데이터 확인", "전체 활용", "비즈니스 활용",
-            "해외 사례와 연관지어 활용" 등
+            <strong>예시:</strong> "데이터 확인", "전체 활용", "비즈니스 활용"
           </TipMessage>
         </>
       );
@@ -63,24 +63,16 @@ const MessageBody = ({ message }) => {
         <>
           <SimpleRecommendation recommendations={message.recommendations} />
           <TipMessage>
-            💡 다른 데이터 조회를 원하시면 '다른 데이터 활용'을 입력하시고, 다른
-            활용방안을 원하시면 프롬프트를 작성해주세요.
-            <br />
-            데이터 다운 및 분석, 미리보기가 필요하다면 데이터 확인을 입력하세요
+            💡 다른 데이터 조회를 원하시면 '다른 데이터 활용'을 입력하세요.
           </TipMessage>
         </>
       );
     case "data_analysis":
-      // ✅ [수정된 부분] 데이터 분석 결과 아래에 다음 행동을 유도하는 TipMessage를 추가합니다.
       return (
         <>
           <DataAnalysisResult data={message.data} />
           <TipMessage>
-            📊 데이터 분석이 완료되었습니다.
-            <br />
-            <strong>예시:</strong> "이 데이터로 사업 아이템 추천해줘"와 같이
-            구체적인 활용 방안을 질문하시거나,{" "}
-            <strong>'다른 데이터 조회'</strong>을 통해 다른 데이터를 찾아보세요.
+            📊 분석이 완료되었습니다. 예: "이 데이터로 사업 아이템 추천"
           </TipMessage>
         </>
       );
@@ -95,6 +87,7 @@ function MessageList({
   scrollContainerRef,
   messageEndRef,
   onScroll,
+  onCategorySelect, // ★ 받기
 }) {
   return (
     <MessageListContainer ref={scrollContainerRef} onScroll={onScroll}>
@@ -126,13 +119,15 @@ function MessageList({
             )}
 
             <MessageItem
-              key={message.id}
               sender={message.sender}
               type={message.type}
               isFirst={isFirst}
               isLast={isLast}
             >
-              <MessageBody message={message} />
+              <MessageBody
+                message={message}
+                onCategorySelect={onCategorySelect}
+              />
             </MessageItem>
           </MessageRow>
         );
@@ -141,10 +136,7 @@ function MessageList({
       {isTyping && (
         <MessageRow sender="bot" isFirst={true}>
           <Avatar sender="bot">
-            <img
-              src={`${process.env.PUBLIC_URL}/ODA_logo.png`}
-              alt="Bot Avatar"
-            />
+            <img src={`${process.env.PUBLIC_URL}/ODA_logo.png`} alt="Bot" />
           </Avatar>
           <MessageItem sender="bot" isFirst={true} isLast={true}>
             <TypingIndicator>
@@ -234,7 +226,6 @@ const Avatar = styled.div`
 const AvatarPlaceholder = styled.div`
   width: 60px;
   flex-shrink: 0;
-
   ${(props) =>
     props.sender === "user" &&
     css`
@@ -244,7 +235,6 @@ const AvatarPlaceholder = styled.div`
 
 const MessageItem = styled.div`
   padding: ${(props) =>
-    // Render messages with custom components without padding
     [
       "search_results",
       "search_not_found",
@@ -280,7 +270,7 @@ const MessageItem = styled.div`
         "utilization-dashboard",
       ].includes(props.type)
     )
-      return `transparent`;
+      return "transparent";
     return props.sender === "user" ? "#0099ffff" : "#e9e9eb";
   }};
   color: ${(props) => (props.sender === "user" ? "white" : "black")};

@@ -1,4 +1,3 @@
-// src/pages/ChatPage.jsx
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import styled from "styled-components";
 import MessageList from "../components/MessageList";
@@ -27,11 +26,10 @@ const safeParseIfJson = (x) => {
   try {
     return JSON.parse(x);
   } catch {
-    return x; // JSON 문자열이 아니면 원문 유지
+    return x;
   }
 };
 
-/* ============================ 컴포넌트 ============================= */
 export default function ChatPage() {
   const { isAuthenticated, loading } = useAuth();
   const navigate = useNavigate();
@@ -52,9 +50,7 @@ export default function ChatPage() {
   };
 
   const handleScrollToTop = () => {
-    if (scrollContainerRef.current) {
-      scrollContainerRef.current.scrollTo({ top: 0, behavior: "smooth" });
-    }
+    scrollContainerRef.current?.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const handleScroll = () => {
@@ -79,13 +75,11 @@ export default function ChatPage() {
       return { ...prev, [activeContextId]: next };
     });
 
-  /* ---------------------- 유틸 ---------------------- */
   const authHeaders = () => {
     const t = localStorage.getItem("token");
     return t ? { Authorization: `Bearer ${t}` } : {};
   };
 
-  /* -------------------- 새 대화 ---------------------- */
   const handleNewChat = useCallback(() => {
     const id = `new-${Date.now()}`;
     setContexts((prev) => [...prev, { id, title: "새 대화" }]);
@@ -100,7 +94,6 @@ export default function ChatPage() {
     setActiveId(id);
   }, []);
 
-  /* -------------------- 대화 삭제 -------------------- */
   const handleDeleteContext = useCallback(
     async (idToDelete) => {
       try {
@@ -132,7 +125,6 @@ export default function ChatPage() {
     [activeContextId, contexts, conversations, handleNewChat]
   );
 
-  /* -------------------- 히스토리 불러오기 (중요: JSON.parse 고침) -------------------- */
   const fetchHistory = useCallback(async () => {
     try {
       const { data: hist } = await axios.get(
@@ -154,8 +146,6 @@ export default function ChatPage() {
             if (m.sender && m.sender.toLowerCase() === "user") {
               return { id, sender: "user", text: m.content };
             }
-
-            // 🔧 여기! 문자열일 때만 안전하게 파싱
             const content = safeParseIfJson(m.content);
             return parseBotMessage(content, {
               id,
@@ -195,7 +185,6 @@ export default function ChatPage() {
     scrollToBottom();
   }, [conv.messages]);
 
-  /* -------------------- 컨텍스트 리셋 -------------------- */
   const handleContextReset = () => {
     updateConv((currentConversation) => ({
       ...currentConversation,
@@ -209,7 +198,6 @@ export default function ChatPage() {
     updateConv((c) => ({ ...c, messages: [...c.messages, resetMessage] }));
   };
 
-  /* -------------------- 메시지 전송 -------------------- */
   const handleSend = async (e, overridePrompt = null, overrideLast = null) => {
     e.preventDefault();
     const prompt = overridePrompt ?? inputValue.trim();
@@ -231,9 +219,7 @@ export default function ChatPage() {
         { headers: authHeaders() }
       );
 
-      // 🔧 핵심: 이미 객체라면 파싱 금지
       const botContent = safeParseIfJson(data.response);
-
       const botMessage = parseBotMessage(botContent, {
         lastDataName: data.lastDataName,
       });
@@ -244,7 +230,6 @@ export default function ChatPage() {
         lastDataName: data.lastDataName,
       }));
 
-      // 새 세션 아이디 치환
       if (conv.sessionId == null && data.sessionId) {
         const newId = data.sessionId;
         const oldId = activeContextId;
@@ -256,10 +241,10 @@ export default function ChatPage() {
           )
         );
         setConvs((prevConvs) => {
-          const newConvs = { ...prevConvs };
-          newConvs[newId] = newConvs[oldId];
-          delete newConvs[oldId];
-          return newConvs;
+          const nc = { ...prevConvs };
+          nc[newId] = nc[oldId];
+          delete nc[oldId];
+          return nc;
         });
         setActiveId(newId);
       }
@@ -307,12 +292,13 @@ export default function ChatPage() {
 
           <MessageList
             messages={conv.messages}
-            onCategorySelect={onCategory}
+            onCategorySelect={onCategory} // ★ 전달!
             isTyping={isTyping}
             scrollContainerRef={scrollContainerRef}
             messageEndRef={messageEndRef}
             onScroll={handleScroll}
           />
+
           <MessageForm
             inputValue={inputValue}
             setInputValue={setInput}
@@ -395,10 +381,10 @@ const DataChoiceHeader = styled.div`
   z-index: 10;
   transition: all 0.4s ease-in-out;
 
-  opacity: ${(props) => (props.visible ? 1 : 0)};
-  visibility: ${(props) => (props.visible ? "visible" : "hidden")};
-  transform: ${(props) =>
-    props.visible ? "translate(-50%, 0)" : "translate(-50%, -20px)"};
+  opacity: ${(p) => (p.visible ? 1 : 0)};
+  visibility: ${(p) => (p.visible ? "visible" : "hidden")};
+  transform: ${(p) =>
+    p.visible ? "translate(-50%, 0)" : "translate(-50%, -20px)"};
 `;
 
 const HeaderContent = styled.div`
@@ -459,9 +445,9 @@ const ScrollButton = styled.button`
   font-size: 1.5rem;
   transition: all 0.2s ease;
 
-  opacity: ${(props) => (props.visible ? 1 : 0)};
-  visibility: ${(props) => (props.visible ? "visible" : "hidden")};
-  transform: ${(props) => (props.visible ? "scale(1)" : "scale(0.5)")};
+  opacity: ${(p) => (p.visible ? 1 : 0)};
+  visibility: ${(p) => (p.visible ? "visible" : "hidden")};
+  transform: ${(p) => (p.visible ? "scale(1)" : "scale(0.5)")};
 
   &:hover {
     background-color: #0099ffff;
