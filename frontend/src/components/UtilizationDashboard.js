@@ -1,19 +1,18 @@
 // src/components/UtilizationDashboard.jsx
 import React from "react";
 import styled from "styled-components";
-import ReactMarkdown from "react-markdown";
 
 const DashboardContainer = styled.div`
   background: #e9e9eb;
   border-radius: 20px;
-  padding: 20px;
-  margin: 10px 0;
+  padding: 16px;
+  margin: 8px 0;
   color: black;
 `;
 
 const DashboardHeader = styled.div`
   text-align: center;
-  margin-bottom: 20px;
+  margin-bottom: 16px;
   h3 {
     margin: 0 0 8px 0;
     font-size: 1.4em;
@@ -28,14 +27,14 @@ const DashboardHeader = styled.div`
 const CategoriesGrid = styled.div`
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-  gap: 15px;
+  gap: 12px;
 `;
 
 const CategoryCard = styled.div`
   background: rgba(141, 141, 141, 0.1);
   border: 1px solid rgba(181, 181, 181, 0.2);
   border-radius: 10px;
-  padding: 16px;
+  padding: 14px;
   cursor: pointer;
   transition: all 0.3s ease;
   &:hover {
@@ -48,7 +47,7 @@ const CategoryCard = styled.div`
 const CategoryHeader = styled.div`
   display: flex;
   align-items: center;
-  margin-bottom: 12px;
+  margin-bottom: 10px;
 `;
 
 const CategoryIcon = styled.span`
@@ -80,53 +79,51 @@ const PreviewList = styled.div`
 const PreviewItem = styled.div`
   font-size: 0.9em;
   opacity: 0.9;
-  margin-bottom: 12px;
+  margin-bottom: 16px;
   line-height: 1.5;
   strong {
     font-weight: 600;
     color: #333;
-  }
-  p {
-    margin: 6px 0 0 0;
-    padding-left: 8px;
-    font-size: 0.95em;
   }
   &:last-child {
     margin-bottom: 0;
   }
 `;
 
+const MetricsList = styled.ul`
+  list-style: none;
+  padding: 8px 0 0 12px;
+  margin: 0;
+  font-size: 0.85em;
+`;
+
+const MetricItem = styled.li`
+  color: #495057;
+  margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  &:last-child {
+    margin-bottom: 0;
+  }
+`;
+
+const MetricLabel = styled.span`
+  font-weight: 600;
+  color: #343a40;
+  margin-right: 6px;
+  flex-shrink: 0;
+`;
+
 // 들어온 데이터가 단일/이중 래핑이든 안전하게 payload 꺼내기
 function extractPayload(data) {
   if (!data) return null;
-  // 단일 래핑 { success: true, data: {...} }
   if (data.success && data.data && !data.data.success) return data.data;
-  // 이중 래핑 { success: true, data: { success: true, data: {...} } }
   if (data.success && data.data && data.data.success && data.data.data) {
     return data.data.data;
   }
-  // 혹시 바로 카테고리일 수도 있음
   const maybe = data.data || data;
   if (maybe && typeof maybe === "object") return maybe;
   return null;
-}
-
-// content를 항상 문자열로 변환
-function getItemText(item) {
-  const c = item?.content;
-  if (typeof c === "string") return c;
-  if (c && typeof c === "object") {
-    if (typeof c.text === "string") return c.text;
-    if (typeof c.markdown === "string") return c.markdown;
-    if (Array.isArray(c)) return c.map((x) => String(x ?? "")).join("\n");
-    try {
-      return JSON.stringify(c, null, 2);
-    } catch {
-      return String(c);
-    }
-  }
-  if (c == null) return "";
-  return String(c);
 }
 
 const UtilizationDashboard = ({ data, fileName, onCategorySelect }) => {
@@ -183,7 +180,7 @@ const UtilizationDashboard = ({ data, fileName, onCategorySelect }) => {
   return (
     <DashboardContainer>
       <DashboardHeader>
-        <h3>"{fileName}" 데이터 활용 방안 요약</h3>
+        <h3>`{fileName}` 데이터 활용 방안 요약</h3>
         <p>카테고리를 눌러 자세한 추천을 받아보세요.</p>
       </DashboardHeader>
 
@@ -204,19 +201,27 @@ const UtilizationDashboard = ({ data, fileName, onCategorySelect }) => {
 
               <PreviewList>
                 {items.length > 0 ? (
-                  items.slice(0, 2).map((item, idx) => {
-                    const itemText = getItemText(item); // ✅ JSX 밖에서 선언
-                    return (
-                      <PreviewItem key={idx}>
-                        <strong>• {item?.title || "제목 없음"}</strong>
-                        {itemText ? (
-                          <ReactMarkdown>{itemText}</ReactMarkdown> // ✅ 문자열화된 텍스트 사용
-                        ) : (
-                          <p>내용 없음</p>
-                        )}
-                      </PreviewItem>
-                    );
-                  })
+                  items.slice(0, 2).map((item, idx) => (
+                    <PreviewItem key={idx}>
+                      <strong>• {item?.title || "제목 없음"}</strong>
+                      {item.metrics && (
+                        <MetricsList>
+                          <MetricItem>
+                            <MetricLabel>예상효과:</MetricLabel>
+                            <span>{item.metrics.effect}</span>
+                          </MetricItem>
+                          <MetricItem>
+                            <MetricLabel>필요예산:</MetricLabel>
+                            <span>{item.metrics.budget}</span>
+                          </MetricItem>
+                          <MetricItem>
+                            <MetricLabel>난이도:</MetricLabel>
+                            <span>{item.metrics.difficulty}</span>
+                          </MetricItem>
+                        </MetricsList>
+                      )}
+                    </PreviewItem>
+                  ))
                 ) : (
                   <PreviewItem>추천 내용이 없습니다.</PreviewItem>
                 )}
