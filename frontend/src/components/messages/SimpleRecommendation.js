@@ -1,25 +1,17 @@
 import React from 'react';
 import styled from 'styled-components';
 
-const MetricItem = ({ label, value }) => (
-    <Metric>
-        <MetricLabel>{label}</MetricLabel>
-        <MetricValue>{value}</MetricValue>
-    </Metric>
-);
-
 const SimpleRecommendation = ({ recommendations }) => (
     <RecommendationList>
         {recommendations.map((rec, index) => (
             <RecommendationItem key={index}>
                 <Title>💡 {rec.title}</Title>
                 <Description>{rec.description}</Description>
-                {rec.metrics && (
-                    <MetricsGrid>
-                        <MetricItem label="예상 효과" value={rec.metrics.effect} />
-                        <MetricItem label="필요 예산" value={rec.metrics.budget} />
-                        <MetricItem label="난이도" value={rec.metrics.difficulty} />
-                    </MetricsGrid>
+                {rec.effect && (
+                    <EffectSection>
+                        <EffectLabel>기대 효과</EffectLabel>
+                        <EffectValue>{rec.effect}</EffectValue>
+                    </EffectSection>
                 )}
             </RecommendationItem>
         ))}
@@ -61,29 +53,22 @@ const Description = styled.p`
   white-space: pre-wrap;
 `;
 
-const MetricsGrid = styled.div`
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  gap: 12px;
-  padding-top: 12px;
-  border-top: 1px solid #f1f5f9;
-`;
-
-const Metric = styled.div`
+const EffectSection = styled.div`
   background-color: #f8f9fa;
-  padding: 10px;
+  padding: 12px 15px;
   border-radius: 8px;
+  border-left: 4px solid #0099ffff;
 `;
 
-const MetricLabel = styled.div`
-  font-size: 0.85em;
+const EffectLabel = styled.div`
+  font-size: 0.9em;
   font-weight: 600;
   color: #868e96;
-  margin-bottom: 4px;
+  margin-bottom: 6px;
 `;
 
-const MetricValue = styled.div`
-  font-size: 0.95em;
+const EffectValue = styled.div`
+  font-size: 1em;
   font-weight: 500;
   color: #212529;
 `;

@@ -90,24 +90,24 @@ const PreviewItem = styled.div`
   }
 `;
 
-const MetricsList = styled.ul`
+const InfoList = styled.ul`
   list-style: none;
   padding: 8px 0 0 12px;
   margin: 0;
   font-size: 0.85em;
 `;
 
-const MetricItem = styled.li`
+const InfoItem = styled.li`
   color: #495057;
   margin-bottom: 4px;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   &:last-child {
     margin-bottom: 0;
   }
 `;
 
-const MetricLabel = styled.span`
+const InfoLabel = styled.span`
   font-weight: 600;
   color: #343a40;
   margin-right: 6px;
@@ -163,12 +163,11 @@ const UtilizationDashboard = ({ data, fileName, onCategorySelect }) => {
       icon: "🏛️",
     },
     {
-      key: "combinationSuggestions",
-      title: "데이터 결합",
-      type: "combination",
-      icon: "🔗",
+      key: "socialProblemApplications", // ✅ 수정된 카테고리
+      title: "사회문제 해결",
+      type: "social_problem",
+      icon: "🤝",
     },
-    { key: "analysisTools", title: "분석 도구", type: "tools", icon: "🛠️" },
   ];
 
   const handleCategoryClick = (category) => {
@@ -204,22 +203,16 @@ const UtilizationDashboard = ({ data, fileName, onCategorySelect }) => {
                   items.slice(0, 2).map((item, idx) => (
                     <PreviewItem key={idx}>
                       <strong>• {item?.title || "제목 없음"}</strong>
-                      {item.metrics && (
-                        <MetricsList>
-                          <MetricItem>
-                            <MetricLabel>예상효과:</MetricLabel>
-                            <span>{item.metrics.effect}</span>
-                          </MetricItem>
-                          <MetricItem>
-                            <MetricLabel>필요예산:</MetricLabel>
-                            <span>{item.metrics.budget}</span>
-                          </MetricItem>
-                          <MetricItem>
-                            <MetricLabel>난이도:</MetricLabel>
-                            <span>{item.metrics.difficulty}</span>
-                          </MetricItem>
-                        </MetricsList>
-                      )}
+                      <InfoList>
+                        <InfoItem>
+                          <InfoLabel>활용방안:</InfoLabel>
+                          <span>{item.description}</span>
+                        </InfoItem>
+                        <InfoItem>
+                          <InfoLabel>기대효과:</InfoLabel>
+                          <span>{item.effect}</span>
+                        </InfoItem>
+                      </InfoList>
                     </PreviewItem>
                   ))
                 ) : (
