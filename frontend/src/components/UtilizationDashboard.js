@@ -26,7 +26,7 @@ const DashboardHeader = styled.div`
 
 const CategoriesGrid = styled.div`
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  grid-template-columns: repeat(2, 1fr); // 2x2 그리드로 수정
   gap: 12px;
 `;
 
