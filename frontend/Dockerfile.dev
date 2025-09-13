@@ -1,0 +1,12 @@
+FROM node:18-alpine
+
+WORKDIR /app
+
+# Copy package files to leverage Docker cache
+COPY package.json package-lock.json* ./
+
+# Install dependencies
+RUN npm install
+
+# The rest of the source code will be mounted as a volume
+# The container will run the command specified in docker-compose.yml
