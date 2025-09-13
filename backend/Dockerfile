@@ -1,29 +1,26 @@
-# Use an official OpenJDK runtime as a parent image
 FROM openjdk:21-jdk-slim
 
-# Set the working directory in the container
 WORKDIR /app
 
-# Copy the Gradle wrapper and build files to the container
-COPY gradlew .
-COPY gradle ./gradle
-COPY build.gradle .
+# Copy the root settings file, which defines the 'backend' subproject
 COPY settings.gradle .
 
-# Grant executable permissions to the Gradle wrapper
-RUN chmod +x ./gradlew
+# Copy the backend project's build files and wrapper to leverage Docker layer caching
+COPY backend/gradlew ./backend/
+COPY backend/gradle ./backend/gradle
+COPY backend/build.gradle ./backend/
 
-# Download dependencies. This will be cached if the build files don't change.
-RUN ./gradlew dependencies
+# Set permissions for the wrapper
+RUN chmod +x /app/backend/gradlew
 
-# Copy the rest of the application's source code
-COPY src ./src
+# Set the working directory to the subproject
+WORKDIR /app/backend
 
-# Build the application
-RUN ./gradlew build -x test
+# Download dependencies. This layer will be cached by Docker.
+# When source code changes, this layer won't be re-run.
+RUN ./gradlew dependencies --no-daemon
 
-# Expose the port the app runs on
-EXPOSE 8080
-
-# Specify the command to run on container startup
-ENTRYPOINT ["java", "-jar", "build/libs/oda-0.0.1-SNAPSHOT.jar"]
+# The entrypoint is not strictly necessary for dev mode, but good practice
+# It will be overridden by the command in docker-compose.yml
+WORKDIR /app
+ENTRYPOINT ["java", "-jar", "backend/build/libs/oda-0.0.1-SNAPSHOT.jar"]
