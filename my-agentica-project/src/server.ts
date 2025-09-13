@@ -5,13 +5,16 @@ import { DataDownloaderService } from "./services/DataDownloaderService";
 import { DataAnalysisService } from "./services/DataAnalysisService";
 import * as fs from "fs/promises";
 import * as path from "path";
+import {DEFAULT_GEMINI_MODEL, openaiClient} from "./lib/aiClient";
 
 dotenv.config();
 
 const app = express();
 const port = process.env.PORT || 3001;
-const publicDataService = new PublicDataService();
-
+const publicDataService = new PublicDataService({
+  llm: openaiClient,
+  model: DEFAULT_GEMINI_MODEL,
+});
 // 미들웨어 설정
 app.use(express.json());
 
