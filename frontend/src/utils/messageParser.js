@@ -1,8 +1,6 @@
 // src/utils/messageParser.js
 
 // 내부 헬퍼: 다양한 래핑을 단일 포맷으로 정규화
-// src/utils/messageParser.js
-
 function normalizeUtilizationPayload(content) {
   // unwrap 최대 3회까지 방어적으로 벗겨보기
   let node = content;
@@ -21,6 +19,7 @@ function normalizeUtilizationPayload(content) {
       "policyApplications",
       "combinationSuggestions",
       "analysisTools",
+      "socialProblemApplications"
     ].some((k) => keys.includes(k));
     if (hasCategories) {
       return { success: true, data: node };
@@ -29,12 +28,15 @@ function normalizeUtilizationPayload(content) {
 
   return null;
 }
+// src/utils/messageParser.js
 
 export const parseBotMessage = (content, metadata = {}) => {
   const messageObject = {
     id: metadata.id || Date.now(),
     sender: "bot",
   };
+
+  console.log("🔧 parseBotMessage 시작:", content);
 
   // 문자열이면 JSON 시도
   if (typeof content === "string") {
@@ -51,8 +53,9 @@ export const parseBotMessage = (content, metadata = {}) => {
   const normalized = normalizeUtilizationPayload(content);
   if (normalized) {
     messageObject.type = "utilization-dashboard";
-    messageObject.data = normalized; // 항상 { success:true, data:{카테고리들} } 형태로 전달
+    messageObject.data = normalized;
     messageObject.fileName = metadata.lastDataName;
+    console.log("✅ utilization-dashboard 파싱 완료");
     return messageObject;
   }
 
@@ -60,11 +63,45 @@ export const parseBotMessage = (content, metadata = {}) => {
   if (content && content.type) {
     switch (content.type) {
       case "simple_recommendation":
+        console.log("🔧 simple_recommendation 파싱:", content.recommendations);
         messageObject.type = "simple_recommendation";
         messageObject.recommendations = Array.isArray(content.recommendations)
-          ? content.recommendations
-          : [content.recommendations].filter(Boolean);
+            ? content.recommendations
+            : [content.recommendations].filter(Boolean);
+        console.log("✅ simple_recommendation 파싱 완료:", messageObject.recommendations);
         return messageObject;
+
+        // 🔧 미리 정의된 분석 타입들 - 수정된 버전
+      case "business":
+      case "research":
+      case "policy":
+      case "social_problem":
+        console.log(`🔧 ${content.type} 타입 원본:`, content);
+
+        // ✅ recommendations 필드에서 실제 배열 추출 후 변환
+        let rawRecommendations = content.recommendations || [];
+
+        // 배열이 아닌 경우 배열로 변환
+        if (!Array.isArray(rawRecommendations)) {
+          rawRecommendations = [rawRecommendations].filter(Boolean);
+        }
+
+        // description을 content로 변환
+        const convertedRecommendations = rawRecommendations.map(rec => {
+          console.log(`🔧 개별 추천 변환:`, rec);
+          return {
+            title: rec.title,
+            content: rec.description || rec.content,
+            effect: rec.effect
+          };
+        });
+
+        messageObject.type = "simple_recommendation";
+        messageObject.recommendations = convertedRecommendations;
+        console.log(`✅ ${content.type} 최종 변환:`, messageObject.recommendations);
+        return messageObject;
+
+        // 나머지 케이스들...
       case "search_results":
         messageObject.type = "search_results";
         messageObject.data = content.payload;
@@ -92,16 +129,18 @@ export const parseBotMessage = (content, metadata = {}) => {
         messageObject.data = content;
         return messageObject;
       default:
+        console.warn("⚠️ 알 수 없는 타입:", content.type);
         messageObject.type = "text";
         messageObject.text =
-          "알 수 없는 형식의 응답입니다:\n" + JSON.stringify(content, null, 2);
+            "알 수 없는 형식의 응답입니다:\n" + JSON.stringify(content, null, 2);
         return messageObject;
     }
   }
 
   // --- 기타 객체는 안전하게 텍스트로 ---
+  console.warn("⚠️ 기타 객체를 텍스트로 처리:", content);
   messageObject.type = "text";
   messageObject.text =
-    "알 수 없는 형식의 응답입니다:\n" + JSON.stringify(content, null, 2);
+      "알 수 없는 형식의 응답입니다:\n" + JSON.stringify(content, null, 2);
   return messageObject;
 };

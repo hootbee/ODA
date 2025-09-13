@@ -58,15 +58,17 @@ const MessageBody = ({ message, onCategorySelect }) => {
       return <HelpMessage />;
     case "error":
       return <ErrorMessage>{message.text}</ErrorMessage>;
-    case "simple_recommendation":
-      return (
-        <>
-          <SimpleRecommendation recommendations={message.recommendations} />
-          <TipMessage>
-            💡 다른 데이터 조회를 원하시면 '다른 데이터 활용'을 입력하세요.
-          </TipMessage>
-        </>
-      );
+      case "simple_recommendation":
+          console.log("🔧 MessageBody에서 simple_recommendation 처리:", message);
+          console.log("🔧 message.recommendations:", message.recommendations);
+          return (
+              <>
+                  <SimpleRecommendation recommendations={message.recommendations} />
+                  <TipMessage>
+                      💡 다른 데이터 조회를 원하시면 '다른 데이터 활용'을 입력하세요.
+                  </TipMessage>
+              </>
+          );
     case "data_analysis":
       return (
         <>
