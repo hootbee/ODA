@@ -1,6 +1,7 @@
 package com.example.oda.prompt;
 
 import com.example.oda.prompt.dto.QueryPlanDto;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -16,6 +17,7 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 @Service
+@Slf4j
 public class QueryPlannerServiceImpl implements QueryPlannerService {
 
     // 도메인 키워드 매핑을 Set으로 (중복 제거 + contains O(1))
@@ -38,6 +40,9 @@ public class QueryPlannerServiceImpl implements QueryPlannerService {
 
     @Override
     public QueryPlanDto createQueryPlan(String prompt) {
+        log.info("===== Query Plan 생성 시작: 원본 프롬프트 =====\n{}", prompt);
+        long startTime = System.currentTimeMillis();
+
         String majorCategory = extractMajorCategory(prompt);
         List<String> keywords = extractKeywords(prompt);
         Integer searchYear = extractYear(prompt);
@@ -45,21 +50,30 @@ public class QueryPlannerServiceImpl implements QueryPlannerService {
         boolean hasDateFilter = hasDateRelatedTerms(prompt);
         int limit = extractLimit(prompt);
 
-        return new QueryPlanDto(majorCategory, keywords, searchYear, providerAgency, hasDateFilter, limit);
+        QueryPlanDto plan = new QueryPlanDto(majorCategory, keywords, searchYear, providerAgency, hasDateFilter, limit);
+
+        long endTime = System.currentTimeMillis();
+        log.info("===== Query Plan 생성 완료 ({}ms 소요) =====\n{}", (endTime - startTime), plan);
+
+        return plan;
     }
 
     private int extractLimit(String prompt) {
         String lowerPrompt = prompt.toLowerCase();
-        Pattern pattern = Pattern.compile("(\\d+)\\s*개"); // \\d, \\s
+        Pattern pattern = Pattern.compile("(\\d+)\\s*개"); // \d, \s
         Matcher matcher = pattern.matcher(prompt);
+        int limit = 12; // Default
         if (matcher.find()) {
             try {
-                return Integer.parseInt(matcher.group(1));
+                limit = Integer.parseInt(matcher.group(1));
             } catch (NumberFormatException ignored) {}
+        } else if (lowerPrompt.contains("많이")) {
+            limit = 20;
+        } else if (lowerPrompt.contains("간단히") || lowerPrompt.contains("요약")) {
+            limit = 5;
         }
-        if (lowerPrompt.contains("많이")) return 20;
-        if (lowerPrompt.contains("간단히") || lowerPrompt.contains("요약")) return 5;
-        return 12;
+        log.debug("[QueryPlan] Limit 추출: {}개", limit);
+        return limit;
     }
 
     private String extractMajorCategory(String prompt) {
@@ -74,7 +88,9 @@ public class QueryPlannerServiceImpl implements QueryPlannerService {
                 bestMatch = entry.getKey();
             }
         }
-        return bestMatch != null ? bestMatch : "기타";
+        String result = bestMatch != null ? bestMatch : "기타";
+        log.debug("[QueryPlan] Major Category 추출: {} (점수: {})", result, highestScore);
+        return result;
     }
 
     private List<String> extractKeywords(String prompt) {
@@ -84,7 +100,9 @@ public class QueryPlannerServiceImpl implements QueryPlannerService {
         all.addAll(extractYears(prompt));
         all.addAll(extractGeneralKeywords(prompt, all)); // excludeWords 역할
 
-        return all.stream().map(String::trim).filter(s -> !s.isEmpty()).distinct().collect(Collectors.toList());
+        List<String> finalKeywords = all.stream().map(String::trim).filter(s -> !s.isEmpty()).distinct().collect(Collectors.toList());
+        log.debug("[QueryPlan] 최종 키워드 추출: {}", finalKeywords);
+        return finalKeywords;
     }
 
     private List<String> extractDomainKeywords(String prompt) {
@@ -108,6 +126,7 @@ public class QueryPlannerServiceImpl implements QueryPlannerService {
                 }
             }
         }
+        log.debug("[QueryPlan] 도메인 키워드 추출: {}", found);
         return found;
     }
 
@@ -116,11 +135,13 @@ public class QueryPlannerServiceImpl implements QueryPlannerService {
                 "서울","부산","대구","인천","광주","대전","울산","세종",
                 "경기","강원","충북","충남","전북","전남","경북","경남","제주","서구"
         );
-        return regions.stream().filter(prompt::contains).distinct().collect(Collectors.toList());
+        List<String> found = regions.stream().filter(prompt::contains).distinct().collect(Collectors.toList());
+        log.debug("[QueryPlan] 지역 키워드 추출: {}", found);
+        return found;
     }
 
     private List<String> extractYears(String prompt) {
-        Pattern pattern = Pattern.compile("(\\d{4})"); // \\d
+        Pattern pattern = Pattern.compile("(\\d{4})"); // \d
         Matcher matcher = pattern.matcher(prompt);
         List<String> years = new ArrayList<>();
         while (matcher.find()) {
@@ -131,7 +152,10 @@ public class QueryPlannerServiceImpl implements QueryPlannerService {
         if (prompt.contains("작년")) years.add(String.valueOf(currentYear - 1));
         if (prompt.contains("올해") || prompt.contains("금년") || prompt.contains("최근") || prompt.contains("최신"))
             years.add(String.valueOf(currentYear));
-        return years.stream().distinct().collect(Collectors.toList());
+
+        List<String> found = years.stream().distinct().collect(Collectors.toList());
+        log.debug("[QueryPlan] 연도 키워드 추출: {}", found);
+        return found;
     }
 
     private List<String> extractGeneralKeywords(String prompt, List<String> excludeWords) {
@@ -149,27 +173,33 @@ public class QueryPlannerServiceImpl implements QueryPlannerService {
                 .replaceAll("[의가을를에서와과년]", " ")
                 .replaceAll("[^\\p{L}\\p{N}\\s]", " ");
 
-        return Arrays.stream(cleaned.split("\\s+")) // \\s+
+        List<String> found = Arrays.stream(cleaned.split("\s+")) // \s+
                 .map(String::trim)
                 .filter(s -> s.length() >= 2)
                 .filter(s -> !stop.contains(s))
                 .distinct()
                 .limit(3)
                 .collect(Collectors.toList());
+        log.debug("[QueryPlan] 일반 키워드 추출 (제외단어: {}): {}", excludeWords, found);
+        return found;
     }
 
     private Integer extractYear(String prompt) {
-        Pattern pattern = Pattern.compile("(\\d{4})"); // \\d
+        Pattern pattern = Pattern.compile("(\\d{4})"); // \d
         Matcher matcher = pattern.matcher(prompt);
+        Integer year = null;
         if (matcher.find()) {
-            int year = Integer.parseInt(matcher.group(1));
-            if (year >= 2000 && year <= 2035) return year;
+            int parsedYear = Integer.parseInt(matcher.group(1));
+            if (parsedYear >= 2000 && parsedYear <= 2035) year = parsedYear;
         }
-        int currentYear = Calendar.getInstance().get(Calendar.YEAR);
-        if (prompt.contains("작년")) return currentYear - 1;
-        if (prompt.contains("올해") || prompt.contains("금년") || prompt.contains("최근") || prompt.contains("최신"))
-            return currentYear;
-        return null;
+        if (year == null) {
+            int currentYear = Calendar.getInstance().get(Calendar.YEAR);
+            if (prompt.contains("작년")) year = currentYear - 1;
+            else if (prompt.contains("올해") || prompt.contains("금년") || prompt.contains("최근") || prompt.contains("최신"))
+                year = currentYear;
+        }
+        log.debug("[QueryPlan] 검색 연도 추출: {}", year);
+        return year;
     }
 
     private String extractAgency(String prompt) {
@@ -193,16 +223,24 @@ public class QueryPlannerServiceImpl implements QueryPlannerService {
         agencies.put("경남", "경상남도");
         agencies.put("제주", "제주특별자치도");
 
+        String agency = "기타기관";
         for (Map.Entry<String, String> e : agencies.entrySet()) {
-            if (lower.contains(e.getKey())) return e.getValue();
+            if (lower.contains(e.getKey())) {
+                agency = e.getValue();
+                break;
+            }
         }
-        return "기타기관";
+        log.debug("[QueryPlan] 제공 기관 추출: {}", agency);
+        return agency;
     }
 
     private boolean hasDateRelatedTerms(String prompt) {
         List<String> dateTerms = Arrays.asList(
                 "최근","최신","2023","2024","2025","작년","올해","업데이트","갱신","신규","새로운","최근 몇 년","최근 몇개월"
         );
-        return dateTerms.stream().anyMatch(prompt::contains);
+        boolean hasDateTerm = dateTerms.stream().anyMatch(prompt::contains);
+        log.debug("[QueryPlan] 날짜 관련 키워드 포함 여부: {}", hasDateTerm);
+        return hasDateTerm;
     }
 }
+

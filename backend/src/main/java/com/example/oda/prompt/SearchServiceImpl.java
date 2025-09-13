@@ -54,43 +54,48 @@ public class SearchServiceImpl implements SearchService {
 
     @Override
     public List<PublicData> searchAndFilterData(List<String> keywords, String majorCategory) {
+        log.info("🔍 검색 시작 - 키워드: {}, 카테고리: {}", keywords, majorCategory);
+
         List<PublicData> allResults = new ArrayList<>();
         for (String keyword : keywords) {
+            log.info("🔍 키워드 '{}' 개별 검색 시작", keyword);
+
             Set<PublicData> keywordResults = new HashSet<>();
-            if (isRegionKeyword(keyword)) {
-                log.info("지역 키워드 '{}' 감지 - 우선 검색 적용", keyword);
-                keywordResults.addAll(publicDataRepository.findByProviderAgencyContainingIgnoreCase(keyword));
-                keywordResults.addAll(publicDataRepository.findByFileDataNameContainingIgnoreCase(keyword));
-                if (keywordResults.size() < 10) {
-                    keywordResults.addAll(publicDataRepository.findByKeywordsContainingIgnoreCase(keyword));
-                    keywordResults.addAll(publicDataRepository.findByTitleContainingIgnoreCase(keyword));
-                    keywordResults.addAll(publicDataRepository.findByDescriptionContainingIgnoreCase(keyword));
-                }
-            } else {
-                try {
-                    keywordResults.addAll(publicDataRepository.findByKeywordsContainingIgnoreCase(keyword));
-                    keywordResults.addAll(publicDataRepository.findByTitleContainingIgnoreCase(keyword));
-                    keywordResults.addAll(publicDataRepository.findByProviderAgencyContainingIgnoreCase(keyword));
-                    keywordResults.addAll(publicDataRepository.findByFileDataNameContainingIgnoreCase(keyword));
-                    keywordResults.addAll(publicDataRepository.findByDescriptionContainingIgnoreCase(keyword));
-                } catch (Exception e) {
-                    log.error("키워드 '{}' 검색 중 오류 발생: {}", keyword, e.getMessage());
-                    continue;
-                }
+
+            // 각 검색 메소드별 상세 로깅
+            try {
+                List<PublicData> providerResults = publicDataRepository.findByProviderAgencyContainingIgnoreCase(keyword);
+                log.info("  - 제공기관 검색 '{}': {}개", keyword, providerResults.size());
+                keywordResults.addAll(providerResults);
+
+                List<PublicData> nameResults = publicDataRepository.findByFileDataNameContainingIgnoreCase(keyword);
+                log.info("  - 파일명 검색 '{}': {}개", keyword, nameResults.size());
+                keywordResults.addAll(nameResults);
+
+                List<PublicData> titleResults = publicDataRepository.findByTitleContainingIgnoreCase(keyword);
+                log.info("  - 제목 검색 '{}': {}개", keyword, titleResults.size());
+                keywordResults.addAll(titleResults);
+
+                List<PublicData> keywordSearchResults = publicDataRepository.findByKeywordsContainingIgnoreCase(keyword);
+                log.info("  - 키워드 필드 검색 '{}': {}개", keyword, keywordSearchResults.size());
+                keywordResults.addAll(keywordSearchResults);
+
+                List<PublicData> descResults = publicDataRepository.findByDescriptionContainingIgnoreCase(keyword);
+                log.info("  - 설명 검색 '{}': {}개", keyword, descResults.size());
+                keywordResults.addAll(descResults);
+
+            } catch (Exception e) {
+                log.error("키워드 '{}' 검색 중 오류: {}", keyword, e.getMessage(), e);
             }
 
-            if (majorCategory != null && !"일반공공행정".equals(majorCategory)) {
-                keywordResults = keywordResults.stream()
-                        .filter(publicData -> publicData != null &&
-                                publicData.getClassificationSystem() != null &&
-                                publicData.getClassificationSystem().toUpperCase().contains(majorCategory.toUpperCase()))
-                        .collect(Collectors.toSet());
-            }
+            log.info("키워드 '{}' 최종 결과: {}개", keyword, keywordResults.size());
             allResults.addAll(keywordResults);
-            log.info("키워드 '{}' 검색 결과: {}개", keyword, keywordResults.size());
         }
+
+        log.info("🔍 전체 검색 결과: {}개", allResults.size());
         return allResults;
     }
+
 
     @Override
     public List<PublicData> deduplicateResults(List<PublicData> allResults) {
