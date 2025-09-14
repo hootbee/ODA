@@ -190,8 +190,8 @@ const UtilizationDashboard = ({ data, fileName, onCategorySelect }) => {
             : [];
           return (
             <CategoryCard
-              key={cat.key}
-              onClick={() => handleCategoryClick(cat)}
+              // key={cat.key}
+              // onClick={() => handleCategoryClick(cat)}
             >
               <CategoryHeader>
                 <CategoryIcon>{cat.icon}</CategoryIcon>
