@@ -15,19 +15,19 @@ export class DataUtilizationService {
 
   // ===== 프롬프트 구성 =====
   private buildFullAnalysisPrompt(dataInfo: any): Record<string, string> {
-    const base = `데이터 정보: ${JSON.stringify(dataInfo)}
-각 분석 유형에서 데이터 활용 아이디어 2개씩 JSON 배열로 제시하세요.
-반드시 아래 포맷을 따르세요:
+    const format = `출력은 반드시 JSON 배열:
 [
-  {"title":"아이디어 제목","description":"간략 설명","effect":"기대 효과"}
+  {"title":"제목","description":"짧은 설명","effect":"기대 효과"}
 ]`;
+
     return {
-      business: `비즈니스 관점에서 ${base}`,
-      research: `연구 관점에서 ${base}`,
-      policy: `정책 관점에서 ${base}`,
-      social_problem: `사회문제 해결 관점에서 ${base}`,
+      business: `비즈니스 관점에서 데이터 활용 아이디어 2개. 데이터: ${JSON.stringify(dataInfo)}. ${format}`,
+      research: `연구 관점에서 데이터 활용 아이디어 2개. 데이터: ${JSON.stringify(dataInfo)}. ${format}`,
+      policy: `정책 관점에서 데이터 활용 아이디어 2개. 데이터: ${JSON.stringify(dataInfo)}. ${format}`,
+      social_problem: `사회문제 해결 관점에서 데이터 활용 아이디어 2개. 데이터: ${JSON.stringify(dataInfo)}. ${format}`,
     };
   }
+
 
   private buildPredefinedSinglePrompt(dataInfo: any, analysisType: string): string {
     const typeMap = {

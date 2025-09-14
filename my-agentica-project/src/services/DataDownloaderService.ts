@@ -4,21 +4,15 @@ import * as path from "path";
 import axios, { AxiosInstance } from "axios";
 
 export class DataDownloaderService {
-  /**
-   * 데모: 소상공인 상가(상권)정보 다운로드 (파일로 저장)
-   */
-  public async downloadStoreInfoData(savePath: string): Promise<void> {
-    const publicDataPk = "3074462";
-    await this.downloadDataFile(publicDataPk, savePath);
-  }
 
   /**
    * [파일 저장용] publicDataPk를 기반으로 파일을 다운로드하여 지정된 경로에 저장합니다.
+   * @returns 최종 저장된 파일의 절대 경로
    */
   public async downloadDataFile(
-    publicDataPk: string,
-    savePath: string,
-    opts?: { fileDetailSn?: number }
+      publicDataPk: string,
+      savePath: string,
+      opts?: { fileDetailSn?: number }
   ): Promise<string> {
     const { buffer, fileName } = await this.downloadCore(publicDataPk, opts);
 
@@ -37,33 +31,32 @@ export class DataDownloaderService {
    * [메모리 처리용] publicDataPk를 기반으로 파일을 다운로드하여 Buffer 객체로 반환합니다.
    */
   public async downloadDataFileAsBuffer(
-    publicDataPk: string,
-    opts?: { fileDetailSn?: number }
+      publicDataPk: string,
+      opts?: { fileDetailSn?: number }
   ): Promise<{ buffer: Buffer; fileName: string; contentType: string }> {
     return this.downloadCore(publicDataPk, opts);
   }
 
   /**
-   * 다운로드 핵심 로직을 처리하는 비공개(private) 메소드
+   * 다운로드 핵심 로직
    */
   private async downloadCore(
-    publicDataPk: string,
-    opts?: { fileDetailSn?: number }
+      publicDataPk: string,
+      opts?: { fileDetailSn?: number }
   ): Promise<{ buffer: Buffer; fileName: string; contentType: string }> {
-    // 간단한 axios 클라이언트 사용 (쿠키 지원 없음)
     const client = axios.create({
       timeout: 30000,
       maxRedirects: 5,
       validateStatus: () => true,
       headers: {
         "User-Agent":
-          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36",
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36",
         "Accept-Language": "ko,en;q=0.9",
       },
     });
 
     const referer = `https://www.data.go.kr/data/${encodeURIComponent(
-      publicDataPk
+        publicDataPk
     )}/fileData.do?recommendDataYn=Y`;
 
     // 1) 상세페이지 (세션 확보)
@@ -74,16 +67,16 @@ export class DataDownloaderService {
 
     // 2) checkFileType.do
     await client.get(
-      `https://www.data.go.kr/tcs/dss/checkFileType.do?publicDataPk=${encodeURIComponent(
-        publicDataPk
-      )}`,
-      {
-        headers: {
-          Referer: referer,
-          "X-Requested-With": "XMLHttpRequest",
-        },
-        responseType: "text",
-      }
+        `https://www.data.go.kr/tcs/dss/checkFileType.do?publicDataPk=${encodeURIComponent(
+            publicDataPk
+        )}`,
+        {
+          headers: {
+            Referer: referer,
+            "X-Requested-With": "XMLHttpRequest",
+          },
+          responseType: "text",
+        }
     );
 
     // 3) 메타(JSON) 확보
@@ -97,17 +90,15 @@ export class DataDownloaderService {
     }
 
     console.log(
-      `- 메타 확인: atchFileId=${meta.atchFileId}, fileSn=${
-        meta.fileSn
-      }, uddi=${meta.uddi ?? "-"}, name=${meta.orgFileNm ?? "-"}`
+        `- 메타 확인: atchFileId=${meta.atchFileId}, fileSn=${meta.fileSn}, uddi=${meta.uddi ?? "-"}, name=${meta.orgFileNm ?? "-"}`
     );
 
     // 4) 직다운 엔드포인트
     const directUrl = `https://www.data.go.kr/cmm/cmm/fileDownload.do?${new URLSearchParams(
-      {
-        atchFileId: meta.atchFileId,
-        fileSn: String(meta.fileSn),
-      }
+        {
+          atchFileId: meta.atchFileId,
+          fileSn: String(meta.fileSn),
+        }
     ).toString()}`;
 
     console.log(`- 직다운 시도: ${directUrl}`);
@@ -118,7 +109,7 @@ export class DataDownloaderService {
 
     const buffer = Buffer.from(res.data);
     const contentType = String(
-      res.headers["content-type"] || "application/octet-stream"
+        res.headers["content-type"] || "application/octet-stream"
     ).toLowerCase();
 
     // 5) 파일명 결정
@@ -126,8 +117,8 @@ export class DataDownloaderService {
     if (!fileName) {
       const cd = String(res.headers["content-disposition"] || "");
       fileName =
-        getFilenameFromContentDisposition(cd) ||
-        `downloaded-file-${publicDataPk}`;
+          getFilenameFromContentDisposition(cd) ||
+          `downloaded-file-${publicDataPk}`;
     }
 
     console.log(`✅ 다운로드 완료 (버퍼): ${fileName}`);
@@ -138,10 +129,10 @@ export class DataDownloaderService {
    * selectFileDataDownload.do 순회 → atchFileId, fileSn, UDDI 추적
    */
   private async fetchFileMeta(
-    client: AxiosInstance,
-    referer: string,
-    publicDataPk: string,
-    opt: { startSn: number; maxSn: number }
+      client: AxiosInstance,
+      referer: string,
+      publicDataPk: string,
+      opt: { startSn: number; maxSn: number }
   ): Promise<{
     atchFileId: string;
     fileSn: number;
@@ -152,7 +143,7 @@ export class DataDownloaderService {
 
     const tryOne = async (sn: number) => {
       const url = `${base}?publicDataPk=${encodeURIComponent(
-        publicDataPk
+          publicDataPk
       )}&fileDetailSn=${sn}`;
       const res = await client.get(url, {
         headers: {
@@ -170,12 +161,12 @@ export class DataDownloaderService {
           const d = json?.dataSetFileDetailInfo ?? {};
           const r = json?.fileDataRegistVO ?? {};
           const atch =
-            r?.atchFileId || json?.atchFileId || d?.atchFileId || null;
+              r?.atchFileId || json?.atchFileId || d?.atchFileId || null;
           const fileSn =
-            Number(d?.fileDetailSn || json?.fileDetailSn || sn) || sn;
+              Number(d?.fileDetailSn || json?.fileDetailSn || sn) || sn;
           const org = r?.orginlFileNm || d?.orginlFileNm || undefined;
           const uddi =
-            d?.publicDataDetailPk || json?.publicDataDetailPk || undefined;
+              d?.publicDataDetailPk || json?.publicDataDetailPk || undefined;
 
           if (atch) {
             return { atchFileId: atch, fileSn, orgFileNm: org, uddi };
@@ -206,8 +197,8 @@ function getFilenameFromContentDisposition(cd: string): string | null {
     } catch {}
   }
   const normal =
-    cd.match(/filename\s*=\s*"([^"]+)"/i) ||
-    cd.match(/filename\s*=\s*([^;]+)/i);
+      cd.match(/filename\s*=\s*"([^"]+)"/i) ||
+      cd.match(/filename\s*=\s*([^;]+)/i);
   if (normal) {
     return normal[1].trim().replace(/^"|"$/g, "");
   }
