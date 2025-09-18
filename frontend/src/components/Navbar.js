@@ -25,7 +25,7 @@ const Popup = ({ handleClose }) => {
               <FaInfoCircle /> 프로그램 소개
             </SectionTitle>
             <p>
-              ODA는 Open Data Agent의 약자로, 공공 데이터를 찾고 분석 및
+              JDK는 Jeonbuk Data Knower의 약자로, 전라북도 내 공공 데이터를 찾고 분석 및
               활용하는 것을 돕는 AI 챗봇입니다.
             </p>
           </Section>
@@ -35,7 +35,7 @@ const Popup = ({ handleClose }) => {
             </SectionTitle>
             <OrderedList>
               <li>
-                원하는 공공 데이터를 질문해보세요. (예: "서울시 교통 데이터 보여줘")
+                원하는 공공 데이터를 질문해보세요. (예: "전주시 교통 데이터 보여줘")
               </li>
               <li>
                 챗봇이 찾아준 데이터의 '[파일명] 자세히' 또는 '[파일명] 상세정보'를 요청하여 데이터를 더 깊게 확인할 수 있습니다.
@@ -90,8 +90,8 @@ const Navbar = () => {
         <NavLinks>
           <NavLink to="/">
             <LogoImage
-              src={`${process.env.PUBLIC_URL}/ODA_logo.png`}
-              alt="ODA Logo"
+              src={`${process.env.PUBLIC_URL}/JDK_logo.png`}
+              alt="JDK Logo"
             />
           </NavLink>
           <StyledLink to="/chat">Chat</StyledLink>
@@ -151,11 +151,11 @@ const StyledLink = styled(NavLink)`
   font-family: "Poppins", sans-serif;
 
   &:hover {
-    color: #0099ffff;
+    color: #e93388ff;
   }
 
   &.active {
-    color: #0099ffff;
+    color: #e93388ff;
     font-weight: 700;
   }
 `;
@@ -192,7 +192,7 @@ const HelpButton = styled.button`
   font-size: 1em;
 
   &:hover {
-    color: #0099ffff;
+    color: #e93388ff;
   }
 `;
 
@@ -227,14 +227,14 @@ const PopupHeader = styled.div`
   align-items: center;
   padding: 0 1.5rem;
   height: 60px;
-  border-bottom: 1px solid #e9ecef;
+  border-bottom: 1px solid #efe9ebff;
   flex-shrink: 0;
   box-sizing: border-box;
 
   h2 {
     margin: 0;
     font-size: 1.2rem;
-    color: #2c3e50;
+    color: #502c3aff;
   }
 `;
 
@@ -245,7 +245,7 @@ const CloseButton = styled.button`
   background: none;
   border: none;
   font-size: 1.5rem;
-  color: #868e96;
+  color: #96868cff;
   cursor: pointer;
   padding: 5px;
   line-height: 1;
@@ -256,7 +256,7 @@ const CloseButton = styled.button`
   justify-content: center;
 
   &:hover {
-    color: #2c3e50;
+    color: #502c3aff;
   }
 `;
 
@@ -264,7 +264,7 @@ const PopupContent = styled.div`
   padding: 1.5rem;
   overflow-y: auto;
   text-align: left;
-  color: #495057;
+  color: #57494eff;
 
   p {
     line-height: 1.6;
@@ -284,7 +284,7 @@ const SectionTitle = styled.h3`
   align-items: center;
   gap: 0.75rem;
   font-size: 1.1rem;
-  color: #34495e;
+  color: #5e3446ff;
   margin: 0 0 1rem 0;
 `;
 
@@ -307,8 +307,8 @@ const CommandList = styled.ul`
 
   code {
     display: inline-block;
-    background-color: #eaf4ff;
-    color: #3b82f6;
+    background-color: #ffeaf2ff;
+    color: #f63b83ff;
     padding: 4px 8px;
     border-radius: 5px;
     font-size: 0.95em;
