@@ -46,17 +46,17 @@ const ResultsList = styled.ol`
 
 const ResultItem = styled.li`
   counter-increment: result-counter;
-  background: #f9fafb;
-  border: 1px solid #e5e7eb;
+  background: #fbf9faff;
+  border: 1px solid #ebe5e7ff;
   padding: 12px;
   border-radius: 8px;
   margin-bottom: 8px;
   font-size: 0.95em;
-  color: #374151;
+  color: #513742ff;
   &::before {
     content: counter(result-counter) ". ";
     font-weight: 600;
-    color: #0099ffff;
+    color: #f63b83ff;
     margin-right: 8px;
   }
 `;

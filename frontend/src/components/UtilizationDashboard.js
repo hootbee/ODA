@@ -3,7 +3,7 @@ import React from "react";
 import styled from "styled-components";
 
 const DashboardContainer = styled.div`
-  background: #e9e9eb;
+  background: #ebe9eaff;
   border-radius: 20px;
   padding: 16px;
   margin: 8px 0;
@@ -98,7 +98,7 @@ const InfoList = styled.ul`
 `;
 
 const InfoItem = styled.li`
-  color: #495057;
+  color: #57494dff;
   margin-bottom: 4px;
   display: flex;
   align-items: flex-start;
@@ -109,7 +109,7 @@ const InfoItem = styled.li`
 
 const InfoLabel = styled.span`
   font-weight: 600;
-  color: #343a40;
+  color: #403438ff;
   margin-right: 6px;
   flex-shrink: 0;
 `;

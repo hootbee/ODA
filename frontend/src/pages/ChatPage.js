@@ -15,7 +15,7 @@ const initialMessages = [
   { id: 1, text: "안녕하세요! 무엇을 도와드릴까요?", sender: "bot" },
   {
     id: 2,
-    text: "저는 공공 데이터를 쉽게 찾고 활용할 수 있도록 돕는 AI 챗봇입니다.\n\n예) '부산시 주차장 데이터 보여줘'",
+    text: "저는 공공 데이터를 쉽게 찾고 활용할 수 있도록 돕는 AI 챗봇입니다.\n\n예) '전주시 주차장 데이터 보여줘'",
     sender: "bot",
   },
 ];
@@ -331,7 +331,7 @@ export default function ChatPage() {
 const Container = styled.div`
   display: flex;
   height: 100vh;
-  background: #f0f2f5;
+  background: #f5f0f2ff;
   font-family: sans-serif;
 `;
 
@@ -391,7 +391,7 @@ const HeaderContent = styled.div`
   display: flex;
   align-items: center;
   gap: 10px;
-  color: #2c3e50;
+  color: #502c3cff;
   font-weight: 500;
   font-size: 0.9rem;
   overflow: hidden;
@@ -408,7 +408,7 @@ const ResetButton = styled.button`
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #868e96;
+  color: #96868eff;
   cursor: pointer;
   transition: all 0.2s;
   flex-shrink: 0;
@@ -416,7 +416,7 @@ const ResetButton = styled.button`
 
   &:hover {
     background: rgba(0, 0, 0, 0.1);
-    color: #2c3e50;
+    color: #502c39ff;
   }
 `;
 
@@ -434,9 +434,9 @@ const ScrollButton = styled.button`
   width: 44px;
   height: 44px;
   border-radius: 50%;
-  border: 1px solid #e0e9ff;
+  border: 1px solid #ffe0ecff;
   background-color: #ffffff;
-  color: #4a5568;
+  color: #684a54ff;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
   cursor: pointer;
   display: flex;
@@ -450,7 +450,7 @@ const ScrollButton = styled.button`
   transform: ${(p) => (p.visible ? "scale(1)" : "scale(0.5)")};
 
   &:hover {
-    background-color: #0099ffff;
+    background-color: #f63b83ff;
     color: white;
   }
 `;

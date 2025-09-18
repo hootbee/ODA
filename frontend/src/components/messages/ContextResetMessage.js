@@ -20,7 +20,7 @@ const StyledMessage = styled.div`
   width: 100%;
   max-width: 100%;
   align-self: center;
-  p { font-weight: 600; font-size: 1.05em; color: #513743ff; margin: 0 0 8px 0; }
-  span { font-size: 0.95em; color: #806b74ff; display: block; margin-bottom: 10px; }
-  small { font-size: 0.9em; color: #af9ca4ff; }
+  p { font-weight: 600; font-size: 1.05em; color: #513740ff; margin: 0 0 8px 0; }
+  span { font-size: 0.95em; color: #806b71ff; display: block; margin-bottom: 10px; }
+  small { font-size: 0.9em; color: #af9ca1ff; }
 `;
