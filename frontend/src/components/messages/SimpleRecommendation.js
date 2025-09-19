@@ -1,5 +1,6 @@
 import React from 'react';
 import styled from 'styled-components';
+import ReactMarkdown from 'react-markdown';
 
 const SimpleRecommendation = (props) => {
     const { recommendations } = props;
@@ -59,7 +60,9 @@ const SimpleRecommendation = (props) => {
                     <RecommendationItem key={index}>
                         <Title>💡 {rec.title || `제목 없음 ${index + 1}`}</Title>
                         <Description>
-                            {rec.content || rec.description || "내용이 없습니다."}
+                            <ReactMarkdown>
+                                {rec.content || rec.description || "내용이 없습니다."}
+                            </ReactMarkdown>
                         </Description>
                         {rec.effect && (
                             <EffectSection>
@@ -102,10 +105,14 @@ const Title = styled.h4`
     color: #502c35ff;
 `;
 
-const Description = styled.p`
-    margin: 0 0 16px 0;
+const Description = styled.div`
+    margin: 0;
     color: #745761ff;
-    white-space: pre-wrap;
+    line-height: 1.1; /* 거의 붙은 느낌 */
+
+    & > p {
+        margin: 0; /* 문단 간격 완전 제거 */
+    }
 `;
 
 const EffectSection = styled.div`
