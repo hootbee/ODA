@@ -208,7 +208,7 @@ const Avatar = styled.div`
   height: 40px;
   border-radius: 50%;
   background-color: ${(props) =>
-    props.sender === "user" ? "#0ae364ff" : "#ffffff"};
+    props.sender === "user" ? "#00dd55ff" : "#ffffff"};
   color: ${(props) => (props.sender === "user" ? "white" : "#4b6357ff")};
   display: flex;
   align-items: center;
@@ -280,7 +280,7 @@ const MessageItem = styled.div`
       ].includes(props.type)
     )
       return "transparent";
-    return props.sender === "user" ? "#0ae364ff" : "#e9ebeaff";
+    return props.sender === "user" ? "#00dd55ff" : "#e9ebeaff";
   }};
   color: ${(props) => (props.sender === "user" ? "white" : "black")};
   align-self: ${(props) =>
