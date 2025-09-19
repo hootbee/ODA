@@ -8,7 +8,7 @@ import lombok.Setter;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "filedata", schema = "public", indexes = {
+@Table(name = "2025sw", schema = "public", indexes = {
         @Index(name = "idx_publicdata_filedataname", columnList = "파일데이터명")
 })
 @Setter
