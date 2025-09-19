@@ -38,17 +38,17 @@ const HelpMessage = () => (
 export default HelpMessage;
 
 const HelpContainer = styled.div`
-  background: #fbf9faff;
-  border: 1px solid #ebe5e7ff;
+  background: #f9fbfaff;
+  border: 1px solid #e5ebe7ff;
   border-radius: 16px;
   padding: 20px;
   h4 {
     font-size: 1.2em;
-    color: #27111aff;
+    color: #11271cff;
     margin: 0 0 12px 0;
   }
   p {
-    color: #513743ff;
+    color: #375145ff;
     margin: 0 0 16px 0;
     line-height: 1.6;
   }
@@ -60,14 +60,14 @@ const HelpList = styled.ul`
   margin: 0;
   li {
     background: #ffffff;
-    border: 1px solid #ebe5e8ff;
+    border: 1px solid #e5ebe8ff;
     padding: 12px;
     border-radius: 8px;
     margin-bottom: 8px;
     font-size: 0.95em;
-    color: #634b53ff;
+    color: #4b6356ff;
     strong {
-      color: #371f29ff;
+      color: #1f3728ff;
     }
   }
 `;

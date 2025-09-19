@@ -13,14 +13,14 @@ export default ContextResetMessage;
 
 const StyledMessage = styled.div`
   padding: 12px 18px;
-  border: 1px solid #ffe0eaff;
-  background-color: #fffafcff;
+  border: 1px solid #93ffc5ff;
+  background-color: #fafffcff;
   border-radius: 15px;
   text-align: center;
   width: 100%;
   max-width: 100%;
   align-self: center;
-  p { font-weight: 600; font-size: 1.05em; color: #513740ff; margin: 0 0 8px 0; }
-  span { font-size: 0.95em; color: #806b71ff; display: block; margin-bottom: 10px; }
-  small { font-size: 0.9em; color: #af9ca1ff; }
+  p { font-weight: 600; font-size: 1.05em; color: #375144ff; margin: 0 0 8px 0; }
+  span { font-size: 0.95em; color: #6b8074ff; display: block; margin-bottom: 10px; }
+  small { font-size: 0.9em; color: #6fa284ff; }
 `;

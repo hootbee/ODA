@@ -331,7 +331,7 @@ export default function ChatPage() {
 const Container = styled.div`
   display: flex;
   height: 100vh;
-  background: #f5f0f2ff;
+  background: #f0f5f3ff;
   font-family: sans-serif;
 `;
 
@@ -391,7 +391,7 @@ const HeaderContent = styled.div`
   display: flex;
   align-items: center;
   gap: 10px;
-  color: #502c3cff;
+  color: #2c503fff;
   font-weight: 500;
   font-size: 0.9rem;
   overflow: hidden;
@@ -408,7 +408,7 @@ const ResetButton = styled.button`
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #96868eff;
+  color: #86968fff;
   cursor: pointer;
   transition: all 0.2s;
   flex-shrink: 0;
@@ -416,7 +416,7 @@ const ResetButton = styled.button`
 
   &:hover {
     background: rgba(0, 0, 0, 0.1);
-    color: #502c39ff;
+    color: #2c503fff;
   }
 `;
 
@@ -434,9 +434,9 @@ const ScrollButton = styled.button`
   width: 44px;
   height: 44px;
   border-radius: 50%;
-  border: 1px solid #ffe0ecff;
+  border: 1px solid #c8ffdfff;
   background-color: #ffffff;
-  color: #684a54ff;
+  color: #4a685cff;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
   cursor: pointer;
   display: flex;
@@ -450,7 +450,7 @@ const ScrollButton = styled.button`
   transform: ${(p) => (p.visible ? "scale(1)" : "scale(0.5)")};
 
   &:hover {
-    background-color: #f63b83ff;
+    background-color: #0ae364ff;
     color: white;
   }
 `;
