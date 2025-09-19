@@ -45,7 +45,7 @@ const ProfileContainer = styled.div`
   justify-content: center;
   align-items: center;
   height: 100vh;
-  background: linear-gradient(150deg, #f4f8ff 0%, #ffa0d7ff 100%);
+  background: linear-gradient(150deg, #f4fffaff 0%, #a0ffd7ff 100%);
 `;
 
 const ProfileCard = styled.div`
@@ -64,10 +64,10 @@ const CardTitle = styled.h2`
   width: 100%; 
   font-size: 1.5rem;
   font-weight: 600;
-  color: #502c3aff;
+  color: #2c503dff;
   margin: 0 0 10px 0;
   padding-bottom: 10px;
-  border-bottom: 1px solid #f5f0f2ff;
+  border-bottom: 1px solid #f0f5f3ff;
   text-align: center;
 
   display: flex;
@@ -95,10 +95,10 @@ const InfoContainer = styled.div`
 const InfoBlock = styled.div`
   display: flex;
   align-items: center;
-  background-color: #faf8f9ff;
+  background-color: #f8faf9ff;
   padding: 12px 16px;
   border-radius: 20px;
-  border: 1px solid #f5f1f3ff;
+  border: 1px solid #f1f5f4ff;
 `;
 
 const InfoLabel = styled.span`
@@ -106,14 +106,14 @@ const InfoLabel = styled.span`
   flex-shrink: 0;
   font-size: 0.9rem;
   font-weight: 500;
-  color: #96868cff;
+  color: #86968fff;
   text-align: left;
 `;
 
 const InfoValue = styled.span`
   font-size: 1.2rem;
   font-weight: 600;
-  color: #502c3bff;
+  color: #2c5041ff;
 `;
 
 const LoadingContainer = styled.div`
@@ -122,7 +122,7 @@ const LoadingContainer = styled.div`
     flex-direction: column;
     justify-content: center;
     align-items: center;
-    background: linear-gradient(150deg, #f4f8ff 0%, #ffa0d7ff 100%);
+    background: linear-gradient(150deg, #f4fffaff 0%, #a0ffd7ff 100%);
 `;
 
 const StatusText = styled.div`

@@ -87,8 +87,8 @@ export default DataAnalysisResult;
 // --- 기존 스타일 컴포넌트들 ---
 
 const AnalysisContainer = styled.div`
-  background-color: #fbf9faff;
-  border: 1px solid #fee0e9ff;
+  background-color: #f9fbfaff;
+  border: 1px solid #e0feeeff;
   border-radius: 20px;
   padding: 20px;
   margin: 10px 0;
@@ -98,18 +98,18 @@ const Header = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: center;
-  border-bottom: 2px solid #fee0e8ff;
+  border-bottom: 2px solid #e0fef0ff;
   margin-bottom: 12px;
 
   h4 {
     font-size: 1.2em;
-    color: #6e0c2eff;
+    color: #0c6e40ff;
     margin: 0 0 8px 0;
   }
 `;
 
 const DownloadButton = styled.button`
-  background-color: #f63b73ff;
+  background-color: #00dd55ff;
   color: white;
   border: none;
   border-radius: 20px;
@@ -121,7 +121,7 @@ const DownloadButton = styled.button`
   transition: background-color 0.2s;
 
   &:hover {
-    background-color: #ff0048ff;
+    background-color: #00c04dff;
   }
 `;
 
@@ -129,12 +129,12 @@ const Content = styled.div`
   color: #374151;
   line-height: 1.6;
   
-  h1, h2, h3 { color: #8a1e44ff; margin-top: 1em; margin-bottom: 0.5em; }
+  h1, h2, h3 { color: #1e8a46ff; margin-top: 1em; margin-bottom: 0.5em; }
   p { margin-bottom: 0.8em; }
-  strong { color: #af1e49ff; }
+  strong { color: #1eaf69ff; }
   ul, ol { padding-left: 20px; margin-bottom: 1em; }
   li { margin-bottom: 0.4em; }
-  code { background-color: #ebe5e7ff; padding: 2px 5px; border-radius: 4px; font-family: 'Courier New', Courier, monospace; }
+  code { background-color: #e5ebe8ff; padding: 2px 5px; border-radius: 4px; font-family: 'Courier New', Courier, monospace; }
 `;
 
 // --- 새로 추가된 테이블 스타일 ---
@@ -142,7 +142,7 @@ const Content = styled.div`
 const TableContainer = styled.div`
   overflow-x: auto;
   margin-top: 1.2em;
-  border: 1px solid #dbd1d4ff;
+  border: 1px solid #d1dbd5ff;
   border-radius: 8px;
 `;
 
@@ -154,21 +154,21 @@ const StyledTable = styled.table`
   th, td {
     padding: 10px 12px;
     text-align: left;
-    border-bottom: 1px solid #ebe5e7ff;
+    border-bottom: 1px solid #e5ebe8ff;
     white-space: nowrap;
   }
 
   thead th {
-    background-color: #fbf9faff;
-    color: #513740ff;
+    background-color: #f9fbfaff;
+    color: #375144ff;
     font-weight: 600;
   }
 
   tbody tr:nth-child(even) {
-    background-color: #fbf9faff;
+    background-color: #f9fbfaff;
   }
 
   tbody tr:hover {
-    background-color: #f6f3f4ff;
+    background-color: #f3f6f5ff;
   }
 `;

@@ -90,7 +90,7 @@ const Navbar = () => {
         <NavLinks>
           <NavLink to="/">
             <LogoImage
-              src={`${process.env.PUBLIC_URL}/JDK_logo.png`}
+              src={`${process.env.PUBLIC_URL}/JDK_logo2.png`}
               alt="JDK Logo"
             />
           </NavLink>
@@ -151,18 +151,18 @@ const StyledLink = styled(NavLink)`
   font-family: "Poppins", sans-serif;
 
   &:hover {
-    color: #e93388ff;
+    color: #0ae364ff;
   }
 
   &.active {
-    color: #e93388ff;
+    color: #0ae364ff;
     font-weight: 700;
   }
 `;
 
 const WelcomeText = styled.span`
   margin-right: 1rem;
-  color: #555;
+  color: #555555ff;
 `;
 
 const LogoutButton = styled.button`
@@ -192,7 +192,7 @@ const HelpButton = styled.button`
   font-size: 1em;
 
   &:hover {
-    color: #e93388ff;
+    color: #0ae364ff;
   }
 `;
 
@@ -227,14 +227,14 @@ const PopupHeader = styled.div`
   align-items: center;
   padding: 0 1.5rem;
   height: 60px;
-  border-bottom: 1px solid #efe9ebff;
+  border-bottom: 1px solid #e9efecff;
   flex-shrink: 0;
   box-sizing: border-box;
 
   h2 {
     margin: 0;
     font-size: 1.2rem;
-    color: #502c3aff;
+    color: #2c5040ff;
   }
 `;
 
@@ -245,7 +245,7 @@ const CloseButton = styled.button`
   background: none;
   border: none;
   font-size: 1.5rem;
-  color: #96868cff;
+  color: #86968dff;
   cursor: pointer;
   padding: 5px;
   line-height: 1;
@@ -256,7 +256,7 @@ const CloseButton = styled.button`
   justify-content: center;
 
   &:hover {
-    color: #502c3aff;
+    color: #2c503eff;
   }
 `;
 
@@ -264,7 +264,7 @@ const PopupContent = styled.div`
   padding: 1.5rem;
   overflow-y: auto;
   text-align: left;
-  color: #57494eff;
+  color: #49574fff;
 
   p {
     line-height: 1.6;
@@ -284,7 +284,7 @@ const SectionTitle = styled.h3`
   align-items: center;
   gap: 0.75rem;
   font-size: 1.1rem;
-  color: #5e3446ff;
+  color: #345e48ff;
   margin: 0 0 1rem 0;
 `;
 
@@ -307,8 +307,8 @@ const CommandList = styled.ul`
 
   code {
     display: inline-block;
-    background-color: #ffeaf2ff;
-    color: #f63b83ff;
+    background-color: #ddfff3ff;
+    color: #00c25eff;
     padding: 4px 8px;
     border-radius: 5px;
     font-size: 0.95em;
