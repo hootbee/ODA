@@ -35,15 +35,15 @@ export default DataDetailView;
 const DetailContainer = styled.div`
   background: white;
   border-radius: 16px;
-  border: 1px solid #e2e8f0;
+  border: 1px solid #f0e2e6ff;
   padding: 20px;
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
   h3 {
     font-size: 1.4em;
-    color: #1a202c;
+    color: #2c1a1fff;
     margin-top: 0;
     margin-bottom: 16px;
-    border-bottom: 2px solid #f1f5f9;
+    border-bottom: 2px solid #f9f1f3ff;
     padding-bottom: 12px;
   }
 `;
@@ -57,13 +57,13 @@ const DetailGrid = styled.div`
 
 const DetailItem = styled.div`
   font-size: 0.95em;
-  color: #4a5568;
-  strong { color: #2d3748; }
+  color: #684a54ff;
+  strong { color: #482d36ff; }
 `;
 
 const KeywordSection = styled.div`
   margin-top: 16px;
-  strong { display: block; margin-bottom: 8px; color: #2d3748; }
+  strong { display: block; margin-bottom: 8px; color: #482d36ff; }
 `;
 
 const KeywordContainer = styled.div`
@@ -73,8 +73,8 @@ const KeywordContainer = styled.div`
 `;
 
 const KeywordTag = styled.span`
-  background-color: #edf2f7;
-  color: #4a5568;
+  background-color: #f7edf0ff;
+  color: #684a53ff;
   padding: 4px 10px;
   border-radius: 16px;
   font-size: 0.9em;
@@ -82,13 +82,13 @@ const KeywordTag = styled.span`
 
 const DescriptionSection = styled.div`
   margin-top: 16px;
-  strong { display: block; margin-bottom: 8px; color: #2d3748; }
+  strong { display: block; margin-bottom: 8px; color: #482d34ff; }
   blockquote {
     margin: 0;
     padding: 12px;
-    background-color: #f7fafc;
-    border-left: 4px solid #e2e8f0;
-    color: #4a5568;
+    background-color: #fcf7f8ff;
+    border-left: 4px solid #f0e2e6ff;
+    color: #684a53ff;
     white-space: pre-wrap;
     line-height: 1.6;
   }

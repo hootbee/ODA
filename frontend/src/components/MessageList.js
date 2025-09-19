@@ -111,7 +111,7 @@ function MessageList({
                   <FaUser />
                 ) : (
                   <img
-                    src={`${process.env.PUBLIC_URL}/ODA_logo.png`}
+                    src={`${process.env.PUBLIC_URL}/JDK_logo.png`}
                     alt="Bot Avatar"
                   />
                 )}
@@ -138,7 +138,7 @@ function MessageList({
       {isTyping && (
         <MessageRow sender="bot" isFirst={true}>
           <Avatar sender="bot">
-            <img src={`${process.env.PUBLIC_URL}/ODA_logo.png`} alt="Bot" />
+            <img src={`${process.env.PUBLIC_URL}/JDK_logo.png`} alt="Bot" />
           </Avatar>
           <MessageItem sender="bot" isFirst={true} isLast={true}>
             <TypingIndicator>
@@ -201,8 +201,8 @@ const Avatar = styled.div`
   height: 40px;
   border-radius: 50%;
   background-color: ${(props) =>
-    props.sender === "user" ? "#0099ffff" : "#ffffff"};
-  color: ${(props) => (props.sender === "user" ? "white" : "#4b5563")};
+    props.sender === "user" ? "#f63b83ff" : "#ffffff"};
+  color: ${(props) => (props.sender === "user" ? "white" : "#634b53ff")};
   display: flex;
   align-items: center;
   justify-content: center;
@@ -273,7 +273,7 @@ const MessageItem = styled.div`
       ].includes(props.type)
     )
       return "transparent";
-    return props.sender === "user" ? "#0099ffff" : "#e9e9eb";
+    return props.sender === "user" ? "#f63b83ff" : "#ebe9eaff";
   }};
   color: ${(props) => (props.sender === "user" ? "white" : "black")};
   align-self: ${(props) =>
@@ -312,20 +312,20 @@ const MessageText = styled.div`
   blockquote {
     margin: 0;
     padding: 0 15px;
-    background-color: #f7f9fc;
-    border-left: 4px solid #0099ffff;
+    background-color: #fcf7f9ff;
+    border-left: 4px solid #f63b83ff;
     border-radius: 0 8px 8px 0;
-    color: #4a5568;
+    color: #684a54ff;
   }
 `;
 
 const StyledTipMessage = styled.div`
   margin-top: 12px;
   padding: 10px 15px;
-  background-color: #f0f7ff;
+  background-color: #fff0f6ff;
   border-radius: 15px;
   font-size: 0.9em;
-  color: #4a5568;
+  color: #684a54ff;
   line-height: 1.5;
   text-align: left;
 `;

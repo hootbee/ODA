@@ -23,7 +23,7 @@ const LoginPage = () => {
   return (
     <LoginContainer>
       <LoginBox>
-        <LogoImage src={`${process.env.PUBLIC_URL}/ODA_logo.png`} alt="ODA Logo" />
+        <LogoImage src={`${process.env.PUBLIC_URL}/JDK_logo.png`} alt="JDK Logo" />
         <TextContainer>
           <Title>로그인</Title>
           <Description>소셜 계정으로 간편하게 로그인하세요.</Description>
@@ -41,7 +41,7 @@ const LoginContainer = styled.div`
   justify-content: center;
   align-items: center;
   height: 100vh;
-  background: linear-gradient(150deg, #f4f8ff 0%, #a1ceffff 100%);
+  background: linear-gradient(150deg, #f4f8ff 0%, #ffa0d7ff 100%);
 `;
 
 const LoginBox = styled.div`
@@ -73,12 +73,12 @@ const Title = styled.h2`
   margin: 0;
   font-size: 1.8rem;
   font-weight: 600;
-  color: #34495e;
+  color: #5e3440ff;
 `;
 
 const Description = styled.p`
   margin: 0;
-  color: #868e96;
+  color: #96868bff;
   font-size: 1rem;
   line-height: 1.6;
 `;
@@ -91,7 +91,7 @@ const GoogleButton = styled.button`
   border-radius: 50px;
   font-size: 1rem;
   font-weight: 500;
-  color: #4a5568;
+  color: #684a54ff;
   cursor: pointer;
   transition: all 0.3s ease;
 
@@ -108,7 +108,7 @@ const GoogleButton = styled.button`
 
 const StatusText = styled.div`
     font-size: 1rem;
-    color: #4a5568;
+    color: #684a58ff;
     margin-top: 1rem;
 `;
 
@@ -118,7 +118,7 @@ const LoadingContainer = styled.div`
     flex-direction: column;
     justify-content: center;
     align-items: center;
-    background: linear-gradient(150deg, #f4f8ff 0%, #a1ceffff 100%);
+    background: linear-gradient(150deg, #f4f8ff 0%, #ffa0d7ff 100%);
 `;
 
 const spin = keyframes`

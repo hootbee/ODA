@@ -24,13 +24,13 @@ const MessageFormContainer = styled.form`
   display: flex;
   align-items: center;
   padding: 1rem 1.5rem;
-  border-top: 1px solid #e0e9ff;
+  border-top: 1px solid #ffe0ecff;
   background-color: #ffffff;
 `;
 
 const MessageInput = styled.input`
   flex-grow: 1;
-  border: 1px solid #d1e0f0;
+  border: 1px solid #f0d1d9ff;
   border-radius: 50px;
   padding: 12px 20px;
   font-size: 16px;
@@ -38,15 +38,15 @@ const MessageInput = styled.input`
 
   &:focus {
     outline: none;
-    border-color: #81cdffff;
-    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+    border-color: #ff81afff;
+    box-shadow: 0 0 0 2px rgba(246, 59, 125, 0.2);
   }
 `;
 
 const SendButton = styled.button`
   width: 44px;
   height: 44px;
-  background-color: #0099ffff;
+  background-color: #f63b83ff;
   color: white;
   border: none;
   border-radius: 50%;
@@ -59,7 +59,7 @@ const SendButton = styled.button`
   justify-content: center;
 
   &:hover {
-    background-color: #0066aaff;
+    background-color: #cd1d63ff;
   }
 `;
 

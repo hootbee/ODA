@@ -6,8 +6,8 @@ import { BsChatDots } from "react-icons/bs";
 const SidebarContainer = styled.div`
   width: 250px;
   height: 96vh;
-  background: linear-gradient(150deg, #f4f8ff 0%, #a1ceffff 100%);
-  border-right: 1px solid #e9ecef;
+  background: linear-gradient(150deg, #f4f8ff 0%, #ffa0d7ff 100%);
+  border-right: 1px solid #efe9ebff;
   padding: 1rem;
   display: flex;
   flex-direction: column;
@@ -16,7 +16,7 @@ const SidebarContainer = styled.div`
 const SidebarHeader = styled.h2`
   font-size: 1.2rem;
   margin-bottom: 1.75rem;
-  color: #343a40;
+  color: #403438ff;
   padding: 0 0.5rem;
   font-weight: 500;
   display: flex;
@@ -45,14 +45,14 @@ const ContextItem = styled.li`
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
 
   &:hover {
-    background-color: #e9ecef;
+    background-color: #efe9ebff;
     transform: translateY(-2px);
   }
   
   &.active {
-    background: rgba(0, 128, 255, 0.6);
+    background: rgba(255, 0, 81, 0.6);
     color: white;
-    box-shadow: 0 5px 20px rgba(59, 130, 246, 0.3);
+    box-shadow: 0 5px 20px rgba(246, 59, 125, 0.3);
   }
 `;
 
@@ -89,7 +89,7 @@ const DeleteButton = styled.button`
 const NewChatButton = styled.button`
   margin-top: auto;
   padding: 0.8rem;
-  background: rgba(0, 42, 255, 0.6);
+  background: rgba(255, 0, 89, 0.6);
   color: white;
   border: none;
   border-radius: 20px;
@@ -103,11 +103,11 @@ const NewChatButton = styled.button`
   gap: 0.5rem;
 
   &:hover {
-    background-color: #0052e1ff;
+    background-color: #e10052ff;
   }
 
   &:disabled {
-    background-color: #rgba(160, 199, 255, 0.5);
+    background-color: #rgba(255, 160, 198, 0.5);
     cursor: not-allowed;
   }
 `;

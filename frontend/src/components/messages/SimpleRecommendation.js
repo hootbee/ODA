@@ -89,49 +89,49 @@ const RecommendationItem = styled.div`
     background-color: #ffffff;
     padding: 20px;
     border-radius: 16px;
-    border: 1px solid #eef2f9;
+    border: 1px solid #f9eef1ff;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
     line-height: 1.7;
-    color: #34495e;
+    color: #5e343fff;
 `;
 
 const Title = styled.h4`
     margin: 0 0 12px 0;
     font-size: 1.3em;
     font-weight: 700;
-    color: #2c3e50;
+    color: #502c35ff;
 `;
 
 const Description = styled.p`
     margin: 0 0 16px 0;
-    color: #576574;
+    color: #745761ff;
     white-space: pre-wrap;
 `;
 
 const EffectSection = styled.div`
-    background-color: #f8f9fa;
+    background-color: #faf8f8ff;
     padding: 12px 15px;
     border-radius: 8px;
-    border-left: 4px solid #0099ffff;
+    border-left: 4px solid #f63b83ff;
 `;
 
 const EffectLabel = styled.div`
     font-size: 0.9em;
     font-weight: 600;
-    color: #868e96;
+    color: #96868bff;
     margin-bottom: 6px;
 `;
 
 const EffectValue = styled.div`
     font-size: 1em;
     font-weight: 500;
-    color: #212529;
+    color: #292124ff;
 `;
 
 const EmptyMessage = styled.div`
     padding: 20px;
     text-align: center;
-    color: #868e96;
-    background-color: #f8f9fa;
+    color: #96868cff;
+    background-color: #faf8f9ff;
     border-radius: 12px;
 `;

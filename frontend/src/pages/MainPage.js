@@ -20,7 +20,7 @@ const Popup = ({ handleClose }) => {
               <FaInfoCircle /> 프로그램 소개
             </SectionTitle>
             <p>
-              ODA는 Open Data Agent의 약자로, 공공 데이터를 찾고 분석 및
+              JDK는 Jeonbuk Data Knower의 약자로, 전라북도 내 공공 데이터를 찾고 분석 및
               활용하는 것을 돕는 AI 챗봇입니다.
             </p>
           </Section>
@@ -30,7 +30,7 @@ const Popup = ({ handleClose }) => {
             </SectionTitle>
             <OrderedList>
               <li>
-                원하는 공공 데이터를 질문해보세요. (예: "서울시 교통 데이터 보여줘")
+                원하는 공공 데이터를 질문해보세요. (예: "전주시 교통 데이터 보여줘")
               </li>
               <li>
                 챗봇이 찾아준 데이터의 '[파일명] 자세히' 또는 '[파일명] 상세정보'를 요청하여 데이터를 더 깊게 확인할 수 있습니다.
@@ -99,8 +99,8 @@ const MainPage = () => {
       <FloatingBubble_Q2 top="50%" left="65%" delay="-2s">이 데이터에 대한 자세한 정보가 필요하신가요?</FloatingBubble_Q2>
       <FloatingBubble_A2 top="65%" left="73%" delay="0s">이 데이터의 활용 방안을 알려줘</FloatingBubble_A2>
       <ContentWrapper>
-        <RotatingLogo src={`${process.env.PUBLIC_URL}/ODA_logo.png`} alt="ODA Logo" />
-        <Title>ODA<br/>Data Analysis Chatbot</Title>
+        <RotatingLogo src={`${process.env.PUBLIC_URL}/JDK_logo.png`} alt="JDK Logo" />
+        <Title>JDK<br/>Data Analysis Chatbot</Title>
         <ButtonContainer>
           <Button onClick={handleStartChat}>Chat</Button>
           <Button onClick={togglePopup}>Help</Button>
@@ -143,7 +143,7 @@ const MainContainer = styled.div`
   justify-content: center;
   align-items: center;
   height: 100vh;
-  background: linear-gradient(150deg, #f4f8ff 0%, #a1ceffff 100%);
+  background: linear-gradient(150deg, #f4f8ff 0%, #ffa0d7ff 100%);
   perspective: 1000px;
   font-family: 'Poppins', sans-serif;
   position: relative;
@@ -172,7 +172,7 @@ const FloatingBubble_Q1 = styled.div`
   border: 1px solid rgba(255, 255, 255, 0.2);
   z-index: 1;
   font-size: 1.2rem;
-  color: #2c3e50;
+  color: #502c3cff;
   font-weight: 500;
 
   animation: ${float} 6s ease-in-out infinite;
@@ -185,14 +185,14 @@ const FloatingBubble_A1 = styled.div`
   left: ${props => props.left};
   right: ${props => props.right};
   padding: 1.2rem 1.7rem;
-  background: rgba(46, 161, 255, 0.62);
+  background: rgba(255, 46, 154, 0.62);
   border-radius: 20px;
   box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
   backdrop-filter: blur(5px);
   border: 1px solid rgba(255, 255, 255, 0.2);
   z-index: 1;
   font-size: 1.2rem;
-  color: #2c3e50;
+  color: #502c3cff;
   font-weight: 500;
 
   animation: ${float} 6s ease-in-out infinite;
@@ -212,7 +212,7 @@ const FloatingBubble_Q2 = styled.div`
   border: 1px solid rgba(255, 255, 255, 0.2);
   z-index: 1;
   font-size: 1.2rem;
-  color: #2c3e50;
+  color: #502c3cff;
   font-weight: 500;
 
   animation: ${float} 6s ease-in-out infinite;
@@ -225,14 +225,14 @@ const FloatingBubble_A2 = styled.div`
   left: ${props => props.left};
   right: ${props => props.right};
   padding: 1.2rem 1.7rem;
-  background: rgba(46, 161, 255, 0.62);
+  background: rgba(255, 46, 154, 0.62);
   border-radius: 20px;
   box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
   backdrop-filter: blur(5px);
   border: 1px solid rgba(255, 255, 255, 0.2);
   z-index: 1;
   font-size: 1.2rem;
-  color: #2c3e50;
+  color: #502c3cff;
   font-weight: 500;
 
   animation: ${float} 6s ease-in-out infinite;
@@ -248,11 +248,11 @@ const RotatingLogo = styled.img`
 const Title = styled.h1`
   font-size: 3rem;
   font-weight: 700;
-  color: #2c3e50;
+  color: #502c3bff;
   text-align: center;
   margin-bottom: 5rem;
   line-height: 1.3;
-  background: linear-gradient(45deg, #0d326e 30%, #1d8bd5ff 70%);
+  background: linear-gradient(45deg, #6e0d3dff 30%, #d51d98ff 70%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 `;
@@ -268,19 +268,19 @@ const Button = styled.button`
   font-size: 1.1rem;
   font-family: 'Poppins', sans-serif;
   font-weight: 600;
-  color: #0d326e;
+  color: #6e0d3dff;
   background-color: rgba(255, 255, 255, 0.2);
-  border: 3px solid #8bbcffff;
+  border: 3px solid #ff8bd6ff;
   border-radius: 50px;
   cursor: pointer;
   transition: all 0.3s ease;
   
   &:hover {
     color: #fff;
-    background-color: #0099ffff;
-    border-color: #0099ffff;
+    background-color: #e93388ff;
+    border-color: #e93388ff;
     transform: translateY(-3px);
-    box-shadow: 0 8px 20px rgba(33, 166, 255, 0.3);
+    box-shadow: 0 8px 20px rgba(255, 33, 185, 0.3);
   }
 `;
 
@@ -315,14 +315,14 @@ const PopupHeader = styled.div`
   align-items: center;
   padding: 0 1.5rem;
   height: 60px;
-  border-bottom: 1px solid #e9ecef;
+  border-bottom: 1px solid #efe9ebff;
   flex-shrink: 0;
   box-sizing: border-box;
 
   h2 {
     margin: 0;
     font-size: 1.2rem;
-    color: #2c3e50;
+    color: #502c45ff;
   }
 `;
 
@@ -333,7 +333,7 @@ const CloseButton = styled.button`
   background: none;
   border: none;
   font-size: 1.5rem;
-  color: #868e96;
+  color: #96868dff;
   cursor: pointer;
   padding: 5px;
   line-height: 1;
@@ -344,7 +344,7 @@ const CloseButton = styled.button`
   justify-content: center;
 
   &:hover {
-    color: #2c3e50;
+    color: #502c45ff;
   }
 `;
 
@@ -352,7 +352,7 @@ const PopupContent = styled.div`
   padding: 1.5rem;
   overflow-y: auto;
   text-align: left;
-  color: #495057;
+  color: #57494fff;
 
   p {
     line-height: 1.6;
@@ -372,7 +372,7 @@ const SectionTitle = styled.h3`
   align-items: center;
   gap: 0.75rem;
   font-size: 1.1rem;
-  color: #34495e;
+  color: #5e3448ff;
   margin: 0 0 1rem 0;
 `;
 
@@ -395,8 +395,8 @@ const CommandList = styled.ul`
 
     code {
         display: inline-block;
-        background-color: #eaf4ff;
-        color: #3b82f6;
+        background-color: #ffeaf3ff;
+        color: #f63b80ff;
         padding: 4px 8px;
         border-radius: 5px;
         font-size: 0.95em;
