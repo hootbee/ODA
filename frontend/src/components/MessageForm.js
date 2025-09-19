@@ -46,7 +46,7 @@ const MessageInput = styled.input`
 const SendButton = styled.button`
   width: 44px;
   height: 44px;
-  background-color: #0ae364ff;
+  background-color: #00dd55ff;
   color: white;
   border: none;
   border-radius: 50%;

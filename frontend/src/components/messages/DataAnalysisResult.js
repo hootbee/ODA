@@ -126,17 +126,40 @@ const DownloadButton = styled.button`
 `;
 
 const Content = styled.div`
-  color: #374151;
-  line-height: 1.6;
-  
-  h1, h2, h3 { color: #1e8a46ff; margin-top: 1em; margin-bottom: 0.5em; }
-  p { margin-bottom: 0.8em; }
-  strong { color: #1eaf69ff; }
-  ul, ol { padding-left: 20px; margin-bottom: 1em; }
-  li { margin-bottom: 0.4em; }
-  code { background-color: #e5ebe8ff; padding: 2px 5px; border-radius: 4px; font-family: 'Courier New', Courier, monospace; }
-`;
+    color: #374151;
+    line-height: 1.2; /* 줄 간격 더 줄임 */
 
+    h1, h2, h3 {
+        color: #1e8a46ff;
+        margin-top: 0.4em;   /* 제목 위쪽 여백 최소화 */
+        margin-bottom: 0.2em;
+        line-height: 1.2;
+    }
+
+    p {
+        margin-bottom: 0.2em; /* 문단 간격 최소화 */
+    }
+
+    strong {
+        color: #1eaf69ff;
+    }
+
+    ul, ol {
+        padding-left: 16px;
+        margin-bottom: 0.3em; /* 리스트 전체 간격 축소 */
+    }
+
+    li {
+        margin-bottom: 0.1em; /* 리스트 항목 간격 최소화 */
+    }
+
+    code {
+        background-color: #e5ebe8ff;
+        padding: 0 3px;   /* 거의 붙도록 padding 최소화 */
+        border-radius: 3px;
+        font-family: 'Courier New', Courier, monospace;
+    }
+`;
 // --- 새로 추가된 테이블 스타일 ---
 
 const TableContainer = styled.div`
