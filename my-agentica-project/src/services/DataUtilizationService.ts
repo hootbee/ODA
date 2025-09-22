@@ -47,13 +47,27 @@ ${typeName} 관점에서 데이터 활용 아이디어 2개를 JSON 배열로 �
   }
 
   private buildCustomSinglePrompt(dataInfo: any, promptHint: string): string {
-    return `데이터 정보: ${JSON.stringify(dataInfo)}
-사용자 요청: ${promptHint}
-요청에 맞는 데이터 활용 방안 1~2개를 아래 JSON 배열로 제시하세요:
+    return `데이터 정보:
+\`\`\`json
+${JSON.stringify(dataInfo, null, 2)}
+\`\`\`
+
+사용자 요청: "${promptHint}"
+
+출력 지침:
+- 요청에 맞는 데이터 활용 방안 1~2개를 JSON 배열 형식으로만 반환하세요.
+- 각 아이디어는 {"title":"제목","content":"설명"} 형식입니다.
+- "content"는 반드시 여러 문단이나 리스트 단위로 줄바꿈(\\n) 또는 마크다운을 사용하여 작성하세요.
+- 구체적이고 전문적인 설명을 포함하세요.
+- JSON 외의 다른 텍스트는 절대 포함하지 마세요.
+
+출력 예시:
 [
-  {"title":"아이디어 제목","content":"상세 설명"}
-]
-응답은 반드시 위 JSON 배열 형식으로 반환하세요.`;
+  {
+    "title": "아이디어 제목",
+    "content": "💡 핵심 설명을 작성합니다.\\n\\n- 활용 방안 1: 구체적 설명\\n- 활용 방안 2: 단계적 설명\\n\\n👉 기대 효과를 별도 문단으로 작성합니다."
+  }
+]`;
   }
 
   // ===== LLM 호출 =====
