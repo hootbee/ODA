@@ -2,38 +2,38 @@
 import * as fs from "fs/promises";
 import * as path from "path";
 import * as iconv from "iconv-lite";
-import type OpenAI from "openai";
+import type { GoogleGenerativeAI } from "@google/generative-ai";
 
 export type DataAnalysisDeps = {
-  llm: OpenAI;     // 단일 LLM 클라이언트(OpenAI SDK · Gemini 호환)
-  model: string;   // 예: "gemini-1.5-flash"
+    llm: GoogleGenerativeAI; // ✅ Gemini 네이티브 클라이언트
+    model: string;           // 예: "gemini-2.5-flash"
 };
 
 export class DataAnalysisService {
-  constructor(private readonly deps: DataAnalysisDeps) {
-    if (!deps?.llm || !deps?.model) {
-      throw new Error("DataAnalysisService requires { llm, model }");
+    constructor(private readonly deps: DataAnalysisDeps) {
+        if (!deps?.llm || !deps?.model) {
+            throw new Error("DataAnalysisService requires { llm, model }");
+        }
     }
-  }
 
-  /**
-   * EUC-KR CSV를 읽어 일부 라인만 전송하여 요약/분석을 수행한다.
-   * 반환값은 LLM이 생성한 한국어 분석 텍스트(마크다운 포함 가능).
-   */
-  public async analyzeCsvFile(filePath: string): Promise<string> {
-    try {
-      // 1) 파일 읽기 (버퍼)
-      const fileBuffer = await fs.readFile(filePath);
+    /**
+     * EUC-KR CSV를 읽어 일부 라인만 전송하여 요약/분석을 수행한다.
+     * 반환값은 LLM이 생성한 한국어 분석 텍스트(마크다운 포함 가능).
+     */
+    public async analyzeCsvFile(filePath: string): Promise<string> {
+        try {
+            // 1) 파일 읽기 (버퍼)
+            const fileBuffer = await fs.readFile(filePath);
 
-      // 2) EUC-KR → UTF-8 디코딩
-      const decodedCsvData = iconv.decode(fileBuffer, "euc-kr");
+            // 2) EUC-KR → UTF-8 디코딩
+            const decodedCsvData = iconv.decode(fileBuffer, "euc-kr");
 
-      // 3) 효율을 위해 선두 N라인만 사용
-      const lines = decodedCsvData.split("\n");
-      const partialData = lines.slice(0, 10).join("\n");
+            // 3) 효율을 위해 선두 N라인만 사용
+            const lines = decodedCsvData.split("\n");
+            const partialData = lines.slice(0, 10).join("\n");
 
-      // 4) 프롬프트 구성
-      const prompt = `
+            // 4) 프롬프트 구성
+            const prompt = `
 당신은 CSV 데이터를 분석하여 보고서를 작성하는 최고의 데이터 분석 전문가입니다.
 주어진 CSV 데이터의 일부를 보고, 아래 지시사항에 따라 **한국어로** 상세한 분석 보고서를 작성해주세요.
 
@@ -65,32 +65,27 @@ ${partialData}
    }
 `.trim();
 
-      // 5) LLM 호출 (OpenAI SDK · Gemini 호환)
-      const res = await this.deps.llm.chat.completions.create({
-        model: this.deps.model,
-        temperature: 0.3,
-        messages: [
-          {
-            role: "system",
-            content:
-                "You are a helpful data analyst. Respond in Korean. Keep structure clear and concise.",
-          },
-          { role: "user", content: prompt },
-        ],
-      });
+            // 5) LLM 호출 (Gemini 네이티브)
+            const model = this.deps.llm.getGenerativeModel({
+                model: this.deps.model,
+                systemInstruction:
+                    "You are a helpful data analyst. Respond in Korean. Keep structure clear and concise.",
+            });
 
-      const text = res.choices?.[0]?.message?.content ?? "";
-      const usage = (res as any).usage;
-      if (usage) {
-        console.log(
-            `[LLM 토큰 사용량] 분석 보고서 | 입력:${usage.prompt_tokens} / 출력:${usage.completion_tokens} / 총합:${usage.total_tokens}`
-        );
-      }
+            const resp = await model.generateContent({
+                contents: [{ role: "user", parts: [{ text: prompt }]}],
+                generationConfig: {
+                    temperature: 0.3,
+                    // 분석 결과는 마크다운 포함 텍스트여서 JSON 강제는 사용하지 않음
+                },
+            });
 
-      return text || "분석 결과가 비어 있습니다.";
-    } catch (error) {
-      console.error("Error during data analysis:", error);
-      throw new Error("Failed to analyze CSV data with LLM.");
+            const text = resp.response.text() ?? "";
+            if (!text.trim()) return "분석 결과가 비어 있습니다.";
+            return text;
+        } catch (error) {
+            console.error("Error during data analysis:", error);
+            throw new Error("Failed to analyze CSV data with LLM.");
+        }
     }
-  }
 }

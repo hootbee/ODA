@@ -4,7 +4,7 @@ import dotenv from "dotenv";
 import * as fs from "fs/promises";
 import * as path from "path";
 import { PublicDataService } from "./services/PublicDataService";
-import { openaiClient, DEFAULT_GEMINI_MODEL } from "./lib/aiClient";
+import { geminiClient, DEFAULT_GEMINI_MODEL } from "./lib/aiClient";
 
 dotenv.config();
 
@@ -13,7 +13,7 @@ const port = process.env.PORT || 3001;
 
 // ✅ PublicDataService가 다운로드/분석까지 관리
 const publicDataService = new PublicDataService({
-  llm: openaiClient,
+  llm: geminiClient,
   model: DEFAULT_GEMINI_MODEL,
   downloadsDir: path.resolve(__dirname, "../downloads"),
 });

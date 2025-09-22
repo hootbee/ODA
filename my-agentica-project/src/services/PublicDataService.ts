@@ -1,5 +1,5 @@
 // services/PublicDataService.ts
-import type OpenAI from "openai";
+import type { GoogleGenerativeAI } from "@google/generative-ai";
 import * as fs from "fs/promises";
 import * as path from "path";
 import { HybridQueryPlannerService } from "./HybridQueryPlannerService";
@@ -8,12 +8,12 @@ import { DataDownloaderService } from "./DataDownloaderService";
 import { DataAnalysisService, DataAnalysisDeps } from "./DataAnalysisService";
 
 type Deps = {
-  llm: OpenAI;                 // 단일 LLM 클라이언트(OpenAI SDK · Gemini 호환)
-  model: string;               // 기본 모델명 (예: "gemini-1.5-flash")
-  queryPlanner?: HybridQueryPlannerService;  // (선택) 외부 주입
-  downloader?: DataDownloaderService;        // (선택) 외부 주입
-  analysis?: DataAnalysisService;            // (선택) 외부 주입
-  downloadsDir?: string;       // (선택) 임시 저장 디렉터리 (기본값: ./downloads)
+  llm: GoogleGenerativeAI;         // ✅ Gemini 네이티브 클라이언트
+  model: string;                   // 예: "gemini-2.5-flash"
+  queryPlanner?: HybridQueryPlannerService;
+  downloader?: DataDownloaderService;
+  analysis?: DataAnalysisService;
+  downloadsDir?: string;
 };
 
 export class PublicDataService {
@@ -28,9 +28,7 @@ export class PublicDataService {
         deps.queryPlanner ?? new HybridQueryPlannerService(deps.llm, deps.model);
 
     this.utilizationService = new DataUtilizationService(deps.llm, deps.model);
-
-    this.downloaderService =
-        deps.downloader ?? new DataDownloaderService();
+    this.downloaderService = deps.downloader ?? new DataDownloaderService();
 
     this.analysisService =
         deps.analysis ??
@@ -140,10 +138,6 @@ export class PublicDataService {
   // ------------------------------
   // 다운로드/분석 (일원화)
   // ------------------------------
-  /**
-   * publicDataPk로 파일을 내려받아 CSV면 분석 후 삭제까지 처리.
-   * CSV가 아니면 삭제 후 안내만 반환.
-   */
   public async analyzeDataByPk(publicDataPk: string): Promise<{
     success: boolean;
     analysis: string | null;
@@ -157,15 +151,13 @@ export class PublicDataService {
       await fs.mkdir(this.downloadsDir, { recursive: true });
 
       console.log(`[Workflow] 1. Downloading data for PK: ${publicDataPk}`);
-      // NOTE: DataDownloaderService의 downloadDataFile은 인자로 준 경로의 부모에 저장됨(내부 구현 특성).
-      // 동작 호환을 위해 기존대로 디렉터리 경로를 전달한다.
       downloadedFilePath = await this.downloaderService.downloadDataFile(
           publicDataPk,
           this.downloadsDir
       );
       console.log(`[Workflow] File downloaded to: ${downloadedFilePath}`);
 
-      const base = path.basename(downloadedFilePath);
+      const base = require("path").basename(downloadedFilePath);
       if (!downloadedFilePath.toLowerCase().endsWith(".csv")) {
         console.log(
             `[Workflow] 2. Not a CSV (${base}). Deleting file and returning message.`
@@ -204,16 +196,10 @@ export class PublicDataService {
     }
   }
 
-  /**
-   * 파일을 바로 스트리밍할 때 사용 (메모리 버퍼 반환)
-   */
   public async downloadFileBuffer(publicDataPk: string) {
     return this.downloaderService.downloadDataFileAsBuffer(publicDataPk);
   }
 
-  /**
-   * (호환용) 파일을 디스크로 저장
-   */
   public async downloadFileByPk(publicDataPk: string, savePath: string) {
     return this.downloaderService.downloadDataFile(publicDataPk, savePath);
   }

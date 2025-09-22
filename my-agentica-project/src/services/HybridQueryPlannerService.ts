@@ -1,6 +1,5 @@
 // services/HybridQueryPlannerService.ts
-import type OpenAI from "openai";
-import { openaiClient, DEFAULT_GEMINI_MODEL } from "../lib/aiClient";
+import type { GoogleGenerativeAI } from "@google/generative-ai";
 
 /**
  * 하이브리드 쿼리 플래너
@@ -9,9 +8,11 @@ import { openaiClient, DEFAULT_GEMINI_MODEL } from "../lib/aiClient";
  */
 export class HybridQueryPlannerService {
   constructor(
-      private readonly llm: OpenAI = openaiClient,
-      private readonly model: string = DEFAULT_GEMINI_MODEL
-  ) {}
+      private readonly llm: GoogleGenerativeAI,
+      private readonly model: string
+  ) {
+    if (!llm || !model) throw new Error("HybridQueryPlannerService requires { llm, model }");
+  }
 
   /**
    * 하이브리드 쿼리 계획 생성 (상세 로깅 포함)
@@ -97,7 +98,7 @@ export class HybridQueryPlannerService {
   }
 
   /**
-   * LLM으로 쿼리 계획 보완 (OpenAI SDK · Gemini 호환)
+   * LLM으로 쿼리 계획 보완 (Gemini JSON 모드)
    * - 응답은 "반드시 JSON"만 반환하도록 강제
    */
   private async enhanceWithAI(prompt: string, ruleBasedPlan: any) {
@@ -159,31 +160,24 @@ export class HybridQueryPlannerService {
   }
 
   /**
-   * LLM 호출 (항상 JSON만 오도록 system 프롬프트로 강제)
+   * LLM 호출 (항상 JSON만 오도록 강제)
    */
   private async chatJSON(prompt: string): Promise<string> {
-    const res = await this.llm.chat.completions.create({
+    const model = this.llm.getGenerativeModel({
       model: this.model,
-      temperature: 0.3,
-      messages: [
-        {
-          role: "system",
-          content:
-              "You are a helpful planner that ALWAYS returns pure JSON with no markdown, no extra text. Output must be a single JSON object.",
-        },
-        { role: "user", content: prompt },
-      ],
+      systemInstruction:
+          "You are a helpful planner that ALWAYS returns pure JSON with no markdown, no extra text. Output must be a single JSON object.",
     });
 
-    // 사용량 로깅(가능한 경우)
-    const usage = (res as any).usage;
-    if (usage) {
-      console.log(
-          `[LLM 토큰 사용량] 입력: ${usage.prompt_tokens} / 출력: ${usage.completion_tokens} / 총합: ${usage.total_tokens}`
-      );
-    }
+    const resp = await model.generateContent({
+      contents: [{ role: "user", parts: [{ text: prompt }]}],
+      generationConfig: {
+        temperature: 0.3,
+        responseMimeType: "application/json", // ✅ JSON 모드 강제
+      },
+    });
 
-    return res.choices?.[0]?.message?.content ?? "{}";
+    return resp.response.text() ?? "{}";
   }
 
   /**
@@ -191,7 +185,6 @@ export class HybridQueryPlannerService {
    */
   private cleanJsonObject(response: string): string {
     let cleaned = response.replace(/```(?:json)?|```/g, "").trim();
-    // 객체 시작/끝만 추출
     const start = cleaned.indexOf("{");
     const end = cleaned.lastIndexOf("}");
     if (start !== -1 && end !== -1 && end > start) {
@@ -208,7 +201,6 @@ export class HybridQueryPlannerService {
       const cleaned = this.cleanJsonObject(response);
       const enhanced = JSON.parse(cleaned);
 
-      // 필수 필드 보강 및 기본값
       const merged = {
         majorCategory: enhanced.majorCategory || fallback.majorCategory || "일반공공행정",
         keywords: Array.isArray(enhanced.keywords) ? enhanced.keywords : fallback.keywords || [],
@@ -223,7 +215,6 @@ export class HybridQueryPlannerService {
         isAIEnhanced: true,
       };
 
-      // 사소한 정규화(카테고리/키워드 공백 제거)
       merged.majorCategory = String(merged.majorCategory).replace(/\s+/g, "");
       merged.keywords = (merged.keywords as string[]).map((k) => k?.trim()).filter(Boolean);
 
