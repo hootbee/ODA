@@ -1,21 +1,44 @@
-// services/PublicDataService.ts
+// my-agentica-project/src/services/PublicDataService.ts
 import type { GoogleGenerativeAI } from "@google/generative-ai";
 import * as fs from "fs/promises";
 import * as path from "path";
 import { HybridQueryPlannerService } from "./HybridQueryPlannerService";
-import { DataUtilizationService } from "./DataUtilizationService";
+import {
+  DataUtilizationService,
+  type DataInfo,
+  type SingleRecommendationDTO,
+  type AllRecommendationsDTO,
+} from "./DataUtilizationService";
 import { DataDownloaderService } from "./DataDownloaderService";
 import { DataAnalysisService, DataAnalysisDeps } from "./DataAnalysisService";
 
+// --- 대화 히스토리 관리를 위한 상태 객체 ---
+interface ConversationState {
+  lastQuery?: string;
+  lastResponse?: any;
+  lastAction?: "utilization" | "analysis" | null;
+  lastDataInfo?: {
+    pk?: string;
+    title?: string;
+    [key: string]: any;
+  };
+}
+
+// --- 서비스 의존성 주입 타입 ---
 type Deps = {
-  llm: GoogleGenerativeAI;         // ✅ Gemini 네이티브 클라이언트
-  model: string;                   // 예: "gemini-2.5-flash"
+  llm: GoogleGenerativeAI;
+  model: string;
   queryPlanner?: HybridQueryPlannerService;
   downloader?: DataDownloaderService;
   analysis?: DataAnalysisService;
   downloadsDir?: string;
 };
 
+/**
+ * 공공데이터 포털의 핵심 기능을 제공하는 메인 서비스
+ * - 검색, 추천, 활용방안, 분석 등 다양한 기능을 총괄
+ * - 대화 상태를 관리하며, 특정 기능에 한해 연속적인 대화를 지원
+ */
 export class PublicDataService {
   private readonly queryPlanner: HybridQueryPlannerService;
   private readonly utilizationService: DataUtilizationService;
@@ -23,184 +46,216 @@ export class PublicDataService {
   private readonly analysisService: DataAnalysisService;
   private readonly downloadsDir: string;
 
+  // 대화의 단기 기억을 담당하는 상태 객체
+  private conversationState: ConversationState = {};
+
   constructor(private readonly deps: Deps) {
     this.queryPlanner =
         deps.queryPlanner ?? new HybridQueryPlannerService(deps.llm, deps.model);
-
     this.utilizationService = new DataUtilizationService(deps.llm, deps.model);
     this.downloaderService = deps.downloader ?? new DataDownloaderService();
-
     this.analysisService =
         deps.analysis ??
-        new DataAnalysisService({
-          llm: deps.llm,
-          model: deps.model,
-        } satisfies DataAnalysisDeps);
-
-    this.downloadsDir =
-        deps.downloadsDir ?? path.resolve(process.cwd(), "downloads");
+        new DataAnalysisService({ llm: deps.llm, model: deps.model } satisfies DataAnalysisDeps);
+    this.downloadsDir = deps.downloadsDir ?? path.resolve(process.cwd(), "downloads");
   }
 
-  // ------------------------------
-  // 검색/추천
-  // ------------------------------
+  private isFollowUpQuery(prompt: string): boolean {
+    const followUpKeywords = ["구체화", "자세히", "확장", "심화", "상세하게", "더 알려줘"];
+    return followUpKeywords.some((keyword) => prompt.includes(keyword));
+  }
+
+  /** 데이터 주제가 바뀌었는지 감지하여 맥락 초기화 */
+  private resetIfNewData(next?: Partial<DataInfo> & { pk?: string }) {
+    if (!next) return;
+    const prev = this.conversationState.lastDataInfo ?? {};
+    // pk 또는 title이 변경되면 맥락 초기화
+    const changed =
+        (next.pk && prev.pk && next.pk !== prev.pk) ||
+        (!!next.title && !!prev.title && next.title !== prev.title);
+
+    if (changed) {
+      this.conversationState = {};
+    }
+  }
+
+  // --------------------------------------------------------------------------
+  // 1. 검색/추천 (Stateless - 대화 히스토리 사용 안함)
+  // --------------------------------------------------------------------------
   public async createQueryPlan(input: { prompt: string }): Promise<any> {
+    this.conversationState = {}; // 새 검색은 히스토리 초기화
     return this.queryPlanner.createQueryPlan(input.prompt);
   }
 
-  public async recommendData(input: {
-    prompt: string;
-    candidates: string[];
-  }): Promise<{ recommendations: string[] }> {
-    const { prompt, candidates } = input;
-    const plan = await this.queryPlanner.createQueryPlan(prompt);
-    const filtered = await this.filterByRelevance(
-        prompt,
-        candidates,
-        plan.majorCategory
-    );
-    const finalRecommendations = filtered.slice(0, plan.limit);
-    return { recommendations: finalRecommendations };
-  }
+  // --------------------------------------------------------------------------
+  // 2. 활용방안 생성 (Stateful - 대화 히스토리 사용)
+  // --------------------------------------------------------------------------
 
-  private async filterByRelevance(
-      prompt: string,
-      candidates: string[],
-      majorCategory: string
-  ): Promise<string[]> {
-    const lowerPrompt = prompt.toLowerCase();
-    const plan = await this.queryPlanner.createQueryPlan(prompt);
-    const promptTokens = plan.keywords || [];
-
-    return candidates
-        .map((candidate) => ({
-          name: candidate,
-          score: this.calculateRelevanceScore(
-              candidate,
-              promptTokens,
-              majorCategory,
-              lowerPrompt
-          ),
-        }))
-        .sort((a, b) => b.score - a.score)
-        .map((item) => item.name);
-  }
-
-  private calculateRelevanceScore(
-      candidate: string,
-      promptTokens: string[],
-      majorCategory: string,
-      originalPrompt: string
-  ): number {
-    const lc = candidate.toLowerCase();
-    let score = 0;
-
-    for (const t of promptTokens) if (lc.includes(t.toLowerCase())) score += 15;
-    if (majorCategory && lc.includes(majorCategory.toLowerCase())) score += 25;
-
-    const tokens = lc.split(/[\s_-]+/);
-    for (const t of promptTokens) if (tokens.includes(t.toLowerCase())) score += 10;
-
-    if (candidate.length > 100) score -= 10;
-    else if (candidate.length < 20) score -= 5;
-
-    const specials = ["최신", "신규", "업데이트", "개선"];
-    for (const k of specials)
-      if (originalPrompt.includes(k) && lc.includes(k)) score += 5;
-
-    return Math.max(0, score);
-  }
-
-  // ------------------------------
-  // 활용방안 생성
-  // ------------------------------
-  public async generateUtilizationRecommendations(input: {
-    fileName: string;
+  /**
+   * 전체 활용방안(비즈니스, 사회문제 등 4가지) 생성
+   */
+  public async generateAllUtilizationRecommendations(input: {
     title: string;
-    category: string;
-    keywords: string;
     description: string;
-    providerAgency: string;
-  }) {
-    return this.utilizationService.generateRecommendations(input);
-  }
+    keywords: string;
+    category: string;
+    prompt?: string;
+    dataInfo?: DataInfo;
+  }): Promise<AllRecommendationsDTO> {
+    const dataInfo: DataInfo =
+        input.dataInfo ?? {
+          title: input.title,
+          description: input.description,
+          keywords: input.keywords,
+          category: input.category,
+        };
 
-  public async generateSingleUtilizationRecommendation(input: {
-    dataInfo: any;
-    analysisType: string; // "business" | "research" | "policy" | "social_problem" | 사용자 프롬프트
-  }) {
-    return this.utilizationService.generateSingleRecommendation(
-        input.dataInfo,
-        input.analysisType
+    // 주제(데이터)가 바뀌었으면 맥락 초기화
+    this.resetIfNewData(dataInfo);
+
+    const { prompt = "전체 활용방안" } = input;
+    const useHistory =
+        this.isFollowUpQuery(prompt) &&
+        this.conversationState.lastAction === "utilization";
+    const previousResult = useHistory ? this.conversationState.lastResponse : undefined;
+
+    const result = await this.utilizationService.generateAllRecommendations(
+        dataInfo,
+        previousResult,
     );
+
+    this.conversationState = {
+      lastQuery: prompt,
+      lastResponse: result,
+      lastAction: "utilization",
+      lastDataInfo: dataInfo,
+    };
+    return result;
   }
 
-  // ------------------------------
-  // 다운로드/분석 (일원화)
-  // ------------------------------
-  public async analyzeDataByPk(publicDataPk: string): Promise<{
+  /**
+   * 단일 종류(예: 비즈니스)의 활용방안 생성
+   */
+  public async generateSingleUtilizationRecommendation(input: {
+    title: string;
+    description: string;
+    keywords: string;
+    category: string;
+    analysisType: string; // "비즈니스 활용" | "정책 제안" | "더 자세히 설명해줘" 등
+    dataInfo?: DataInfo;
+  }): Promise<SingleRecommendationDTO> {
+    const dataInfo: DataInfo =
+        input.dataInfo ?? {
+          title: input.title,
+          description: input.description,
+          keywords: input.keywords,
+          category: input.category,
+        };
+
+    // 주제(데이터)가 바뀌었으면 맥락 초기화
+    this.resetIfNewData(dataInfo);
+
+    const { analysisType } = input;
+    const useHistory =
+        this.isFollowUpQuery(analysisType) &&
+        this.conversationState.lastAction === "utilization";
+    const previousResult = useHistory ? this.conversationState.lastResponse : undefined;
+
+    const result = await this.utilizationService.generateSingleRecommendation(
+        dataInfo,
+        analysisType,
+        previousResult,
+    );
+
+    this.conversationState = {
+      lastQuery: analysisType,
+      lastResponse: result,
+      lastAction: "utilization",
+      lastDataInfo: dataInfo,
+    };
+    return result;
+  }
+
+  // --------------------------------------------------------------------------
+  // 3. 데이터 확인/분석 (Stateful - 대화 히스토리 사용)
+  // --------------------------------------------------------------------------
+
+  /**
+   * PK로 데이터를 다운로드하고 분석 리포트 생성
+   */
+  public async analyzeDataByPk(input: {
+    publicDataPk?: string;
+    prompt?: string;
+  }): Promise<{
     success: boolean;
     analysis: string | null;
     publicDataPk: string;
     message?: string;
     fileName?: string;
   }> {
-    let downloadedFilePath: string | null = null;
+    const { prompt = "데이터 분석해줘" } = input;
+    const useHistory =
+        this.isFollowUpQuery(prompt) &&
+        this.conversationState.lastAction === "analysis";
+    const pk = input.publicDataPk ?? this.conversationState.lastDataInfo?.pk;
 
+    if (!pk) {
+      throw new Error("분석할 데이터의 PK(publicDataPk)가 필요합니다. 먼저 데이터를 검색해주세요.");
+    }
+
+    let downloadedFilePath: string | null = null;
     try {
       await fs.mkdir(this.downloadsDir, { recursive: true });
 
-      console.log(`[Workflow] 1. Downloading data for PK: ${publicDataPk}`);
       downloadedFilePath = await this.downloaderService.downloadDataFile(
-          publicDataPk,
-          this.downloadsDir
+          pk,
+          this.downloadsDir,
       );
-      console.log(`[Workflow] File downloaded to: ${downloadedFilePath}`);
+      const fileName = path.basename(downloadedFilePath);
 
-      const base = require("path").basename(downloadedFilePath);
       if (!downloadedFilePath.toLowerCase().endsWith(".csv")) {
-        console.log(
-            `[Workflow] 2. Not a CSV (${base}). Deleting file and returning message.`
-        );
         await this.safeUnlink(downloadedFilePath);
         return {
           success: true,
           analysis: null,
-          publicDataPk,
-          message: "Downloaded file was not a CSV and has been deleted.",
-          fileName: base,
+          publicDataPk: pk,
+          message: "다운로드된 파일이 CSV가 아니므로 분석을 진행하지 않았습니다.",
+          fileName,
         };
       }
 
-      console.log(`[Workflow] 2. Analyzing CSV file: ${base}`);
+      const previousResult = useHistory
+          ? (this.conversationState.lastResponse as string)
+          : undefined;
       const analysis = await this.analysisService.analyzeCsvFile(
-          downloadedFilePath
+          downloadedFilePath,
+          prompt,
+          previousResult,
       );
 
-      console.log(`[Workflow] 3. Deleting analyzed file.`);
       await this.safeUnlink(downloadedFilePath);
 
-      console.log("[Workflow] 4. Workflow completed successfully.");
-      return {
-        success: true,
-        analysis,
-        publicDataPk,
-        fileName: base,
+      this.conversationState = {
+        lastQuery: prompt,
+        lastResponse: analysis,
+        lastAction: "analysis",
+        lastDataInfo: { pk, fileName },
       };
+
+      return { success: true, analysis, publicDataPk: pk, fileName };
     } catch (error) {
-      console.error("[Workflow] Error occurred:", error);
-      if (downloadedFilePath) {
-        await this.safeUnlink(downloadedFilePath);
-      }
+      if (downloadedFilePath) await this.safeUnlink(downloadedFilePath);
+      // 에러 발생 시 히스토리 초기화
+      this.conversationState = {};
       throw error;
     }
   }
 
-  public async downloadFileBuffer(publicDataPk: string) {
-    return this.downloaderService.downloadDataFileAsBuffer(publicDataPk);
-  }
-
+  // --------------------------------------------------------------------------
+  // 4. 다운로드 (Stateless - 대화 히스토리 사용 안함)
+  // --------------------------------------------------------------------------
   public async downloadFileByPk(publicDataPk: string, savePath: string) {
+    this.conversationState = {}; // 다운로드는 히스토리 초기화
     return this.downloaderService.downloadDataFile(publicDataPk, savePath);
   }
 

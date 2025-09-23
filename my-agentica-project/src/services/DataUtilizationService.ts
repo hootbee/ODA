@@ -1,274 +1,259 @@
-// services/DataUtilizationService.ts
+// my-agentica-project/src/services/DataUtilizationService.ts
 import type { GoogleGenerativeAI } from "@google/generative-ai";
-import { performance as perf } from "node:perf_hooks"; // ✅ Node 전용 정적 임포트 (CJS/ESM 모두 OK)
 
-const TRACE = true; // ✅ 항상 로그 출력
- const trace = (...args: any[]) => { if (TRACE) console.log("[LLM_TRACE]", ...args); };
-
-interface UtilizationIdea {
+// ===== 프론트와 연결되는 공통 DTO =====
+export type UtilizationIdea = {
   title: string;
   description?: string;
   effect?: string;
   content?: string;
+};
+
+export type SingleRecommendationDTO = {
+  type: "business" | "policy" | "research" | "social_problem" | "simple_recommendation" | "error";
+  recommendations: UtilizationIdea[];
+};
+
+export type AllRecommendationsDTO = {
+  businessApplications: UtilizationIdea[];
+  researchApplications: UtilizationIdea[];
+  policyApplications: UtilizationIdea[];
+  socialProblemApplications: UtilizationIdea[];
+};
+
+export type DataInfo = {
+  title: string;
+  description: string;
+  keywords: string;
+  category: string;
+};
+
+// ===== 유틸: LLM 원본 JSON → DTO 변환 =====
+function toSingleDTO(raw: any, typeGuess: SingleRecommendationDTO["type"]): SingleRecommendationDTO {
+  if (Array.isArray(raw)) {
+    const recs: UtilizationIdea[] = raw.map((x) => ({
+      title: x?.title ?? "제목 없음",
+      description: x?.description,
+      effect: x?.effect,
+      content: x?.content,
+    }));
+    return { type: typeGuess, recommendations: recs };
+  }
+  const one: UtilizationIdea = {
+    title: raw?.title ?? "제목 없음",
+    description: raw?.description,
+    effect: raw?.effect,
+    content: raw?.content,
+  };
+  return { type: typeGuess, recommendations: [one] };
 }
+
+function toAllDTO(raw: any): AllRecommendationsDTO {
+  // 이미 올바른 형태면 그대로
+  if (
+      raw?.businessApplications ||
+      raw?.researchApplications ||
+      raw?.policyApplications ||
+      raw?.socialProblemApplications
+  ) {
+    return raw as AllRecommendationsDTO;
+  }
+
+  // 배열이면 category로 버킷팅
+  if (Array.isArray(raw)) {
+    const buckets: AllRecommendationsDTO = {
+      businessApplications: [],
+      researchApplications: [],
+      policyApplications: [],
+      socialProblemApplications: [],
+    };
+    for (const x of raw) {
+      const idea: UtilizationIdea = {
+        title: x?.title ?? "제목 없음",
+        description: x?.description,
+        effect: x?.effect,
+        content: x?.content,
+      };
+      const cat = String(x?.category ?? "").replace(/\s/g, "");
+      if (/비즈니스/.test(cat)) buckets.businessApplications.push(idea);
+      else if (/사회문제/.test(cat)) buckets.socialProblemApplications.push(idea);
+      else if (/연구|인사이트/.test(cat)) buckets.researchApplications.push(idea);
+      else if (/정책/.test(cat)) buckets.policyApplications.push(idea);
+      else buckets.businessApplications.push(idea); // 기본 버킷
+    }
+    return buckets;
+  }
+
+  // 그 외 기본값
+  return {
+    businessApplications: [],
+    researchApplications: [],
+    policyApplications: [],
+    socialProblemApplications: [],
+  };
+}
+
+// ===== 서비스 구현 =====
+const TRACE = true;
+const trace = (...args: any[]) => { if (TRACE) console.log("[LLM_TRACE]", ...args); };
 
 export class DataUtilizationService {
   constructor(
       private readonly llm: GoogleGenerativeAI,
-      private readonly model: string
+      private readonly model: string,
   ) {}
 
-  // ===== 프롬프트 구성 =====
-  private buildFullAnalysisPrompt(dataInfo: any): Record<string, string> {
-    const format = `출력은 반드시 JSON 배열:
-[
-  {"title":"제목","description":"짧은 설명","effect":"기대 효과"}
-]`;
+  // ---------------------------
+  // 공개 메서드
+  // ---------------------------
+  public async generateSingleRecommendation(
+      dataInfo: DataInfo,
+      analysisType: string,
+      previousResult?: any,
+  ): Promise<SingleRecommendationDTO> {
+    const prompt = this.buildSingleRecommendationPrompt(dataInfo, analysisType, previousResult);
+    trace(`[single] prompt length: ${prompt.length.toLocaleString()} chars`);
+    const raw = await this.chatWithJsonOutput(prompt);
 
-    return {
-      business: `비즈니스 관점에서 데이터 활용 아이디어 2개. 데이터: ${JSON.stringify(dataInfo)}. ${format}`,
-      research: `연구 관점에서 데이터 활용 아이디어 2개. 데이터: ${JSON.stringify(dataInfo)}. ${format}`,
-      policy: `정책 관점에서 데이터 활용 아이디어 2개. 데이터: ${JSON.stringify(dataInfo)}. ${format}`,
-      social_problem: `사회문제 해결 관점에서 데이터 활용 아이디어 2개. 데이터: ${JSON.stringify(dataInfo)}. ${format}`,
+    const map: Record<string, SingleRecommendationDTO["type"]> = {
+      "비즈니스": "business",
+      "사업": "business",
+      "정책": "policy",
+      "연구": "research",
+      "사회문제": "social_problem",
     };
+    const guess = map[analysisType.trim()] ?? "simple_recommendation";
+    return toSingleDTO(raw, guess);
   }
 
-  private buildPredefinedSinglePrompt(dataInfo: any, analysisType: string): string {
-    const typeMap = {
-      business: "비즈니스",
-      research: "연구",
-      policy: "정책",
-      social_problem: "사회문제 해결",
-    } as const;
-    const typeName = (typeMap as any)[analysisType] || analysisType;
-
-    return `데이터 정보: ${JSON.stringify(dataInfo)}
-${typeName} 관점에서 데이터 활용 아이디어 2개를 JSON 배열로 제시하세요.
-반드시 아래 포맷을 따르세요:
-[
-  {"title":"아이디어 제목","description":"간략 설명","effect":"기대 효과"}
-]`;
+  public async generateAllRecommendations(
+      dataInfo: DataInfo,
+      previousResult?: any,
+  ): Promise<AllRecommendationsDTO> {
+    const prompt = this.buildAllRecommendationsPrompt(dataInfo, previousResult);
+    trace(`[all] prompt length: ${prompt.length.toLocaleString()} chars`);
+    const raw = await this.chatWithJsonOutput(prompt);
+    return toAllDTO(raw);
   }
 
-  private buildCustomSinglePrompt(dataInfo: any, promptHint: string): string {
-    return `데이터 정보:
-\`\`\`json
-${JSON.stringify(dataInfo, null, 2)}
-\`\`\`
+  // ---------------------------
+  // 프롬프트 빌더
+  // ---------------------------
+  private buildSingleRecommendationPrompt(
+      dataInfo: DataInfo,
+      analysisType: string,
+      previousResult?: any,
+  ): string {
+    const prev = previousResult ? JSON.stringify(previousResult, null, 2) : "";
+    const safePrev = prev.length > 4000 ? prev.slice(0, 4000) + " …(truncated)" : prev;
 
-사용자 요청: "${promptHint}"
+    const context = previousResult
+        ? `
+# 이전 제안 내용 (참고)
+직전에 다음과 같은 아이디어를 제안했습니다. 이 내용을 바탕으로 사용자의 현재 요청에 맞춰 더 구체화하거나 확장해주세요.
 
-출력 지침:
-- 반드시 JSON 배열 형식으로만 출력하세요.
-- 각 아이디어는 {"title":"제목","content":"설명"} 형식입니다.
-+ "content"는 반드시 하나의 서론 → 구체적 방안(리스트) → 결론(기대 효과)의 구조로 작성하세요.
-+ 각 부분은 유기적으로 연결된 하나의 맥락 안에서 설명하세요.
-+ 활용 방안 리스트는 반드시 기대 효과와 연결되도록 작성하세요.- 이모지(💡, 👉 등)는 자유롭게 사용할 수 있습니다.
-- JSON 외의 다른 텍스트는 절대 포함하지 마세요.
+[이전 제안 JSON]
+${safePrev}
+`
+        : "";
 
-출력 예시:
-[
-  {
-    "title": "아이디어 제목",
-    "content": "💡 핵심 설명 한두 문장.\\n\\n- 활용 방안 1: 구체적 설명\\n- 활용 방안 2: 단계적 설명\\n\\n👉 기대 효과: 한 문단으로 정리"
+    return `
+# 데이터 정보
+- 제목: ${dataInfo.title}
+- 설명: ${dataInfo.description}
+- 키워드: ${dataInfo.keywords}
+- 카테고리: ${dataInfo.category}
+
+# 요청사항
+위 데이터를 활용하여 다음 요청에 대한 아이디어를 1개 제안하세요:
+"${analysisType}"
+${context}
+`.trim();
   }
-]`;
+
+  private buildAllRecommendationsPrompt(
+      dataInfo: DataInfo,
+      previousResult?: any,
+  ): string {
+    const prev = previousResult ? JSON.stringify(previousResult, null, 2) : "";
+    const safePrev = prev.length > 4000 ? prev.slice(0, 4000) + " …(truncated)" : prev;
+
+    const context = previousResult
+        ? `
+# 이전 제안 내용 (참고)
+직전에 다음과 같은 아이디어를 제안했습니다. 이 내용을 바탕으로 사용자의 현재 요청에 맞춰 더 구체화하거나 확장해주세요.
+
+[이전 제안 JSON]
+${safePrev}
+`
+        : "";
+
+    return `
+# 데이터 정보
+- 제목: ${dataInfo.title}
+- 설명: ${dataInfo.description}
+- 키워드: ${dataInfo.keywords}
+- 카테고리: ${dataInfo.category}
+
+# 요청사항
+위 데이터를 활용할 수 있는 방안 4가지를 다음 카테고리별로 제안하세요:
+1. 비즈니스 모델
+2. 사회문제 해결
+3. 연구/인사이트
+4. 정책 제언
+${context}
+`.trim();
   }
 
-  // ===== Gemini 호출 (JSON 모드 + 타이밍 계측) =====
-  private async chatJSON(prompt: string): Promise<string> {
-    const t0 = perf.now();
-    const promptLen = prompt.length;
+  // ---------------------------
+  // LLM 호출 (JSON 강제)
+  // ---------------------------
+  private async chatWithJsonOutput(prompt: string): Promise<any> {
+    console.log("[DEBUG] [DataUtilizationService] 프롬프트 시작 ===================");
+    console.log(prompt);
+    console.log("[DEBUG] [DataUtilizationService] 프롬프트 끝 =====================");
 
     const model = this.llm.getGenerativeModel({
       model: this.model,
-      systemInstruction:
-          "You are a helpful assistant that ALWAYS returns pure JSON with no markdown. No explanations.",
+      systemInstruction: `
+You are a data utilization plan expert. Your response must be a single JSON object or a JSON array.
+- For a single idea, return a JSON object: { "title": "...", "content": "...", "effect": "..." }
+- For multiple ideas, return a JSON array of objects: [{ "title": "...", "category": "비즈니스 모델|사회문제 해결|연구/인사이트|정책 제언", "content": "...", "effect": "..." }, ...]
+- Do not include markdown, comments, or any other text outside of the JSON.
+- The content must be in Korean.
+      `,
     });
-    const t1 = perf.now();
-    trace(`model.getGenerativeModel: ${(t1 - t0).toFixed(1)} ms`);
 
-    const tCallStart = perf.now();
-    let respText = "[]";
     try {
-      const resp = await model.generateContent({
-        contents: [{ role: "user", parts: [{ text: prompt }]}],
+      const result = await model.generateContent({
+        contents: [{ role: "user", parts: [{ text: prompt }] }],
         generationConfig: {
-          temperature: 0.4,
-          responseMimeType: "application/json", // ✅ JSON만
+          responseMimeType: "application/json",
+          temperature: 0.6,
+          maxOutputTokens: 384, // 속도/안정성 균형
         },
       });
-      const tCallEnd = perf.now();
 
-      respText = resp.response.text() ?? "[]";
-      const tParsed = perf.now();
+      const text = result.response.text() ?? "";
+      console.log("[DEBUG] [DataUtilizationService] LLM 원본 응답:", text);
 
-      trace(`generateContent (network+inference): ${(tCallEnd - tCallStart).toFixed(1)} ms`);
-      trace(`resp.response.text(): ${(tParsed - tCallEnd).toFixed(1)} ms`);
-      trace(`sizes: prompt=${promptLen.toLocaleString()} chars, response=${respText.length.toLocaleString()} chars`);
-      trace(`total chatJSON: ${(tParsed - t0).toFixed(1)} ms`);
+      const parsed = JSON.parse(text);
+      console.log("[DEBUG] [DataUtilizationService] JSON 파싱 성공 ✅");
+      return parsed;
+
     } catch (e: any) {
-      const tErr = perf.now();
-      trace(`generateContent ERROR after ${(tErr - tCallStart).toFixed(1)} ms:`, e?.message ?? e);
-      throw e;
-    }
-
-    return respText;
-  }
-
-  // ===== JSON 정제/파싱 =====
-  private cleanJsonResponse(response: string): string {
-    const t0 = perf.now();
-    let cleaned = response.replace(/```(?:json)?|```/g, "").trim();
-    const s = cleaned.indexOf("[");
-    const e = cleaned.lastIndexOf("]");
-    if (s !== -1 && e !== -1 && e > s) cleaned = cleaned.substring(s, e + 1);
-    const t1 = perf.now();
-    trace(`cleanJsonResponse: ${(t1 - t0).toFixed(1)} ms`);
-    return cleaned;
-  }
-
-  private parseIdeasDescEffect(response: string, type: string): UtilizationIdea[] {
-    const t0 = perf.now();
-    try {
-      const cleaned = this.cleanJsonResponse(response);
-      const parsed = JSON.parse(cleaned);
-      const t1 = perf.now();
-      trace(`JSON.parse (desc/effect): ${(t1 - t0).toFixed(1)} ms`);
-
-      if (!Array.isArray(parsed)) {
-        return [{ title: "형식 오류", description: "응답이 배열이 아닙니다.", effect: "" }];
-      }
-      const out = parsed.filter(
-          (x: any) => x && x.title && x.description && x.effect
-      );
-      return out.length
-          ? out
-          : [
-            { title: `${this.getKo(type)} 1`, description: "생성된 추천 내용이 없습니다.", effect: "" },
-            { title: `${this.getKo(type)} 2`, description: "생성된 추천 내용이 없습니다.", effect: "" },
-          ];
-    } catch (err: any) {
-      return [
-        { title: `${this.getKo(type)} 분석 중 오류`, description: String(err?.message || err), effect: "" },
-      ];
-    }
-  }
-
-  private parseCustom(response: string): Array<{ title: string; content: string }> {
-    const t0 = perf.now();
-    try {
-      const cleaned = this.cleanJsonResponse(response);
-      const parsed = JSON.parse(cleaned);
-      const t1 = perf.now();
-      trace(`JSON.parse (custom): ${(t1 - t0).toFixed(1)} ms`);
-
-      if (!Array.isArray(parsed)) {
-        return [{ title: "형식 오류", content: "응답이 배열이 아닙니다." }];
-      }
-      const out = parsed.filter((x: any) => x && x.title && x.content);
-      return out.length ? out : [{ title: "결과 없음", content: "생성된 추천이 없습니다." }];
-    } catch (err: any) {
-      return [{ title: "추천 오류", content: String(err?.message || err) }];
-    }
-  }
-
-  private getKo(type: string) {
-    const m: any = {
-      business: "비즈니스 활용방안",
-      research: "연구 활용방안",
-      policy: "정책 활용방안",
-      social_problem: "사회문제 해결방안",
-    };
-    return m[type] || type;
-  }
-
-  private formatResults(results: any) {
-    return {
-      businessApplications: results.business || [],
-      researchApplications: results.research || [],
-      policyApplications: results.policy || [],
-      socialProblemApplications: results.social_problem || [],
-    };
-  }
-
-  private getDefaultRecommendations() {
-    const def = { description: "기본 추천 내용입니다.", effect: "추천 생성 실패" };
-    return {
-      businessApplications: [
-        { title: "데이터 기반 비즈니스 모델 개발", ...def },
-        { title: "관련 분야 컨설팅 서비스 제공", ...def },
-      ],
-      researchApplications: [
-        { title: "현황 분석 및 트렌드 연구", ...def },
-        { title: "정책 효과성 분석 연구", ...def },
-      ],
-      policyApplications: [
-        { title: "정책 수립 시 근거 자료로 활용", ...def },
-        { title: "예산 배정 및 우선순위 결정", ...def },
-      ],
-      socialProblemApplications: [
-        { title: "사회 안전망 강화", ...def },
-        { title: "시민 편의 증진", ...def },
-      ],
-    };
-  }
-
-  // ===== 공개 메서드 =====
-  public async generateRecommendations(dataInfo: {
-    fileName: string;
-    title: string;
-    category: string;
-    keywords: string;
-    description: string;
-    providerAgency: string;
-  }) {
-    const t0 = perf.now();
-    try {
-      const prompts = this.buildFullAnalysisPrompt(dataInfo);
-      const results: any = {};
-
-      for (const [type, prompt] of Object.entries(prompts)) {
-        const tP0 = perf.now();
-        trace(`[${type}] prompt length: ${prompt.length.toLocaleString()} chars`);
-        const resp = await this.chatJSON(prompt);
-        const tP1 = perf.now();
-        results[type] = this.parseIdeasDescEffect(resp, type);
-        const tP2 = perf.now();
-        trace(`[${type}] chatJSON: ${(tP1 - tP0).toFixed(1)} ms, parse: ${(tP2 - tP1).toFixed(1)} ms, total: ${(tP2 - tP0).toFixed(1)} ms`);
-      }
-
-      const t1 = perf.now();
-      trace(`generateRecommendations total: ${(t1 - t0).toFixed(1)} ms`);
-      return this.formatResults(results);
-    } catch (e) {
-      console.error("전체 활용 분석 오류:", e);
-      return this.getDefaultRecommendations();
-    }
-  }
-
-  public async generateSingleRecommendation(dataInfo: any, analysisTypeOrPrompt: string) {
-    const t0 = perf.now();
-    const predefined = ["business", "research", "policy", "social_problem"];
-    try {
-      if (predefined.includes(analysisTypeOrPrompt)) {
-        const prompt = this.buildPredefinedSinglePrompt(dataInfo, analysisTypeOrPrompt);
-        trace(`[single:${analysisTypeOrPrompt}] prompt length: ${prompt.length.toLocaleString()} chars`);
-        const resp = await this.chatJSON(prompt);
-        const recommendations = this.parseIdeasDescEffect(resp, analysisTypeOrPrompt);
-        trace(`[single:${analysisTypeOrPrompt}] total: ${(perf.now() - t0).toFixed(1)} ms`);
-        return { type: analysisTypeOrPrompt, recommendations };
-      } else {
-        const prompt = this.buildCustomSinglePrompt(dataInfo, analysisTypeOrPrompt);
-        trace(`[single:custom] prompt length: ${prompt.length.toLocaleString()} chars`);
-        const resp = await this.chatJSON(prompt);
-        const recommendations = this.parseCustom(resp);
-        trace(`[single:custom] total: ${(perf.now() - t0).toFixed(1)} ms`);
-        return { type: "simple_recommendation", recommendations };
-      }
-    } catch (e: any) {
-      trace(`[single:${analysisTypeOrPrompt}] ERROR after ${(perf.now() - t0).toFixed(1)} ms`);
-      return { type: "error", recommendations: [{ title: "오류 발생", content: String(e?.message || e) }] };
+      console.error("[ERROR] [DataUtilizationService] JSON 파싱 실패 ❌");
+      console.error("에러 메시지:", e?.message || e);
+      // 프론트가 깨지지 않도록 최소 DTO 형태 반환
+      return {
+        businessApplications: [],
+        researchApplications: [],
+        policyApplications: [],
+        socialProblemApplications: [],
+        error: true,
+        message: "LLM 응답 파싱 실패",
+        detail: e?.message || String(e),
+      };
     }
   }
 }
