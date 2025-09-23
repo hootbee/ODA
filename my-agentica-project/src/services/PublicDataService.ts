@@ -109,8 +109,8 @@ export class PublicDataService {
         } as DataInfo);
 
     const userPrompt = input.prompt || "";
-    const isSingle = userPrompt.trim().startsWith("!활용");
-    const cleanPrompt = isSingle ? userPrompt.replace(/^!활용\s*/, "") : userPrompt;
+    const isSingle = userPrompt.trim().startsWith("/활용");
+    const cleanPrompt = isSingle ? userPrompt.replace(/^\/활용\s*/, "") : userPrompt;
 
     // [수정] isSingle(즉, !활용 유무)에 따라 맥락 사용 여부 결정
     const previousResult = isSingle ? this.conversationState.lastResponse : undefined;
