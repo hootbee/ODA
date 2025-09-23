@@ -1,29 +1,33 @@
+
 import type { GoogleGenerativeAI } from "@google/generative-ai";
 
-/** 프론트가 쓰는 공통 DTO */
-export type UtilizationIdea = {
+// [수정] DTO와 스키마를 모드에 따라 명확히 분리
+
+/** 단일/심플 모드용 아이디어 DTO */
+export type SimpleUtilizationIdea = {
   title: string;
-  description?: string;
-  effect?: string;
-  content?: string;
+  content: string;
 };
 
-export type SingleRecommendationDTO = {
-  type:
-      | "business"
-      | "policy"
-      | "research"
-      | "social_problem"
-      | "simple_recommendation"
-      | "error";
-  recommendations: UtilizationIdea[];
+/** 전체 활용 모드용 아이디어 DTO */
+export type RichUtilizationIdea = {
+  title: string;
+  content: string;
+  description: string;
+  effect: string;
+};
+
+export type SingleLikeDTO = {
+  type: "simple_recommendation" | "error";
+  recommendations: SimpleUtilizationIdea[]; // SimpleUtilizationIdea 사용
+  meta?: { mode: "single" | "simple" };
 };
 
 export type AllRecommendationsDTO = {
-  businessApplications: UtilizationIdea[];
-  researchApplications: UtilizationIdea[];
-  policyApplications: UtilizationIdea[];
-  socialProblemApplications: UtilizationIdea[];
+  businessApplications: RichUtilizationIdea[]; // RichUtilizationIdea 사용
+  researchApplications: RichUtilizationIdea[];
+  policyApplications: RichUtilizationIdea[];
+  socialProblemApplications: RichUtilizationIdea[];
 };
 
 export type DataInfo = {
@@ -38,71 +42,49 @@ const trace = (...args: any[]) => TRACE && console.log("[LLM_TRACE]", ...args);
 
 /* --------------------------- JSON 보수 파서 --------------------------- */
 function safeParseJson(text: string): any {
-  // 1) 그냥 시도
-  try {
-    return JSON.parse(text);
-  } catch {}
-
-  // 2) 코드펜스/앞뒤 잡음 제거
+  try { return JSON.parse(text); } catch {}
   let cleaned = text.replace(/```(?:json)?|```/g, "").trim();
-
-  // 3) 마지막 닫는 괄호까지 자르기
   const lastObj = cleaned.lastIndexOf("}");
   const lastArr = cleaned.lastIndexOf("]");
   const cut = Math.max(lastObj, lastArr);
   if (cut > 0) {
-    try {
-      return JSON.parse(cleaned.slice(0, cut + 1));
-    } catch {}
+    try { return JSON.parse(cleaned.slice(0, cut + 1)); } catch {}
   }
-
-  // 4) 흔한 오류 정정: 끝에 붙은 trailing comma 제거
   cleaned = cleaned.replace(/,(\s*[}\]])/g, "$1");
-  try {
-    return JSON.parse(cleaned);
-  } catch {}
-
-  // 5) 더는 못살리면 null
+  try { return JSON.parse(cleaned); } catch {}
+  console.error("[DEBUG: DataUtilizationService] safeParseJson 완전 실패:", text);
   return null;
 }
 
-/* ------------------------ 공통 아이템 정규화 유틸 ------------------------ */
-function normalizeIdeas(arr: any[] = []): UtilizationIdea[] {
-  return arr.map((x) => ({
-    title: x?.title ?? "제목 없음",
-    description: x?.description ?? "",
-    content: x?.content ?? x?.description ?? "",
-    effect: x?.effect ?? "",
-  }));
-}
+/* --------------------------- 스키마 분리 --------------------------- */
 
-/* --------------------------- 스키마 정의 --------------------------- */
-// 단일/여러 아이템 공통
-const ideaSchema = {
+/** Simple 모드용 스키마: { title, content } */
+const simpleIdeaSchema = {
   type: "object",
-  properties: {
-    title: { type: "string" },
-    description: { type: "string" },
+  properties: { title: { type: "string" }, content: { type: "string" } },
+  required: ["title", "content"],
+};
+const arrayOfSimpleIdeaSchema = { type: "array", items: simpleIdeaSchema };
+
+/** Rich 모드(전체 활용)용 스키마: { title, content, description, effect } */
+const richIdeaSchema = {
+  type: "object",
+  properties: { 
+    title: { type: "string" }, 
     content: { type: "string" },
+    description: { type: "string" },
     effect: { type: "string" },
   },
-  required: ["title"],
+  required: ["title", "content", "description", "effect"],
 };
 
-// 단일 활용: "반드시 배열"로 강제 (프론트는 recommendations: [] 사용)
-const arrayOfIdeasSchema = {
-  type: "array",
-  items: ideaSchema,
-};
-
-// 전체 활용: 4버킷 오브젝트
 const bucketsSchema = {
   type: "object",
   properties: {
-    businessApplications: { type: "array", items: ideaSchema },
-    researchApplications: { type: "array", items: ideaSchema },
-    policyApplications: { type: "array", items: ideaSchema },
-    socialProblemApplications: { type: "array", items: ideaSchema },
+    businessApplications: { type: "array", items: richIdeaSchema }, // Rich 스키마 사용
+    researchApplications: { type: "array", items: richIdeaSchema },
+    policyApplications: { type: "array", items: richIdeaSchema },
+    socialProblemApplications: { type: "array", items: richIdeaSchema },
   },
   required: [
     "businessApplications",
@@ -112,7 +94,6 @@ const bucketsSchema = {
   ],
 };
 
-/* --------------------------- 서비스 본체 --------------------------- */
 export class DataUtilizationService {
   constructor(
       private readonly llm: GoogleGenerativeAI,
@@ -121,122 +102,149 @@ export class DataUtilizationService {
 
   /* ========== 공개 메서드 ========== */
 
-  /** 전체 활용방안 (4버킷) */
+  /** 전체 활용(4버킷) - Rich DTO 반환 */
   public async generateAllRecommendations(
       dataInfo: DataInfo,
       previousResult?: any
   ): Promise<AllRecommendationsDTO> {
     const prompt = this.buildAllRecommendationsPrompt(dataInfo, previousResult);
     trace(`[all] prompt length: ${prompt.length.toLocaleString()} chars`);
-
-    // 1) 스키마 강제 JSON 호출
     const raw = await this.chatJsonBuckets(prompt);
 
-    // 2) 조기 반환(정상)
-    if (raw && typeof raw === "object") {
-      return {
-        businessApplications: normalizeIdeas(raw.businessApplications ?? []),
-        researchApplications: normalizeIdeas(raw.researchApplications ?? []),
-        policyApplications: normalizeIdeas(raw.policyApplications ?? []),
-        socialProblemApplications: normalizeIdeas(
-            raw.socialProblemApplications ?? []
-        ),
-      };
-    }
-
-    // 3) 보수 파서 시도 (모델이 가끔 틀릴 때)
-    const repaired = safeParseJson(String(raw ?? ""));
-    if (repaired && typeof repaired === "object") {
-      return {
-        businessApplications: normalizeIdeas(repaired.businessApplications ?? []),
-        researchApplications: normalizeIdeas(repaired.researchApplications ?? []),
-        policyApplications: normalizeIdeas(repaired.policyApplications ?? []),
-        socialProblemApplications: normalizeIdeas(
-            repaired.socialProblemApplications ?? []
-        ),
-      };
-    }
-
-    // 4) 완전 실패 시 빈 버킷
+    const obj = raw && typeof raw === "object" ? raw : safeParseJson(String(raw ?? ""));
     return {
-      businessApplications: [],
-      researchApplications: [],
-      policyApplications: [],
-      socialProblemApplications: [],
+      businessApplications: (obj?.businessApplications ?? []) as RichUtilizationIdea[],
+      researchApplications: (obj?.researchApplications ?? []) as RichUtilizationIdea[],
+      policyApplications: (obj?.policyApplications ?? []) as RichUtilizationIdea[],
+      socialProblemApplications: (obj?.socialProblemApplications ?? []) as RichUtilizationIdea[],
     };
   }
 
-  /** 단일 활용방안 (비즈니스/정책/연구/사회문제, 또는 자유 프롬프트) */
-  public async generateSingleRecommendation(
+  /** 단일(!활용) — Simple DTO 반환 */
+  public async generateSingleByPrompt(
       dataInfo: DataInfo,
-      analysisType: string,
+      userPrompt: string,
       previousResult?: any
-  ): Promise<SingleRecommendationDTO> {
-    const prompt = this.buildSingleRecommendationPrompt(
-        dataInfo,
-        analysisType,
-        previousResult
-    );
-    trace(`[single] prompt length: ${prompt.length.toLocaleString()} chars`);
+  ): Promise<SingleLikeDTO> {
+    console.log("\n[DEBUG: DataUtilizationService.ts] generateSingleByPrompt 진입");
+    const prompt = this.buildSinglePrompt(dataInfo, userPrompt, previousResult);
+    
+    console.log("[DEBUG: DataUtilizationService.ts] chatJsonArrayTC 호출 예정");
+    let arr = await this.chatJsonArrayTC(prompt);
+    console.log("[DEBUG: DataUtilizationService.ts] chatJsonArrayTC로부터 받은 원본 응답 (arr):", arr);
 
-    // 1) 스키마 강제: "반드시 배열"
-    let arr = await this.chatJsonArray(prompt);
-
-    // 2) 보수 파서
     if (!Array.isArray(arr)) {
+      console.log("[DEBUG: DataUtilizationService.ts] 응답이 배열이 아니므로, 복구 로직 시도");
       const repaired = safeParseJson(String(arr ?? ""));
+      console.log("[DEBUG: DataUtilizationService.ts] 복구 시도 후 (repaired):", repaired);
       arr = Array.isArray(repaired) ? repaired : [repaired].filter(Boolean);
     }
 
-    const recommendations = normalizeIdeas(arr ?? []);
+    const first = arr?.[0];
+    console.log("[DEBUG: DataUtilizationService.ts] 최종 배열의 첫 번째 항목 (first):", first);
 
-    // 타입 추정 (없으면 simple_recommendation)
-    const map: Record<string, SingleRecommendationDTO["type"]> = {
-      비즈니스: "business",
-      사업: "business",
-      정책: "policy",
-      연구: "research",
-      사회문제: "social_problem",
+    if (!first?.title || !first?.content) {
+      console.error("[DEBUG: DataUtilizationService.ts] 최종 항목에 title 또는 content가 없어 에러 DTO 반환");
+      return {
+        type: "error",
+        recommendations: [{ title: "생성 실패", content: "AI가 요청에 맞는 유효한 형식의 결과를 만들지 못했습니다." }],
+        meta: { mode: "single" },
+      };
+    }
+
+    console.log("[DEBUG: DataUtilizationService.ts] 성공 DTO 반환");
+    return {
+      type: "simple_recommendation",
+      recommendations: [{ title: first.title, content: first.content }],
+      meta: { mode: "single" },
     };
-    const type =
-        map[analysisType.trim()] ?? ("simple_recommendation" as const);
+  }
 
-    return { type, recommendations };
+  /** 심플 모드(자유 프롬프트) - Simple DTO 반환 */
+  public async generateSimplePassThrough(
+      userPrompt: string,
+      previousResult?: any 
+  ): Promise<SingleLikeDTO> {
+    console.log("\n[DEBUG: DataUtilizationService.ts] generateSimplePassThrough 진입");
+    const prompt = this.buildSimplePrompt(userPrompt, previousResult);
+    const obj = await this.chatJsonObjectTC(prompt);
+    const o = obj && obj.title && obj.content ? obj : { title: "결과", content: "생성 실패" };
+    return {
+      type: "simple_recommendation",
+      recommendations: [o],
+      meta: { mode: "simple" },
+    };
   }
 
   /* ========== 프롬프트 빌더 ========== */
 
-  private buildSingleRecommendationPrompt(
+  private buildSimplePrompt(userPrompt: string, previousResult?: any): string {
+    const prev = previousResult ? JSON.stringify(previousResult, null, 2) : "";
+    const safePrev = prev.length > 4000 ? prev.slice(0, 4000) + " …(truncated)" : prev;
+    const context = previousResult
+        ? `
+# 이전 대화 내용 (참고)
+아래 내용을 참고하여 사용자의 현재 요청에 답변하세요.
+[이전 대화 내용 JSON]
+${safePrev}
+`
+        : "";
+
+    const prompt = `
+# 요청사항
+아래 사용자의 요구에 맞춘 답변을 생성하세요.
+- 응답은 반드시 { "title": "...", "content": "..." } 형식의 JSON 객체여야 합니다.
+- 마크다운, 주석, 기타 텍스트 없이 순수한 JSON 객체만 반환해야 합니다.
+${context}
+[사용자 요청]
+${userPrompt}
+`.trim();
+    console.log(`[DEBUG: DataUtilizationService.ts] buildSimplePrompt 생성 완료:
+--- PROMPT START ---
+${prompt}
+--- PROMPT END ---`);
+    return prompt;
+  }
+
+  private buildSinglePrompt(
       dataInfo: DataInfo,
-      analysisType: string,
+      userPrompt: string,
       previousResult?: any
   ): string {
     const prev = previousResult ? JSON.stringify(previousResult, null, 2) : "";
-    const safePrev =
-        prev.length > 4000 ? prev.slice(0, 4000) + " …(truncated)" : prev;
-
+    const safePrev = prev.length > 4000 ? prev.slice(0, 4000) + " …(truncated)" : prev;
     const context = previousResult
         ? `
 # 이전 제안 내용 (참고)
-직전에 다음과 같은 아이디어를 제안했습니다. 이 내용을 바탕으로 사용자의 현재 요청에 맞춰 더 구체화하거나 확장해주세요.
-
+아래 내용을 바탕으로 사용자의 요청을 더 구체적/연결감 있게 확장하세요.
 [이전 제안 JSON]
 ${safePrev}
 `
         : "";
 
-    return `
+    const prompt = `
 # 데이터 정보
 - 제목: ${dataInfo.title}
 - 설명: ${dataInfo.description}
-- 키워드: ${dataInfo.keywords}
-- 카테고리: ${dataInfo.category}
 
 # 요청사항
-위 데이터를 활용하여 다음 요청에 대한 아이디어를 1개 제안하세요:
-"${analysisType}"
+아래 사용자의 요구에 맞춘 활용방안 아이디어를 1개 제안하고, 반드시 지정된 JSON 형식으로만 응답하세요.
+
+## 출력 형식 (반드시 준수)
+- 전체 응답은 순수 JSON 배열(길이 1)이어야 합니다: 
+- 규칙 1: 마크다운, 주석, 기타 텍스트 없이 JSON만 반환하세요.
+- 규칙 2: 
+  - 
+  
+[사용자 요청]
+${userPrompt}
 ${context}
 `.trim();
+    console.log(`[DEBUG: DataUtilizationService.ts] buildSinglePrompt 생성 완료:
+--- PROMPT START ---
+${prompt}
+--- PROMPT END ---`);
+    return prompt;
   }
 
   private buildAllRecommendationsPrompt(
@@ -244,14 +252,10 @@ ${context}
       previousResult?: any
   ): string {
     const prev = previousResult ? JSON.stringify(previousResult, null, 2) : "";
-    const safePrev =
-        prev.length > 4000 ? prev.slice(0, 4000) + " …(truncated)" : prev;
-
+    const safePrev = prev.length > 4000 ? prev.slice(0, 4000) + " …(truncated)" : prev;
     const context = previousResult
         ? `
 # 이전 제안 내용 (참고)
-직전에 다음과 같은 아이디어를 제안했습니다. 이 내용을 바탕으로 사용자의 현재 요청에 맞춰 더 구체화하거나 확장해주세요.
-
 [이전 제안 JSON]
 ${safePrev}
 `
@@ -261,58 +265,92 @@ ${safePrev}
 # 데이터 정보
 - 제목: ${dataInfo.title}
 - 설명: ${dataInfo.description}
-- 키워드: ${dataInfo.keywords}
-- 카테고리: ${dataInfo.category}
 
 # 요청사항
-위 데이터를 활용할 수 있는 방안 4가지를 다음 카테고리별로 제안하세요:
-1. 비즈니스 모델
-2. 사회문제 해결
-3. 연구/인사이트
-4. 정책 제언
+아래 4개 버킷으로 활용방안을 제안하세요. 각 아이템은 반드시 title, description, content, effect 4개 필드를 모두 포함해야 합니다.
+1) businessApplications
+2) researchApplications
+3) policyApplications
+4) socialProblemApplications
+
+- 반드시 단일 JSON "객체"로만 출력합니다(코드펜스/텍스트 금지).
 ${context}
 `.trim();
   }
 
-  /* ========== LLM 호출 (스키마 강제) ========== */
+  /* ========== LLM 호출 ========== */
 
-  /** 배열(JSON array) 강제 */
-  private async chatJsonArray(prompt: string): Promise<any> {
+  /** 단일: JSON "배열" [{title, content}] 강제 */
+  private async chatJsonArrayTC(prompt: string): Promise<any> {
+    console.log("[DEBUG: DataUtilizationService.ts] chatJsonArrayTC 진입");
     const model = this.llm.getGenerativeModel({
       model: this.model,
       systemInstruction: `
-You are a data utilization plan expert.
+You are a helpful assistant.
 - Output MUST be a JSON array (no markdown, no extra text).
-- Each item: { "title": string, "content": string, "effect": string, "description": string }
+- Each item MUST be: { "title": string, "content": string }.
+- Language: Korean.
+      `,
+    });
+
+    try {
+      console.log("[DEBUG: DataUtilizationService.ts] model.generateContent 호출 시작");
+      const result = await model.generateContent({
+        contents: [{ role: "user", parts: [{ text: prompt }] }],
+        generationConfig: {
+          temperature: 0.6,
+          maxOutputTokens: 2000,
+          responseMimeType: "application/json",
+        },
+      });
+      console.log("[DEBUG: DataUtilizationService.ts] model.generateContent 호출 성공");
+
+      const text = result.response.text() ?? "";
+      console.log("[DEBUG: DataUtilizationService.ts] LLM으로부터 받은 원본 텍스트:", text);
+      const parsed = safeParseJson(text);
+      console.log("[DEBUG: DataUtilizationService.ts] 파싱 후 결과:", parsed);
+      return parsed ?? [];
+    } catch (e) {
+      console.error("[DEBUG: DataUtilizationService.ts] chatJsonArrayTC에서 예외 발생:", e);
+      return { error: true, message: e instanceof Error ? e.message : String(e) };
+    }
+  }
+
+  /** 심플: JSON "객체" {title, content} 강제 */
+  private async chatJsonObjectTC(userPrompt: string): Promise<any> {
+    const model = this.llm.getGenerativeModel({
+      model: this.model,
+      systemInstruction: `
+You are a helpful assistant. 
+- Output MUST be a single JSON object { "title": string, "content": string }.
+- No markdown, no extra text. 
 - Language: Korean.
       `,
     });
 
     const result = await model.generateContent({
-      contents: [{ role: "user", parts: [{ text: prompt }] }],
+      contents: [{ role: "user", parts: [{ text: userPrompt }] }],
       generationConfig: {
-        temperature: 0.6,
+        temperature: 0.5,
         maxOutputTokens: 2000,
         responseMimeType: "application/json",
-        // ✅ 스키마 강제: 반드시 배열
-        responseSchema: arrayOfIdeasSchema as any,
+        responseSchema: simpleIdeaSchema as any, // [수정] simpleIdeaSchema 사용
       },
     });
 
     const text = result.response.text() ?? "";
-    console.log("[DEBUG] [DataUtilizationService] LLM 응답(JSON array):", text);
-    return safeParseJson(text) ?? [];
+    return safeParseJson(text) ?? null;
   }
 
-  /** 버킷 오브젝트(JSON object) 강제 */
+  /** 전체: 4버킷 오브젝트 강제 */
   private async chatJsonBuckets(prompt: string): Promise<any> {
     const model = this.llm.getGenerativeModel({
       model: this.model,
       systemInstruction: `
-You are a data utilization plan expert.
-- Output MUST be a JSON object (no markdown, no extra text).
-- Object keys: businessApplications, researchApplications, policyApplications, socialProblemApplications
-- Each value is a JSON array of items: { "title": string, "content": string, "effect": string, "description": string }
+You are a data utilization expert.
+- Output MUST be a JSON object.
+- Keys: businessApplications, researchApplications, policyApplications, socialProblemApplications.
+- Each value: JSON array of { "title": string, "description": string, "content": string, "effect": string }.
 - Language: Korean.
       `,
     });
@@ -321,15 +359,14 @@ You are a data utilization plan expert.
       contents: [{ role: "user", parts: [{ text: prompt }] }],
       generationConfig: {
         temperature: 0.6,
-        maxOutputTokens: 2000,
+        maxOutputTokens: 4000, 
         responseMimeType: "application/json",
-        // ✅ 스키마 강제: 반드시 4버킷 오브젝트
         responseSchema: bucketsSchema as any,
       },
     });
 
     const text = result.response.text() ?? "";
-    console.log("[DEBUG] [DataUtilizationService] LLM 응답(buckets):", text);
+    console.log("[DEBUG: DataUtilizationService] LLM(buckets):", text);
     return safeParseJson(text) ?? null;
   }
 }
