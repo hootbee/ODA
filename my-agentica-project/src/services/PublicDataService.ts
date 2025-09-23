@@ -1,4 +1,4 @@
-// my-agentica-project/src/services/PublicDataService.ts
+// src/services/PublicDataService.ts
 import type { GoogleGenerativeAI } from "@google/generative-ai";
 import * as fs from "fs/promises";
 import * as path from "path";
@@ -46,30 +46,34 @@ export class PublicDataService {
   private readonly analysisService: DataAnalysisService;
   private readonly downloadsDir: string;
 
-  // 대화의 단기 기억을 담당하는 상태 객체
   private conversationState: ConversationState = {};
 
   constructor(private readonly deps: Deps) {
     this.queryPlanner =
         deps.queryPlanner ?? new HybridQueryPlannerService(deps.llm, deps.model);
-    this.utilizationService = new DataUtilizationService(deps.llm, deps.model);
+    this.utilizationService = new DataUtilizationService(
+        deps.llm,
+        deps.model
+    );
     this.downloaderService = deps.downloader ?? new DataDownloaderService();
     this.analysisService =
         deps.analysis ??
-        new DataAnalysisService({ llm: deps.llm, model: deps.model } satisfies DataAnalysisDeps);
-    this.downloadsDir = deps.downloadsDir ?? path.resolve(process.cwd(), "downloads");
+        new DataAnalysisService(
+            { llm: deps.llm, model: deps.model } satisfies DataAnalysisDeps
+        );
+    this.downloadsDir =
+        deps.downloadsDir ?? path.resolve(process.cwd(), "downloads");
   }
 
   private isFollowUpQuery(prompt: string): boolean {
     const followUpKeywords = ["구체화", "자세히", "확장", "심화", "상세하게", "더 알려줘"];
-    return followUpKeywords.some((keyword) => prompt.includes(keyword));
+    return followUpKeywords.some((k) => prompt.includes(k));
   }
 
   /** 데이터 주제가 바뀌었는지 감지하여 맥락 초기화 */
   private resetIfNewData(next?: Partial<DataInfo> & { pk?: string }) {
     if (!next) return;
     const prev = this.conversationState.lastDataInfo ?? {};
-    // pk 또는 title이 변경되면 맥락 초기화
     const changed =
         (next.pk && prev.pk && next.pk !== prev.pk) ||
         (!!next.title && !!prev.title && next.title !== prev.title);
@@ -80,20 +84,16 @@ export class PublicDataService {
   }
 
   // --------------------------------------------------------------------------
-  // 1. 검색/추천 (Stateless - 대화 히스토리 사용 안함)
+  // 1) 검색/추천 (Stateless)
   // --------------------------------------------------------------------------
   public async createQueryPlan(input: { prompt: string }): Promise<any> {
-    this.conversationState = {}; // 새 검색은 히스토리 초기화
+    this.conversationState = {};
     return this.queryPlanner.createQueryPlan(input.prompt);
   }
 
   // --------------------------------------------------------------------------
-  // 2. 활용방안 생성 (Stateful - 대화 히스토리 사용)
+  // 2) 활용방안 생성 (Stateful)
   // --------------------------------------------------------------------------
-
-  /**
-   * 전체 활용방안(비즈니스, 사회문제 등 4가지) 생성
-   */
   public async generateAllUtilizationRecommendations(input: {
     title: string;
     description: string;
@@ -102,15 +102,14 @@ export class PublicDataService {
     prompt?: string;
     dataInfo?: DataInfo;
   }): Promise<AllRecommendationsDTO> {
-    const dataInfo: DataInfo =
-        input.dataInfo ?? {
+    const dataInfo =
+        input.dataInfo ?? ({
           title: input.title,
           description: input.description,
           keywords: input.keywords,
           category: input.category,
-        };
+        } as DataInfo);
 
-    // 주제(데이터)가 바뀌었으면 맥락 초기화
     this.resetIfNewData(dataInfo);
 
     const { prompt = "전체 활용방안" } = input;
@@ -121,7 +120,7 @@ export class PublicDataService {
 
     const result = await this.utilizationService.generateAllRecommendations(
         dataInfo,
-        previousResult,
+        previousResult
     );
 
     this.conversationState = {
@@ -133,26 +132,22 @@ export class PublicDataService {
     return result;
   }
 
-  /**
-   * 단일 종류(예: 비즈니스)의 활용방안 생성
-   */
   public async generateSingleUtilizationRecommendation(input: {
     title: string;
     description: string;
     keywords: string;
     category: string;
-    analysisType: string; // "비즈니스 활용" | "정책 제안" | "더 자세히 설명해줘" 등
+    analysisType: string;
     dataInfo?: DataInfo;
   }): Promise<SingleRecommendationDTO> {
-    const dataInfo: DataInfo =
-        input.dataInfo ?? {
+    const dataInfo =
+        input.dataInfo ?? ({
           title: input.title,
           description: input.description,
           keywords: input.keywords,
           category: input.category,
-        };
+        } as DataInfo);
 
-    // 주제(데이터)가 바뀌었으면 맥락 초기화
     this.resetIfNewData(dataInfo);
 
     const { analysisType } = input;
@@ -164,7 +159,7 @@ export class PublicDataService {
     const result = await this.utilizationService.generateSingleRecommendation(
         dataInfo,
         analysisType,
-        previousResult,
+        previousResult
     );
 
     this.conversationState = {
@@ -177,12 +172,8 @@ export class PublicDataService {
   }
 
   // --------------------------------------------------------------------------
-  // 3. 데이터 확인/분석 (Stateful - 대화 히스토리 사용)
+  // 3) 데이터 확인/분석 (Stateful)
   // --------------------------------------------------------------------------
-
-  /**
-   * PK로 데이터를 다운로드하고 분석 리포트 생성
-   */
   public async analyzeDataByPk(input: {
     publicDataPk?: string;
     prompt?: string;
@@ -200,7 +191,9 @@ export class PublicDataService {
     const pk = input.publicDataPk ?? this.conversationState.lastDataInfo?.pk;
 
     if (!pk) {
-      throw new Error("분석할 데이터의 PK(publicDataPk)가 필요합니다. 먼저 데이터를 검색해주세요.");
+      throw new Error(
+          "분석할 데이터의 PK(publicDataPk)가 필요합니다. 먼저 데이터를 검색해주세요."
+      );
     }
 
     let downloadedFilePath: string | null = null;
@@ -209,7 +202,7 @@ export class PublicDataService {
 
       downloadedFilePath = await this.downloaderService.downloadDataFile(
           pk,
-          this.downloadsDir,
+          this.downloadsDir
       );
       const fileName = path.basename(downloadedFilePath);
 
@@ -230,7 +223,7 @@ export class PublicDataService {
       const analysis = await this.analysisService.analyzeCsvFile(
           downloadedFilePath,
           prompt,
-          previousResult,
+          previousResult
       );
 
       await this.safeUnlink(downloadedFilePath);
@@ -245,18 +238,22 @@ export class PublicDataService {
       return { success: true, analysis, publicDataPk: pk, fileName };
     } catch (error) {
       if (downloadedFilePath) await this.safeUnlink(downloadedFilePath);
-      // 에러 발생 시 히스토리 초기화
       this.conversationState = {};
       throw error;
     }
   }
 
   // --------------------------------------------------------------------------
-  // 4. 다운로드 (Stateless - 대화 히스토리 사용 안함)
+  // 4) 다운로드 (Stateless)
   // --------------------------------------------------------------------------
   public async downloadFileByPk(publicDataPk: string, savePath: string) {
-    this.conversationState = {}; // 다운로드는 히스토리 초기화
+    this.conversationState = {};
     return this.downloaderService.downloadDataFile(publicDataPk, savePath);
+  }
+
+  /** 서버 라우터에서 스트리밍용 사용 */
+  public async downloadFileBuffer(publicDataPk: string) {
+    return this.downloaderService.downloadDataFileAsBuffer(publicDataPk);
   }
 
   private async safeUnlink(p: string) {

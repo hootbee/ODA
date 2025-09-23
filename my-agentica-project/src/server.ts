@@ -1,7 +1,6 @@
 // src/server.ts
 import express, { Request, Response, NextFunction } from "express";
 import dotenv from "dotenv";
-import * as fs from "fs/promises";
 import * as path from "path";
 import { PublicDataService } from "./services/PublicDataService";
 import { geminiClient, DEFAULT_GEMINI_MODEL } from "./lib/aiClient";
@@ -50,7 +49,7 @@ function getErrorMessage(error: unknown): string {
 
 // ✅ 통합 분석(다운로드→분석→정리)
 app.post("/api/analyze-data-by-pk", async (req: Request, res: Response) => {
-  const { publicDataPk } = req.body;
+  const { publicDataPk, prompt } = req.body;
   if (!publicDataPk) {
     return res.status(400).json({
       error: "publicDataPk is required",
@@ -59,7 +58,10 @@ app.post("/api/analyze-data-by-pk", async (req: Request, res: Response) => {
   }
 
   try {
-    const result = await publicDataService.analyzeDataByPk(publicDataPk);
+    const result = await publicDataService.analyzeDataByPk({
+      publicDataPk,
+      prompt,
+    });
     res.json(result);
   } catch (error) {
     console.error("[Workflow] Error:", error);
@@ -72,52 +74,79 @@ app.post("/api/analyze-data-by-pk", async (req: Request, res: Response) => {
 });
 
 // ✅ 파일 다운로드(스트리밍)
-app.get("/api/download-by-pk/:publicDataPk", async (req: Request, res: Response) => {
-  const { publicDataPk } = req.params;
-  if (!publicDataPk) {
-    return res.status(400).json({ error: "publicDataPk is required" });
-  }
+app.get(
+    "/api/download-by-pk/:publicDataPk",
+    async (req: Request, res: Response) => {
+      const { publicDataPk } = req.params;
+      if (!publicDataPk) {
+        return res.status(400).json({ error: "publicDataPk is required" });
+      }
 
-  try {
-    const { buffer, fileName, contentType } =
-        await publicDataService.downloadFileBuffer(publicDataPk);
+      try {
+        const { buffer, fileName, contentType } =
+            await publicDataService.downloadFileBuffer(publicDataPk);
 
-    // 캐시 비활성화
-    res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
-    res.setHeader("Pragma", "no-cache");
-    res.setHeader("Expires", "0");
+        // 캐시 비활성화
+        res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+        res.setHeader("Pragma", "no-cache");
+        res.setHeader("Expires", "0");
 
-    // 파일명/콘텐츠 타입
-    res.setHeader(
-        "Content-Disposition",
-        `attachment; filename*=UTF-8''${encodeURIComponent(fileName)}`
-    );
-    res.setHeader("Content-Type", contentType);
+        // 파일명/콘텐츠 타입
+        res.setHeader(
+            "Content-Disposition",
+            `attachment; filename*=UTF-8''${encodeURIComponent(fileName)}`
+        );
+        res.setHeader("Content-Type", contentType);
 
-    res.send(buffer);
-  } catch (error) {
-    console.error(`[Download] Error for PK ${publicDataPk}:`, error);
-    res.status(500).json({
-      error: "Failed to download the file",
-      message: getErrorMessage(error),
-    });
-  }
-});
+        res.send(buffer);
+      } catch (error) {
+        console.error(`[Download] Error for PK ${publicDataPk}:`, error);
+        res.status(500).json({
+          error: "Failed to download the file",
+          message: getErrorMessage(error),
+        });
+      }
+    }
+);
 
-// ✅ 전체 활용방안
+// ✅ 전체 활용방안 → 프론트 파서가 인식하는 { success:true, data:{...} }로 래핑
 app.post("/api/data-utilization/full", async (req: Request, res: Response) => {
-  const { dataInfo } = req.body;
-  if (!dataInfo) {
+  const { dataInfo, prompt } = req.body;
+
+  // dataInfo가 없으면 낱개 필드로부터 구성
+  const normalized =
+      dataInfo ?? {
+        title: req.body.title,
+        description: req.body.description,
+        keywords: req.body.keywords,
+        category: req.body.category,
+      };
+
+  if (
+      !normalized?.title ||
+      !normalized?.description ||
+      !normalized?.keywords ||
+      !normalized?.category
+  ) {
     return res.status(400).json({
-      error: "dataInfo is required",
+      error: "dataInfo or {title, description, keywords, category} is required",
       code: "MISSING_DATA_INFO",
     });
   }
 
   try {
-    console.log("📊 전체 활용방안 요청:", dataInfo.fileName);
-    const result = await publicDataService.generateUtilizationRecommendations(dataInfo);
-    res.json({ success: true, data: result });
+    console.log("📊 전체 활용방안 요청:", normalized.title);
+    const dto = await publicDataService.generateAllUtilizationRecommendations({
+      dataInfo: normalized,
+      title: normalized.title,
+      description: normalized.description,
+      keywords: normalized.keywords,
+      category: normalized.category,
+      prompt: prompt ?? "전체 활용방안",
+    });
+
+    // 👇 프론트의 normalizeUtilizationPayload가 인식
+    res.json({ success: true, data: dto });
   } catch (error) {
     console.error("전체 활용방안 생성 오류:", error);
     res.status(500).json({
@@ -128,44 +157,61 @@ app.post("/api/data-utilization/full", async (req: Request, res: Response) => {
   }
 });
 
-// ✅ 단일 활용방안
-app.post("/api/data-utilization/single", async (req: Request, res: Response) => {
-  const { dataInfo, analysisType } = req.body;
-  if (!dataInfo || !analysisType) {
-    return res.status(400).json({
-      type: "error",
-      recommendations: [
-        { title: "요청 오류", content: "dataInfo와 analysisType이 필요합니다." },
-      ],
-    });
-  }
+// ✅ 단일 활용방안 → 항상 { type, recommendations } 스키마
+app.post(
+    "/api/data-utilization/single",
+    async (req: Request, res: Response) => {
+      const { dataInfo, analysisType } = req.body;
+      const info =
+          dataInfo ?? {
+            title: req.body.title,
+            description: req.body.description,
+            keywords: req.body.keywords,
+            category: req.body.category,
+          };
 
-  try {
-    console.log(`📊 단일 활용방안 요청: ${dataInfo.fileName} (${analysisType})`);
-    const result = await publicDataService.generateSingleUtilizationRecommendation({
-      dataInfo,
-      analysisType,
-    });
+      if (
+          !info?.title ||
+          !info?.description ||
+          !info?.keywords ||
+          !info?.category ||
+          !analysisType
+      ) {
+        return res.status(400).json({
+          type: "error",
+          recommendations: [
+            {
+              title: "요청 오류",
+              content:
+                  "dataInfo(또는 title/description/keywords/category)와 analysisType이 필요합니다.",
+            },
+          ],
+        });
+      }
 
-    // ✅ 항상 동일 스키마 유지: { type, recommendations: [] }
-    if (Array.isArray(result?.recommendations)) {
-      return res.json({
-        type: result.type || "simple_recommendation",
-        recommendations: result.recommendations,
-      });
+      try {
+        console.log(`📊 단일 활용방안 요청: ${info.title} (${analysisType})`);
+        const dto =
+            await publicDataService.generateSingleUtilizationRecommendation({
+              dataInfo: info,
+              analysisType,
+            });
+
+        return res.json({
+          type: dto.type || "simple_recommendation",
+          recommendations: dto.recommendations,
+        });
+      } catch (error) {
+        console.error("단일 활용방안 생성 오류:", error);
+        res.status(500).json({
+          type: "error",
+          recommendations: [
+            { title: "예외 발생", content: getErrorMessage(error) },
+          ],
+        });
+      }
     }
-    return res.json({
-      type: "error",
-      recommendations: [{ title: "생성 실패", content: "단일 활용 방안을 생성하지 못했습니다." }],
-    });
-  } catch (error) {
-    console.error("단일 활용방안 생성 오류:", error);
-    res.status(500).json({
-      type: "error",
-      recommendations: [{ title: "예외 발생", content: getErrorMessage(error) }],
-    });
-  }
-});
+);
 
 // ✅ 헬스 체크
 app.get("/health", (_req: Request, res: Response) => {
@@ -182,11 +228,13 @@ app.get("/health", (_req: Request, res: Response) => {
 app.listen(port, () => {
   console.log(`🚀 Agentica AI Service running on http://localhost:${port}`);
   console.log(`📋 Available endpoints:`);
-  console.log(`   POST /api/analyze-data-by-pk      - 파일 PK 분석 워크플로`);
-  console.log(`   GET  /api/download-by-pk/:pk      - 파일 다운로드 스트리밍`);
-  console.log(`   POST /api/data-utilization/full   - 전체 활용방안`);
-  console.log(`   POST /api/data-utilization/single - 단일 활용방안`);
-  console.log(`   GET  /health                      - 헬스 체크`);
+  console.log(`   POST /api/analyze-data-by-pk               - 파일 PK 분석 워크플로`);
+  console.log(
+      `   GET  /api/download-by-pk/:publicDataPk     - 파일 다운로드 스트리밍`
+  );
+  console.log(`   POST /api/data-utilization/full            - 전체 활용방안`);
+  console.log(`   POST /api/data-utilization/single          - 단일 활용방안`);
+  console.log(`   GET  /health                               - 헬스 체크`);
 });
 
 export default app;
