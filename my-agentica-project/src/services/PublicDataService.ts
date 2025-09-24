@@ -45,8 +45,6 @@ export class PublicDataService {
     this.downloadsDir = deps.downloadsDir ?? path.resolve(process.cwd(), "downloads");
   }
 
-  // [수정] isFollowUpQuery 함수 삭제
-
   public async createQueryPlan(input: { prompt: string }): Promise<any> {
     this.conversationState = {};
     return this.queryPlanner.createQueryPlan(input.prompt);
@@ -71,7 +69,6 @@ export class PublicDataService {
         } as DataInfo);
 
     const prompt = input.prompt ?? "전체 활용방안";
-    // [수정] lastAction만 확인하여 맥락 사용 결정 (더 관대한 기준)
     const useHistory = this.conversationState.lastAction === "utilization";
     const previousResult = useHistory ? this.conversationState.lastResponse : undefined;
 
@@ -88,8 +85,6 @@ export class PublicDataService {
 
   /**
    * 단일/심플 통합 진입점
-   * - prompt가 '!활용'으로 시작하면 → 단일(single) 모드 (맥락 O, 정형화된 프롬프트)
-   * - 아니면 → 심플(simple) 모드 (맥락 X, 자유 프롬프트)
    */
   public async generateOneOrSimple(input: {
     dataInfo?: DataInfo;
@@ -109,15 +104,14 @@ export class PublicDataService {
         } as DataInfo);
 
     const userPrompt = input.prompt || "";
-    const isSingle = userPrompt.trim().startsWith("/활용");
-    const cleanPrompt = isSingle ? userPrompt.replace(/^\/활용\s*/, "") : userPrompt;
+    const isSingle = userPrompt.trim().startsWith("!활용");
+    const cleanPrompt = isSingle ? userPrompt.replace(/^!활용\s*/, "") : userPrompt;
 
-    // [수정] isSingle(즉, !활용 유무)에 따라 맥락 사용 여부 결정
     const previousResult = isSingle ? this.conversationState.lastResponse : undefined;
 
     const dto = isSingle
         ? await this.utilizationService.generateSingleByPrompt(dataInfo, cleanPrompt, previousResult)
-        : await this.utilizationService.generateSimplePassThrough(cleanPrompt, undefined); // 항상 맥락 없이 호출
+        : await this.utilizationService.generateSimplePassThrough(cleanPrompt, undefined);
     
     this.conversationState = {
       lastQuery: userPrompt,
@@ -129,36 +123,50 @@ export class PublicDataService {
     return dto;
   }
 
-  /* ===== 데이터 분석/다운로드는 기존 그대로 유지 ===== */
+  /* ===== 데이터 분석/다운로드 (로그 추가) ===== */
 
   public async analyzeDataByPk(input: { publicDataPk?: string; prompt?: string }) {
+    console.log("\n[DEBUG: PublicDataService.ts] --------------------------------------------------");
+    console.log("[DEBUG: PublicDataService.ts] analyzeDataByPk 진입");
+    console.log("[DEBUG: PublicDataService.ts] 입력값 (input):", input);
+
     const { prompt = "데이터 분석해줘" } = input;
-    // [수정] lastAction만 확인하여 맥락 사용 결정
     const useHistory = this.conversationState.lastAction === "analysis";
     const pk = input.publicDataPk ?? this.conversationState.lastDataInfo?.pk;
+    console.log(`[DEBUG: PublicDataService.ts] 분석 대상 PK: ${pk}, 히스토리 사용: ${useHistory}`);
+
     if (!pk) throw new Error("분석할 데이터의 PK(publicDataPk)가 필요합니다.");
 
     let downloadedFilePath: string | null = null;
     try {
       await fs.mkdir(this.downloadsDir, { recursive: true });
+      console.log("[DEBUG: PublicDataService.ts] 파일 다운로드 시작...");
       downloadedFilePath = await this.downloaderService.downloadDataFile(pk, this.downloadsDir);
       const fileName = path.basename(downloadedFilePath);
+      console.log(`[DEBUG: PublicDataService.ts] 파일 다운로드 완료: ${fileName}`);
 
       if (!downloadedFilePath.toLowerCase().endsWith(".csv")) {
         await this.safeUnlink(downloadedFilePath);
+        console.warn(`[DEBUG: PublicDataService.ts] CSV 파일이 아니므로 분석 중단: ${fileName}`);
         return { success: true, analysis: null, publicDataPk: pk, message: "다운로드된 파일이 CSV가 아닙니다.", fileName };
       }
 
       const previousResult = useHistory ? (this.conversationState.lastResponse as string) : undefined;
-      const analysis = await this.analysisService.analyzeCsvFile(downloadedFilePath, prompt, previousResult);
+      console.log("[DEBUG: PublicDataService.ts] analysisService.analyzeCsvFile 호출 예정...");
+      console.log(`[DEBUG: PublicDataService.ts] 전달 파라미터: fileName='${fileName}', prompt='${prompt}', previousResult 존재여부=${!!previousResult}`);
+      const analysis = await this.analysisService.analyzeCsvFile(downloadedFilePath, fileName, prompt, previousResult);
+      console.log("[DEBUG: PublicDataService.ts] analysisService로부터 분석 결과 수신 완료");
 
       await this.safeUnlink(downloadedFilePath);
+      console.log("[DEBUG: PublicDataService.ts] 분석 후 임시 파일 삭제 완료");
+
       this.conversationState = {
         lastQuery: prompt,
         lastResponse: analysis,
         lastAction: "analysis",
         lastDataInfo: { pk, fileName },
       };
+      console.log("[DEBUG: PublicDataService.ts] conversationState 업데이트 완료");
       return { success: true, analysis, publicDataPk: pk, fileName };
     } finally {
       if (downloadedFilePath) await this.safeUnlink(downloadedFilePath);
