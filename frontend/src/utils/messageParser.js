@@ -124,6 +124,10 @@ export const parseBotMessage = (content, metadata = {}) => {
       case "help":
         messageObject.type = "help";
         return messageObject;
+      case "link":
+        messageObject.type = "link";
+        messageObject.url = content.url;
+        return messageObject;
       case "data_analysis":
         messageObject.type = "data_analysis";
         messageObject.data = content;

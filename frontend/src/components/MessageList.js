@@ -13,6 +13,7 @@ import HelpMessage from "./messages/HelpMessage";
 import ContextResetMessage from "./messages/ContextResetMessage";
 import ErrorMessage from "./messages/ErrorMessage";
 import DataAnalysisResult from "./messages/DataAnalysisResult";
+import LinkMessage from "./messages/LinkMessage";
 
 // A simple component to render normal text messages
 const TextMessage = ({ content }) => (
@@ -63,6 +64,8 @@ const MessageBody = ({ message, onCategorySelect }) => {
       );
     case "help":
       return <HelpMessage />;
+    case "link":
+      return <LinkMessage url={message.url} />;
     case "error":
       return <ErrorMessage>{message.text}</ErrorMessage>;
       case "simple_recommendation":
