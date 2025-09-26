@@ -104,14 +104,14 @@ export class PublicDataService {
         } as DataInfo);
 
     const userPrompt = input.prompt || "";
-    const isSingle = userPrompt.trim().startsWith("!활용");
-    const cleanPrompt = isSingle ? userPrompt.replace(/^!활용\s*/, "") : userPrompt;
+    const isSingle = userPrompt.trim().startsWith("/활용");
+    const cleanPrompt = isSingle ? userPrompt.replace(/^\/활용\s*/, "") : userPrompt;
 
-    const previousResult = isSingle ? this.conversationState.lastResponse : undefined;
+    const previousResult = this.conversationState.lastResponse;
 
     const dto = isSingle
         ? await this.utilizationService.generateSingleByPrompt(dataInfo, cleanPrompt, previousResult)
-        : await this.utilizationService.generateSimplePassThrough(cleanPrompt, undefined);
+        : await this.utilizationService.generateSimplePassThrough(cleanPrompt, previousResult);
     
     this.conversationState = {
       lastQuery: userPrompt,
