@@ -27,7 +27,8 @@ public class UtilizationPromptHandler implements PromptHandler {
 
     @Override
     public Mono<JsonNode> handle(ChatSession session, String prompt, String lastDataName) {
-        if (prompt.toLowerCase().contains("전체 활용")) {
+        // ✅ "/종합활용" 또는 "/종합 활용" (대소문자 무시, 공백 허용)
+        if (prompt.trim().matches("(?i)^/\\s*종합\\s*활용.*$")) {
             return buildFullUtilMono(lastDataName);
         } else if (containsTraditionalUtilKeyword(prompt)) {
             return buildSingleUtilMono(lastDataName, prompt);
