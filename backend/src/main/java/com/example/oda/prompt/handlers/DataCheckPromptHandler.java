@@ -25,7 +25,7 @@ public class DataCheckPromptHandler implements PromptHandler {
    @Override
    public boolean canHandle(String prompt, String lastDataName) {
        // Trigger on "데이터 확인" when a dataset is in context
-       return lastDataName != null && !lastDataName.isBlank() && prompt.trim().equals("데이터 확인");
+       return lastDataName != null && !lastDataName.isBlank() && prompt.trim().equals("/데이터 확인");
    }
 
    @Override
