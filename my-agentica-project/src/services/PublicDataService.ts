@@ -2,12 +2,12 @@ import type { GoogleGenerativeAI } from "@google/generative-ai";
 import * as fs from "fs/promises";
 import * as path from "path";
 import { HybridQueryPlannerService } from "./HybridQueryPlannerService";
+import { DataUtilizationService } from "./DataUtilizationService";
 import {
-  DataUtilizationService,
   type DataInfo,
   type SingleLikeDTO,
   type AllRecommendationsDTO,
-} from "./DataUtilizationService";
+} from "./dataUtilization.schema";
 import { DataDownloaderService } from "./DataDownloaderService";
 import { DataAnalysisService, DataAnalysisDeps } from "./DataAnalysisService";
 
@@ -178,6 +178,10 @@ export class PublicDataService {
   ): Promise<{buffer:Buffer; fileName: string; contentType: string}>{
     return this.downloaderService.downloadDataFileAsBuffer(publicDataPk, opts);
   }
+  // public async downloadFileBuffer(publicDataPk: string) {
+  //   // DataDownloaderService의 버퍼 반환 메서드로 위임
+  //   return this.downloaderService.downloadDataFileAsBuffer(publicDataPk);
+  // }
 
   private async safeUnlink(p: string) {
     try { await fs.unlink(p); } catch {}
