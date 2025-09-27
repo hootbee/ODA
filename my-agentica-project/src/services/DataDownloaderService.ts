@@ -45,7 +45,7 @@ export class DataDownloaderService {
       opts?: { fileDetailSn?: number }
   ): Promise<{ buffer: Buffer; fileName: string; contentType: string }> {
     const client = axios.create({
-      timeout: 30000,
+      timeout: 60000, // Increased timeout
       maxRedirects: 5,
       validateStatus: () => true,
       headers: {
@@ -60,33 +60,57 @@ export class DataDownloaderService {
     )}/fileData.do?recommendDataYn=Y`;
 
     // 1) 상세페이지 (세션 확보)
-    await client.get(referer, {
-      headers: { Referer: "https://www.data.go.kr/" },
-      responseType: "text",
-    });
+    try {
+      console.log(`[Downloader] Step 1: GET main page for PK ${publicDataPk}`);
+      await client.get(referer, {
+        headers: { Referer: "https://www.data.go.kr/" },
+        responseType: "text",
+      });
+      console.log("[Downloader] Step 1: Success.");
+    } catch (error) {
+      console.error("[Downloader] Step 1 FAILED:", error.message || error);
+      throw new Error(`Download failed at Step 1 (getting main page): ${error.message}`);
+    }
 
     // 2) checkFileType.do
-    await client.get(
-        `https://www.data.go.kr/tcs/dss/checkFileType.do?publicDataPk=${encodeURIComponent(
-            publicDataPk
-        )}`,
-        {
-          headers: {
-            Referer: referer,
-            "X-Requested-With": "XMLHttpRequest",
-          },
-          responseType: "text",
-        }
-    );
+    try {
+      console.log("[Downloader] Step 2: GET checkFileType.do");
+      await client.get(
+          `https://www.data.go.kr/tcs/dss/checkFileType.do?publicDataPk=${encodeURIComponent(
+              publicDataPk
+          )}`,
+          {
+            headers: {
+              Referer: referer,
+              "X-Requested-With": "XMLHttpRequest",
+            },
+            responseType: "text",
+          }
+      );
+      console.log("[Downloader] Step 2: Success.");
+    } catch (error) {
+        console.error("[Downloader] Step 2 FAILED:", error.message || error);
+        throw new Error(`Download failed at Step 2 (checkFileType): ${error.message}`);
+    }
+
 
     // 3) 메타(JSON) 확보
-    const meta = await this.fetchFileMeta(client, referer, publicDataPk, {
-      startSn: opts?.fileDetailSn ?? 1,
-      maxSn: 12,
-    });
+    let meta;
+    try {
+        console.log("[Downloader] Step 3: Fetching file metadata...");
+        meta = await this.fetchFileMeta(client, referer, publicDataPk, {
+          startSn: opts?.fileDetailSn ?? 1,
+          maxSn: 12,
+        });
+        console.log("[Downloader] Step 3: Success.");
+    } catch (error) {
+        console.error("[Downloader] Step 3 FAILED:", error.message || error);
+        throw new Error(`Download failed at Step 3 (fetchFileMeta): ${error.message}`);
+    }
+
 
     if (!meta || !meta.atchFileId || !meta.fileSn) {
-      throw new Error("파일 메타데이터를 찾지 못했습니다.");
+      throw new Error("파일 메타데이터를 찾지 못했습니다 (atchFileId or fileSn missing).");
     }
 
     console.log(
@@ -101,11 +125,19 @@ export class DataDownloaderService {
         }
     ).toString()}`;
 
-    console.log(`- 직다운 시도: ${directUrl}`);
-    const res = await client.get(directUrl, {
-      headers: { Referer: referer },
-      responseType: "arraybuffer",
-    });
+    let res;
+    try {
+        console.log(`[Downloader] Step 4: Attempting direct download from: ${directUrl}`);
+        res = await client.get(directUrl, {
+          headers: { Referer: referer },
+          responseType: "arraybuffer",
+        });
+        console.log("[Downloader] Step 4: Success.");
+    } catch (error) {
+        console.error("[Downloader] Step 4 FAILED:", error.message || error);
+        throw new Error(`Download failed at Step 4 (direct download): ${error.message}`);
+    }
+
 
     const buffer = Buffer.from(res.data);
     const contentType = String(

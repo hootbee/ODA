@@ -172,10 +172,11 @@ export class PublicDataService {
       if (downloadedFilePath) await this.safeUnlink(downloadedFilePath);
     }
   }
-
-  public async downloadFileByPk(publicDataPk: string, savePath: string) {
-    this.conversationState = {};
-    return this.downloaderService.downloadDataFile(publicDataPk, savePath);
+  public async downloadFileBuffer(
+      publicDataPk:string,
+      opts?:{fileDetailSn?: number}
+  ): Promise<{buffer:Buffer; fileName: string; contentType: string}>{
+    return this.downloaderService.downloadDataFileAsBuffer(publicDataPk, opts);
   }
 
   private async safeUnlink(p: string) {
