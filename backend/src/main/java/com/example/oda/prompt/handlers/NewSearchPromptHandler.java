@@ -22,16 +22,10 @@ public class NewSearchPromptHandler implements PromptHandler {
     @Override
     public boolean canHandle(String prompt, String lastDataName) {
         String lower = prompt.toLowerCase();
-        return lower.contains("다른 데이터 활용") ||
-                lower.contains("다른 데이터") ||
-                lower.contains("새로운 데이터") ||
-                lower.contains("다른 정보") ||
-                lower.contains("새 검색") ||
-                lower.contains("새로운 검색") ||
-                lower.contains("다른 자료") ||
-                lower.matches(".*다른.*조회.*") ||
-                lower.matches(".*새로.*찾.*") ||
-                lower.matches(".*다시.*검색.* ");
+        return lower.startsWith("/다른") ||
+                lower.startsWith("/새로운") ||
+                lower.startsWith("/새로") ||
+                lower.startsWith("/다시");
     }
 
     @Override
