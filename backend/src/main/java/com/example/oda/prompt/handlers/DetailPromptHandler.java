@@ -27,12 +27,12 @@ public class DetailPromptHandler implements PromptHandler {
 
     @Override
     public boolean canHandle(String prompt, String lastDataName) {
-        return prompt.contains("상세") || prompt.contains("자세히");
+        return prompt.trim().startsWith("/자세히");
     }
 
     @Override
     public Mono<JsonNode> handle(ChatSession session, String prompt, String lastDataName) {
-        String extractedFileName = prompt.replaceAll("상세정보|자세히|상세", "").trim();
+        String extractedFileName = prompt.replaceFirst("^/자세히\\s*", "").trim();
         String effectiveFileName;
 
         if (extractedFileName.isEmpty() || extractedFileName.equals("---")) {
