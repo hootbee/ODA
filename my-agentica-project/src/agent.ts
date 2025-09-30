@@ -7,6 +7,7 @@ import {
 import typia from "typia";
 import { PublicDataService } from "./services/PublicDataService";
 import { openaiClient, DEFAULT_GEMINI_MODEL } from "./lib/aiClient";
+import { DataDownloaderService } from "./services/DataDownloaderService";
 
 export const agent: Agentica<"gemini"> = new Agentica({
   model: "gemini",
@@ -26,3 +27,18 @@ export const agent: Agentica<"gemini"> = new Agentica({
     } satisfies IAgenticaController<"gemini">,
   ],
 } satisfies IAgenticaProps<"gemini">);
+
+export async function handleShowPublicDataChart(publicDataPk: string, fileDetailSn?: number) {
+  const downloader = new DataDownloaderService();
+  const payload = await downloader.getFileAsText(publicDataPk, { fileDetailSn, saveDir: "downloads" });
+
+  return {
+    type: "data_analysis_result",
+    dataPayload: {
+      format: payload.format, // "csv" | "json"
+      text: payload.text,
+      title: `공공데이터(${publicDataPk})`,
+    },
+    publicDataPk,
+  };
+}

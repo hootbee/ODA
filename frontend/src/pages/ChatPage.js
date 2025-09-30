@@ -15,7 +15,7 @@ const initialMessages = [
   { id: 1, text: "안녕하세요! 무엇을 도와드릴까요?", sender: "bot" },
   {
     id: 2,
-    text: "저는 공공 데이터를 쉽게 찾고 활용할 수 있도록 돕는 AI 챗봇입니다.\n\n예) '부산시 주차장 데이터 보여줘'",
+    text: "저는 공공 데이터를 쉽게 찾고 활용할 수 있도록 돕는 AI 챗봇입니다.\n\n예) '부산시 주차장 데이터 보여줘'\n예) 'csv: /samples/ev.csv'",
     sender: "bot",
   },
 ];
@@ -64,6 +64,46 @@ const safeParseIfJson = (x) => {
     return x;
   }
 };
+
+/* ============================================================
+   CSV 인코딩 자동 판별(UTF-8 → EUC-KR 재시도)
+   사용법: csv: /samples/ev.csv  또는  csv: /samples/ev.csv enc=euc-kr
+   ============================================================ */
+async function fetchCsvTextWithAutoEncoding(url, encHint) {
+  const resp = await fetch(url, { cache: "no-store" });
+  if (!resp.ok) throw new Error(`CSV 요청 실패: ${resp.status}`);
+
+  const buf = await resp.arrayBuffer();
+
+  const tryDecode = (label) => {
+    try {
+      return new TextDecoder(label).decode(buf);
+    } catch {
+      return null;
+    }
+  };
+
+  // 1) 힌트 우선
+  if (encHint) {
+    const hinted = tryDecode(encHint.toLowerCase());
+    if (hinted) return hinted;
+  }
+
+  // 2) UTF-8
+  let text = tryDecode("utf-8") ?? "";
+
+  // 글깨짐(�/��) 많으면 EUC-KR 재시도
+  const hasMojibake = (s) => {
+    const bad = (s.match(/\uFFFD/g) || []).length;
+    const bad2 = (s.match(/��/g) || []).length;
+    return bad + bad2 > 2;
+  };
+  if (!text || hasMojibake(text)) {
+    const euckr = tryDecode("euc-kr") || tryDecode("ks_c_5601-1987");
+    if (euckr) return euckr;
+  }
+  return text;
+}
 
 export default function ChatPage() {
   const { isAuthenticated, loading } = useAuth();
@@ -262,11 +302,62 @@ const handleCommandSelect = (command) => {
     const prompt = overridePrompt ?? inputValue.trim();
     if (!prompt) return;
 
+    // 사용자 메시지 먼저 출력
     const userMsg = { id: Date.now(), sender: "user", text: prompt };
     updateConv((c) => ({ ...c, messages: [...c.messages, userMsg] }));
     setInput("");
     setIsTyping(true);
 
+    /* =======================
+       ✅ 로컬 CSV 테스트 모드 (인코딩 자동판별 지원)
+       사용법:
+       - csv: /samples/ev.csv
+       - csv: /samples/ev.csv enc=euc-kr
+       - csv: https://example.com/data.csv
+       ======================= */
+    const csvMatch = prompt.match(
+      /^csv:\s*(\S+)(?:.*?\benc\s*=\s*([A-Za-z0-9_\-]+))?/i
+    );
+    if (csvMatch) {
+      try {
+        const src = csvMatch[1];
+        const encHint = csvMatch[2]; // 선택: enc=euc-kr 등
+        const url = /^https?:\/\//i.test(src)
+          ? src
+          : `${window.location.origin}${src.startsWith("/") ? "" : "/"}${src}`;
+
+        const csvText = await fetchCsvTextWithAutoEncoding(url, encHint);
+
+        // ⬇️ DataAnalysisResult가 그대로 이해하는 메시지 포맷
+        const fakeMsg = {
+          type: "data_analysis_result",
+          dataPayload: {
+            format: "csv",
+            text: csvText,
+            title: `로컬 CSV: ${src}`,
+          },
+          publicDataPk: "LOCAL-CSV",
+        };
+        const botMessage = parseBotMessage(fakeMsg);
+        updateConv((c) => ({
+          ...c,
+          messages: [...c.messages, botMessage],
+        }));
+      } catch (error) {
+        console.error("CSV 로드/디코딩 오류:", error);
+        const errorMsg = parseBotMessage({
+          type: "error",
+          message:
+            "CSV 파일을 불러오지 못했습니다. 경로/인코딩(예: enc=euc-kr)을 확인해주세요.",
+        });
+        updateConv((c) => ({ ...c, messages: [...c.messages, errorMsg] }));
+      } finally {
+        setIsTyping(false);
+      }
+      return; // 백엔드 호출 없이 종료
+    }
+
+    // ===== 여기부터는 기존 백엔드/에이전트 호출 =====
     try {
       const { data } = await axios.post(
         "http://localhost:8080/api/prompt",
@@ -351,7 +442,7 @@ const handleCommandSelect = (command) => {
 
           <MessageList
             messages={conv.messages}
-            onCategorySelect={onCategory} // ★ 전달!
+            onCategorySelect={onCategory}
             isTyping={isTyping}
             scrollContainerRef={scrollContainerRef}
             messageEndRef={messageEndRef}
