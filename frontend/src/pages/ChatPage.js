@@ -20,6 +20,41 @@ const initialMessages = [
   },
 ];
 
+const availableCommands = [
+  {
+    command: "/도움말",
+    description: "현재 지원되는 모든 명령어와 그에 맞는 사용 예시를 제공합니다.",
+  },
+  {
+    command: "자세히 [파일명]",
+    description: "선택된 데이터의 메타 데이터를 제공합니다.",
+  },
+  {
+    command: "/데이터 확인",
+    description: "현재 선택된 데이터를 분석 및 다운로드 할 수 있도록 도와줍니다.",
+  },
+  {
+    command: "/종합 활용",
+    description: "선택된 데이터를 바탕으로 4개의 카테고리 활용 방안을 제공합니다.",
+  },
+  {
+    command: "/활용 [원하는 방식/목적]",
+    description: "선택된 데이터와 이전 AI 응답을 바탕으로 특정 방식이나 목적에 맞는 활용 방안을 제공합니다.",
+  },
+  {
+    command: "/다른 데이터",
+    description: "다른 공공 데이터셋을 선택할 수 있도록 도와줍니다.",
+  },
+  {
+    command: "/포털사이트",
+    description: "공공 데이터 포털 사이트로 이동할 수 있는 링크를 제공합니다.",
+  },
+  {
+    command: "/오픈API",
+    description: "선택된 데이터의 오픈API 링크를 제공합니다.",
+  }
+];
+
 /* ---------------------- 안전 파서 유틸 ---------------------- */
 const safeParseIfJson = (x) => {
   if (typeof x !== "string") return x;
@@ -39,6 +74,8 @@ export default function ChatPage() {
   const [conversations, setConvs] = useState({});
   const [inputValue, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
+  const [showCommands, setShowCommands] = useState(false);
+  const [filteredCommands, setFilteredCommands] = useState(availableCommands);
 
   const scrollContainerRef = useRef(null);
   const messageEndRef = useRef(null);
@@ -198,8 +235,30 @@ export default function ChatPage() {
     updateConv((c) => ({ ...c, messages: [...c.messages, resetMessage] }));
   };
 
+  const handleInputChange = (value) => {
+  setInput(value);
+  if (value.startsWith("/")) {
+    setShowCommands(true);
+    if (value == "/") {
+      setFilteredCommands(availableCommands);
+    } else {
+      setFilteredCommands(
+        availableCommands.filter((c) => c.command.startsWith(value))
+      );
+    }
+  } else {
+    setShowCommands(false);
+    }
+  };
+
+const handleCommandSelect = (command) => {
+  setInput(command);
+  setShowCommands(false);
+};
+
   const handleSend = async (e, overridePrompt = null, overrideLast = null) => {
     e.preventDefault();
+    setShowCommands(false);
     const prompt = overridePrompt ?? inputValue.trim();
     if (!prompt) return;
 
@@ -301,8 +360,11 @@ export default function ChatPage() {
 
           <MessageForm
             inputValue={inputValue}
-            setInputValue={setInput}
+            setInputValue={handleInputChange}
             handleSendMessage={handleSend}
+            showCommands={showCommands}
+            commands={filteredCommands}
+            onCommandSelect={handleCommandSelect}
           />
         </ChatWrapper>
         <ScrollControls>
@@ -324,7 +386,7 @@ export default function ChatPage() {
       </ChatPane>
     </Container>
   );
-}
+};
 
 /* -------------------------- styled-components -------------------------- */
 
