@@ -1,6 +1,6 @@
-// src/utils/messageParser.js
+// src/utils/messageParser.js  (merged)
 
-// 내부 헬퍼: 다양한 래핑을 단일 포맷으로 정규화
+// ---------- [LOCAL] Utilization Dashboard Normalizer ----------
 function normalizeUtilizationPayload(content) {
   // unwrap 최대 3회까지 방어적으로 벗겨보기
   let node = content;
@@ -10,7 +10,7 @@ function normalizeUtilizationPayload(content) {
     }
   }
 
-  // 이제 node가 카테고리 묶음을 바로 들고 있으면 성공
+  // 카테고리 키를 가진 객체인지 확인
   if (node && typeof node === "object") {
     const keys = Object.keys(node);
     const hasCategories = [
@@ -19,132 +19,220 @@ function normalizeUtilizationPayload(content) {
       "policyApplications",
       "combinationSuggestions",
       "analysisTools",
-      "socialProblemApplications"
+      "socialProblemApplications",
     ].some((k) => keys.includes(k));
     if (hasCategories) {
       return { success: true, data: node };
     }
   }
-
   return null;
 }
-// src/utils/messageParser.js
 
-export const parseBotMessage = (content, metadata = {}) => {
-  const messageObject = {
-    id: metadata.id || Date.now(),
-    sender: "bot",
+// ---------- [CHERRY] Helpers ----------
+function genId() {
+  return `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+function guessSender(raw) {
+  const s = raw?.sender || raw?.role || raw?.from;
+  if (s === "user" || s === "human") return "user";
+  if (s === "assistant" || s === "agent" || s === "bot" || s === "system")
+    return "agent";
+  return "agent";
+}
+
+function toObject(maybeJson) {
+  if (maybeJson == null) return {};
+  if (typeof maybeJson === "object") return maybeJson;
+  if (typeof maybeJson === "string") {
+    const str = maybeJson.trim();
+    if (str.startsWith("{") || str.startsWith("[")) {
+      try {
+        return JSON.parse(str);
+      } catch {
+        return { text: maybeJson };
+      }
+    }
+    return { text: maybeJson };
+  }
+  return { text: String(maybeJson) };
+}
+
+// ---------- [MERGED] Core Parser ----------
+export default function parseMessage(raw) {
+  const id = raw?.id || genId();
+  const sender = guessSender(raw);
+  const ts = Number.isFinite(raw?.timestamp) ? raw.timestamp : Date.now();
+
+  // content 우선, 없으면 raw 자체를 내용으로
+  const content = toObject(raw?.content ?? raw);
+
+  // 기본 메시지 오브젝트(최종 반환 형태)
+  const message = {
+    id,
+    sender,
+    type: "text",
+    text: "",
+    data: undefined,
+    timestamp: ts,
   };
 
-  console.log("🔧 parseBotMessage 시작:", content);
+  // ---------- A) [LOCAL] Utilization Dashboard 우선 감지 ----------
+  // 다양한 래핑을 벗겨 카테고리 번들인지 확인
+  const normalizedUtil = normalizeUtilizationPayload(content);
+  if (normalizedUtil) {
+    message.type = "utilization-dashboard";
+    message.data = normalizedUtil; // { success: true, data: {...} }
+    // local 메타데이터 호환: 파일명 같은 추가 컨텍스트를 raw에 달고 올 수 있음
+    if (raw?.lastDataName) message.fileName = raw.lastDataName;
+    return message;
+  }
 
-  // 문자열이면 JSON 시도
-  if (typeof content === "string") {
-    try {
-      content = JSON.parse(content);
-    } catch {
-      messageObject.type = "text";
-      messageObject.text = String(content ?? "");
-      return messageObject;
+  // ---------- B) [CHERRY] 명시적 type 처리 ----------
+  if (typeof content.type === "string") {
+    const t = content.type;
+
+    // data_analysis_result → data_analysis 통일
+    if (t === "data_analysis_result") {
+      message.type = "data_analysis";
+      message.data = content; // DataAnalysisResult에서 사용
+      return message;
     }
-  }
 
-  // --- Utilization Dashboard: 다양한 래핑 정규화 후 판단 ---
-  const normalized = normalizeUtilizationPayload(content);
-  if (normalized) {
-    messageObject.type = "utilization-dashboard";
-    messageObject.data = normalized;
-    messageObject.fileName = metadata.lastDataName;
-    console.log("✅ utilization-dashboard 파싱 완료");
-    return messageObject;
-  }
+    switch (t) {
+      case "text":
+        message.type = "text";
+        message.text = content.text ?? "";
+        return message;
 
-  // --- 명시적 type 처리 ---
-  if (content && content.type) {
-    switch (content.type) {
-      case "simple_recommendation":
-        console.log("🔧 simple_recommendation 파싱:", content.recommendations);
-        messageObject.type = "simple_recommendation";
-        messageObject.recommendations = Array.isArray(content.recommendations)
-            ? content.recommendations
-            : [content.recommendations].filter(Boolean);
-        console.log("✅ simple_recommendation 파싱 완료:", messageObject.recommendations);
-        return messageObject;
+      case "error":
+        message.type = "error";
+        message.data = content;
+        message.text = content.message || "오류가 발생했습니다.";
+        return message;
 
-        // 🔧 미리 정의된 분석 타입들 - 수정된 버전
+      case "help":
+        message.type = "help";
+        message.data = content;
+        return message;
+
+      case "search_results":
+        message.type = "search_results";
+        message.data = {
+          ...content,
+          results: Array.isArray(content.results) ? content.results : [],
+          totalCount: Number.isFinite(content.totalCount)
+            ? content.totalCount
+            : Array.isArray(content.results)
+            ? content.results.length
+            : 0,
+        };
+        return message;
+
+      case "search_not_found":
+        message.type = "search_not_found";
+        message.data = content;
+        return message;
+
+      case "data_detail":
+        message.type = "data_detail";
+        message.data = content;
+        return message;
+
+      case "context_reset":
+        message.type = "context_reset";
+        message.data = content;
+        return message;
+
+      case "link": // [LOCAL] 유지
+        message.type = "link";
+        message.url = content.url;
+        message.data = content;
+        return message;
+
+      case "data_analysis":
+        message.type = "data_analysis";
+        message.data = content;
+        return message;
+
+      case "simple_recommendation": {
+        // [MERGED] 단순 추천: content 그대로도 지원 + 배열 필드 정규화
+        message.type = "simple_recommendation";
+        if (Array.isArray(content.recommendations)) {
+          message.recommendations = content.recommendations;
+        } else if (content.recommendations) {
+          message.recommendations = [content.recommendations];
+        } else {
+          message.data = content;
+        }
+        return message;
+      }
+
+      // ---------- [LOCAL] 분석 타입을 simple_recommendation으로 변환 ----------
       case "business":
       case "research":
       case "policy":
-      case "social_problem":
-        console.log(`🔧 ${content.type} 타입 원본:`, content);
-
-        // ✅ recommendations 필드에서 실제 배열 추출 후 변환
+      case "social_problem": {
         let rawRecommendations = content.recommendations || [];
-
-        // 배열이 아닌 경우 배열로 변환
         if (!Array.isArray(rawRecommendations)) {
           rawRecommendations = [rawRecommendations].filter(Boolean);
         }
+        const convertedRecommendations = rawRecommendations.map((rec) => ({
+          title: rec?.title,
+          content: rec?.description || rec?.content,
+          effect: rec?.effect,
+        }));
+        message.type = "simple_recommendation";
+        message.recommendations = convertedRecommendations;
+        return message;
+      }
 
-        // description을 content로 변환
-        const convertedRecommendations = rawRecommendations.map(rec => {
-          console.log(`🔧 개별 추천 변환:`, rec);
-          return {
-            title: rec.title,
-            content: rec.description || rec.content,
-            effect: rec.effect
-          };
-        });
-
-        messageObject.type = "simple_recommendation";
-        messageObject.recommendations = convertedRecommendations;
-        console.log(`✅ ${content.type} 최종 변환:`, messageObject.recommendations);
-        return messageObject;
-
-        // 나머지 케이스들...
-      case "search_results":
-        messageObject.type = "search_results";
-        messageObject.data = content.payload;
-        return messageObject;
-      case "search_not_found":
-        messageObject.type = "search_not_found";
-        messageObject.data = content.payload;
-        return messageObject;
-      case "data_detail":
-        messageObject.type = "data_detail";
-        messageObject.data = content.payload;
-        return messageObject;
-      case "context_reset":
-        messageObject.type = "context_reset";
-        return messageObject;
-      case "error":
-        messageObject.type = "error";
-        messageObject.text = content.message || "오류가 발생했습니다.";
-        return messageObject;
-      case "help":
-        messageObject.type = "help";
-        return messageObject;
-      case "link":
-        messageObject.type = "link";
-        messageObject.url = content.url;
-        return messageObject;
-      case "data_analysis":
-        messageObject.type = "data_analysis";
-        messageObject.data = content;
-        return messageObject;
       default:
-        console.warn("⚠️ 알 수 없는 타입:", content.type);
-        messageObject.type = "text";
-        messageObject.text =
-            "알 수 없는 형식의 응답입니다:\n" + JSON.stringify(content, null, 2);
-        return messageObject;
+        // 알 수 없는 타입 → 안전 텍스트 처리
+        if (typeof content.text === "string") {
+          message.type = "text";
+          message.text = content.text;
+        } else {
+          message.type = "text";
+          message.text = JSON.stringify(content);
+        }
+        return message;
     }
   }
 
-  // --- 기타 객체는 안전하게 텍스트로 ---
-  console.warn("⚠️ 기타 객체를 텍스트로 처리:", content);
-  messageObject.type = "text";
-  messageObject.text =
-      "알 수 없는 형식의 응답입니다:\n" + JSON.stringify(content, null, 2);
-  return messageObject;
-};
+  // ---------- C) [CHERRY] 암묵적 시각화 메시지 인식 ----------
+  // 타입이 없어도 dataPayload/analysis가 있으면 data_analysis로 렌더
+  if (content && typeof content === "object" && (content.dataPayload || content.analysis)) {
+    message.type = "data_analysis";
+    message.data = content;
+    return message;
+  }
+
+  // ---------- D) [LOCAL/CHERRY] 텍스트/기본 처리 ----------
+  if (typeof content.text === "string") {
+    message.type = "text";
+    message.text = content.text;
+    return message;
+  }
+
+  // 순수 문자열이었던 경우(toObject가 감싸지 못하는 경로 대비)
+  if (typeof raw === "string") {
+    message.type = "text";
+    message.text = raw;
+    return message;
+  }
+
+  // 마지막 안전장치
+  message.type = "text";
+  message.text = JSON.stringify(content);
+  return message;
+}
+
+// 호환용 named exports
+export function parseBotMessage(raw) {
+  // 현재 프로젝트에서는 봇/유저 모두 동일 파서로 처리
+  return parseMessage(raw);
+}
+export function parseUserMessage(raw) {
+  return parseMessage(raw);
+}

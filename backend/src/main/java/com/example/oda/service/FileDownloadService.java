@@ -5,4 +5,5 @@ import reactor.core.publisher.Mono;
 
 public interface FileDownloadService {
     Mono<ResponseEntity<byte[]>> downloadFile(String publicDataPk);
+    byte[] download(Long publicDataPk, Long fileDetailSn);
 }

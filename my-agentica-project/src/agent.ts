@@ -7,6 +7,7 @@ import {
 import typia from "typia";
 import { PublicDataService } from "./services/PublicDataService";
 import { geminiClient, DEFAULT_GEMINI_MODEL } from "./lib/aiClient";
+import { DataDownloaderService } from "./services/DataDownloaderService";
 
 // ✨ 핵심: vendor를 unknown→IAgenticaVendor 로 캐스팅
 const vendorAsOpenAI = {
@@ -29,3 +30,18 @@ export const agent: Agentica<"gemini"> = new Agentica({
     } satisfies IAgenticaController<"gemini">,
   ],
 } satisfies IAgenticaProps<"gemini">);
+
+export async function handleShowPublicDataChart(publicDataPk: string, fileDetailSn?: number) {
+  const downloader = new DataDownloaderService();
+  const payload = await downloader.getFileAsText(publicDataPk, { fileDetailSn, saveDir: "downloads" });
+
+  return {
+    type: "data_analysis_result",
+    dataPayload: {
+      format: payload.format, // "csv" | "json"
+      text: payload.text,
+      title: `공공데이터(${publicDataPk})`,
+    },
+    publicDataPk,
+  };
+}

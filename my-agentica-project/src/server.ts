@@ -3,10 +3,15 @@ import dotenv from "dotenv";
 import * as path from "path";
 import { PublicDataService } from "./services/PublicDataService";
 import { geminiClient, DEFAULT_GEMINI_MODEL } from "./lib/aiClient";
+import express from "express";
+import cors from "cors";
+import { inferChartSpec } from "./services/DataVisualizationService";
 
 dotenv.config();
 
 const app = express();
+app.use(express.json({ limit: "10mb" }));
+app.use(cors());
 const port = process.env.PORT || 3001;
 
 const publicDataService = new PublicDataService({
@@ -105,7 +110,7 @@ app.post("/api/data-utilization/single", async (req, res) => {
             keywords: req.body.keywords,
             category: req.body.category,
         };
-    
+
     // [수정] req.body.prompt와 req.body.analysisType을 모두 확인하여 프롬프트를 가져옴
     const prompt: string = req.body.prompt || req.body.analysisType || "";
 
@@ -131,6 +136,23 @@ app.post("/api/data-utilization/single", async (req, res) => {
         });
     }
 });
+
+app.post("/agent/show-chart", async (req, res) => {
+  const { publicDataPk, fileDetailSn } = req.body || {};
+  const msg = await handleShowPublicDataChart(publicDataPk, fileDetailSn);
+  res.json(msg);
+});
+
+app.post("/visualize", (req, res) => {
+  try {
+    const { table, hint, title } = req.body || {};
+    const chartSpec = inferChartSpec({ table, hint, title });
+    res.json({ chartSpec });
+  } catch (err: any) {
+    res.status(400).json({ error: err.message || "failed to infer chart spec" });
+  }
+});
+
 
 /* ===== 헬스 ===== */
 app.get("/health", (_req, res) => {

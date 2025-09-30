@@ -7,26 +7,50 @@ import puppeteer from "puppeteer"; // npm i puppeteer
 import { setTimeout as delay } from "timers/promises";
 
 export class DataDownloaderService {
+      private buildDownloadUrl(publicDataPk: string, fileDetailSn?: number) {
+          const qs = new URLSearchParams({ publicDataPk: String(publicDataPk) });
+          if (fileDetailSn != null) qs.set("fileDetailSn", String(fileDetailSn));
+          return `http://localhost:8080/api/download?${qs.toString()}`;
+      }
+
   /**
    * publicDataPk: 기존처럼 data.go.kr의 PK 문자열일 수도 있고,
    * 서울시 포털 상세 URL(예: https://data.seoul.go.kr/dataList/OA-21090/S/1/datasetView.do)일 수도 있음.
    */
   public async downloadDataFile(
-      publicDataPk: string,
-      savePath: string,
-      opts?: { fileDetailSn?: number }
+    publicDataPk: string,
+    savePath: string,
+    opts?: { fileDetailSn?: number }
   ): Promise<string> {
-    const { buffer, fileName } = await this.downloadCore(publicDataPk, opts);
+    const url = this.buildDownloadUrl(publicDataPk, opts?.fileDetailSn);
+    const res = await axios.get(url, { responseType: "arraybuffer" });
 
-    const abs = path.resolve(savePath);
-    const dir = path.dirname(abs);
-    const finalPath = path.join(dir, fileName);
+    const dir = path.dirname(savePath);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(savePath, res.data);
+    return savePath;
+  }
 
-    fs.mkdirSync(dir, { recursive: true });
-    fs.writeFileSync(finalPath, buffer);
+  /** 프론트로 보낼 수 있도록 텍스트와 포맷으로 가공 */
+  public async getFileAsText(
+    publicDataPk: string,
+    opts?: { fileDetailSn?: number; saveDir?: string }
+  ): Promise<{ format: "csv" | "json" | "unknown"; text: string; filename: string }> {
+    const saveDir = opts?.saveDir ?? path.resolve(process.cwd(), "downloads");
+    if (!fs.existsSync(saveDir)) fs.mkdirSync(saveDir, { recursive: true });
 
-    console.log(`✅ 저장 완료: ${finalPath}`);
-    return finalPath;
+    const tempPath = path.join(saveDir, `${publicDataPk}_${opts?.fileDetailSn ?? 0}`);
+    const finalPath = await this.downloadDataFile(publicDataPk, tempPath, { fileDetailSn: opts?.fileDetailSn });
+
+    const buf = fs.readFileSync(finalPath);
+    const text = buf.toString("utf-8");
+
+    // 아주 단순한 판정: JSON 시도 → 아니면 CSV로 간주
+    let format: "csv" | "json" | "unknown" = "unknown";
+    try { JSON.parse(text); format = "json"; }
+    catch { format = "csv"; }
+
+    return { format, text, filename: path.basename(finalPath) };
   }
 
   /** 메모리 반환용 */
