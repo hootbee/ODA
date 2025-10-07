@@ -143,4 +143,79 @@ app.listen(port, () => {
     console.log(`   GET  /health`);
 });
 
+/* ===== 테스트 다운로드 (서울 포털/직접 URL 재생용) ===== */
+
+/**
+ * GET /test-download/:id
+ * - :id 예) OA-21090
+ * - 내부에서 서울시 데이터셋 상세 URL로 변환 후 다운로드 시도
+ */
+app.get("/test-download/:id", async (req: Request, res: Response) => {
+    const { id } = req.params;
+
+    // 간단 유효성 체크
+    if (!id || !/^[A-Za-z0-9\-_]+$/.test(id)) {
+        return res.status(400).json({ error: "invalid id" });
+    }
+
+    // 서울시 포털 상세 페이지 URL 생성
+    const datasetViewUrl = `https://data.seoul.go.kr/dataList/${encodeURIComponent(id)}/S/1/datasetView.do`;
+
+    try {
+        // PublicDataService.downloadFileBuffer는 source 문자열(서울 포털 URL/PK 등)을 받아 버퍼 반환
+        const { buffer, fileName, contentType } = await publicDataService.downloadFileBuffer(datasetViewUrl);
+
+        res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+        res.setHeader("Pragma", "no-cache");
+        res.setHeader("Expires", "0");
+        res.setHeader("Content-Disposition", `attachment; filename*=UTF-8''${encodeURIComponent(fileName)}`);
+        res.setHeader("Content-Type", contentType || "application/octet-stream");
+        return res.send(buffer);
+    } catch (err) {
+        console.error("[TestDownload GET] error:", err);
+        return res.status(500).json({ error: "download_failed", message: getErrorMessage(err) });
+    }
+});
+
+/**
+ * POST /test-download
+ * body: { id?: string, portal?: "seoul"|"data"|"url", directUrl?: string }
+ * - portal==="seoul"  : id 필수 (예: OA-21090)
+ * - portal==="data"   : id 에 data.go.kr의 PK/식별자 전달
+ * - portal==="url"    : directUrl 필수
+ */
+app.post("/test-download", async (req: Request, res: Response) => {
+    const { id, portal = "seoul", directUrl } = req.body || {};
+
+    try {
+        let source: string;
+        if (portal === "url") {
+            if (!directUrl) return res.status(400).json({ error: "directUrl required when portal==='url'" });
+            source = String(directUrl);
+        } else if (portal === "seoul") {
+            if (!id) return res.status(400).json({ error: "id required for portal==='seoul'" });
+            source = `https://data.seoul.go.kr/dataList/${encodeURIComponent(String(id))}/S/1/datasetView.do`;
+        } else if (portal === "data") {
+            if (!id) return res.status(400).json({ error: "id required for portal==='data'" });
+            // 기존 data.go.kr PK를 그대로 넘김 (서비스 내부에서 처리)
+            source = String(id);
+        } else {
+            return res.status(400).json({ error: "unsupported portal" });
+        }
+
+        const { buffer, fileName, contentType } = await publicDataService.downloadFileBuffer(source);
+
+        console.log(`[Download] fileName=${fileName}, contentType=${contentType}, bytes=${buffer?.byteLength}`);
+
+        res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+        res.setHeader("Pragma", "no-cache");
+        res.setHeader("Expires", "0");
+        res.setHeader("Content-Disposition", `attachment; filename*=UTF-8''${encodeURIComponent(fileName)}`);
+        res.setHeader("Content-Type", contentType || "application/octet-stream");
+        return res.send(buffer);
+    } catch (err) {
+        console.error("[TestDownload POST] error:", err);
+        return res.status(500).json({ error: "download_failed", message: getErrorMessage(err) });
+    }
+});
 export default app;
