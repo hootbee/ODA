@@ -43,8 +43,12 @@ app.post("/api/analyze-data-by-pk", async (req, res) => {
 app.get("/api/download-by-pk/:publicDataPk", async (req, res) => {
     const { publicDataPk } = req.params;
     if (!publicDataPk) return res.status(400).json({ error: "publicDataPk is required" });
+
+    // 서울시 포털 상세 페이지 URL 생성
+    const datasetViewUrl = `https://data.seoul.go.kr/dataList/${encodeURIComponent(publicDataPk)}/S/1/datasetView.do`;
+
     try {
-        const { buffer, fileName, contentType } = await publicDataService.downloadFileBuffer(publicDataPk);
+        const { buffer, fileName, contentType } = await publicDataService.downloadFileBuffer(datasetViewUrl);
         res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
         res.setHeader("Pragma", "no-cache");
         res.setHeader("Expires", "0");
