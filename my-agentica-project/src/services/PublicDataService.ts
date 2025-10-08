@@ -11,16 +11,17 @@ import {
 import { DataDownloaderService } from "./DataDownloaderService";
 import { DataAnalysisService, DataAnalysisDeps } from "./DataAnalysisService";
 
-interface DownloadAndAnalyzeParams {
+interface AnalyzeDataParams {
+    publicDataPk?: string;
+    prompt?: string;
     id?: string;
     portal?: "seoul" | "data" | "url";
     directUrl?: string;
     fileDetailSn?: number;
-    saveDir?: string;
-    prompt?: string;
 }
 
 interface ConversationState {
+
   lastQuery?: string;
   lastResponse?: any;
   lastAction?: "utilization" | "analysis" | null;
@@ -134,35 +135,57 @@ export class PublicDataService {
 
   /* ===== 데이터 분석/다운로드 (로그 추가) ===== */
 
-  public async analyzeDataByPk(input: { publicDataPk?: string; prompt?: string }) {
+  public async analyzeDataByPk(input: AnalyzeDataParams) {
     console.log("\n[DEBUG: PublicDataService.ts] --------------------------------------------------");
     console.log("[DEBUG: PublicDataService.ts] analyzeDataByPk 진입");
     console.log("[DEBUG: PublicDataService.ts] 입력값 (input):", input);
 
-    const { prompt = "데이터 분석해줘" } = input;
-    const useHistory = this.conversationState.lastAction === "analysis";
-    const pk = input.publicDataPk ?? this.conversationState.lastDataInfo?.pk;
-    console.log(`[DEBUG: PublicDataService.ts] 분석 대상 PK: ${pk}, 히스토리 사용: ${useHistory}`);
+    const {
+        prompt = "데이터 분석해줘",
+        portal = "seoul", // Default to Seoul Open Data
+        directUrl,
+        fileDetailSn,
+    } = input;
 
-    if (!pk) throw new Error("분석할 데이터의 PK(publicDataPk)가 필요합니다.");
+    // Determine the source identifier
+    const sourceId = input.publicDataPk ?? input.id ?? this.conversationState.lastDataInfo?.pk;
+    console.log(`[DEBUG: PublicDataService.ts] 분석 대상 ID: ${sourceId}`);
+    if (!sourceId) throw new Error("분석할 데이터의 식별자(publicDataPk or id)가 필요합니다.");
+
+    // Construct the full source URL if needed (for seoul portal)
+    let downloadSource: string;
+    if (portal === "url") {
+        if (!directUrl) throw new Error("directUrl is required when portal is 'url'");
+        downloadSource = directUrl;
+    } else if (portal === "seoul") {
+        downloadSource = `https://data.seoul.go.kr/dataList/${encodeURIComponent(String(sourceId))}/S/1/datasetView.do`;
+    } else {
+        downloadSource = sourceId; // Assumes it's a data.go.kr PK
+    }
+
+    const useHistory = this.conversationState.lastAction === "analysis" && this.conversationState.lastDataInfo?.pk === sourceId;
+    console.log(`[DEBUG: PublicDataService.ts] 히스토리 사용: ${useHistory}`);
 
     let downloadedFilePath: string | null = null;
     try {
       await fs.mkdir(this.downloadsDir, { recursive: true });
       console.log("[DEBUG: PublicDataService.ts] 파일 다운로드 시작...");
-      downloadedFilePath = await this.downloaderService.downloadDataFile(pk, this.downloadsDir);
+
+      // Pass fileDetailSn to the downloader
+      downloadedFilePath = await this.downloaderService.downloadDataFile(downloadSource, this.downloadsDir, {
+          fileDetailSn: fileDetailSn ? Number(fileDetailSn) : undefined,
+      });
       const fileName = path.basename(downloadedFilePath);
       console.log(`[DEBUG: PublicDataService.ts] 파일 다운로드 완료: ${fileName}`);
 
       if (!downloadedFilePath.toLowerCase().endsWith(".csv")) {
         await this.safeUnlink(downloadedFilePath);
         console.warn(`[DEBUG: PublicDataService.ts] CSV 파일이 아니므로 분석 중단: ${fileName}`);
-        return { success: true, analysis: null, publicDataPk: pk, message: "다운로드된 파일이 CSV가 아닙니다.", fileName };
+        return { success: true, analysis: null, publicDataPk: sourceId, message: "다운로드된 파일이 CSV가 아닙니다.", fileName };
       }
 
       const previousResult = useHistory ? (this.conversationState.lastResponse as string) : undefined;
       console.log("[DEBUG: PublicDataService.ts] analysisService.analyzeCsvFile 호출 예정...");
-      console.log(`[DEBUG: PublicDataService.ts] 전달 파라미터: fileName='${fileName}', prompt='${prompt}', previousResult 존재여부=${!!previousResult}`);
       const analysis = await this.analysisService.analyzeCsvFile(downloadedFilePath, fileName, prompt, previousResult);
       console.log("[DEBUG: PublicDataService.ts] analysisService로부터 분석 결과 수신 완료");
 
@@ -173,10 +196,10 @@ export class PublicDataService {
         lastQuery: prompt,
         lastResponse: analysis,
         lastAction: "analysis",
-        lastDataInfo: { pk, fileName },
+        lastDataInfo: { pk: sourceId, fileName },
       };
       console.log("[DEBUG: PublicDataService.ts] conversationState 업데이트 완료");
-      return { success: true, analysis, publicDataPk: pk, fileName };
+      return { success: true, analysis, publicDataPk: sourceId, fileName };
     } finally {
       if (downloadedFilePath) await this.safeUnlink(downloadedFilePath);
     }
