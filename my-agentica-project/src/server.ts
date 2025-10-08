@@ -3,16 +3,6 @@ import dotenv from "dotenv";
 import * as path from "path";
 import { PublicDataService } from "./services/PublicDataService";
 import { geminiClient, DEFAULT_GEMINI_MODEL } from "./lib/aiClient";
-// (추가) 새 서비스 임포트
-import { DataDownloaderService } from "./services/DataDownloaderService";
-import { DataAnalysisService } from "./services/DataAnalysisService";
-
-// (추가) 인스턴스 생성
-const dataDownloader = new DataDownloaderService();
-const dataAnalysis = new DataAnalysisService({
-    llm: geminiClient,
-    model: DEFAULT_GEMINI_MODEL,
-});
 
 dotenv.config();
 
@@ -242,60 +232,10 @@ app.post("/test-download", async (req: Request, res: Response) => {
  * - 응답: 최소 메타정보만 JSON으로 반환
  */
 app.post("/api/test-download-and-analyze", async (req: Request, res: Response) => {
-    console.log("\n[TEST] ===== /api/test-download-and-analyze 시작 =====");
+    console.log("\n[TEST] ===== /api/test-download-and-analyze 호출 =====");
     try {
-        const {
-            id,
-            portal = "seoul",
-            directUrl,
-            fileDetailSn,
-            saveDir = path.resolve(__dirname, "../downloads/tmp"),
-            prompt = "파일의 내용을 분석하고, 핵심 인사이트를 담은 보고서를 작성해줘.",
-        } = req.body || {};
-
-        // 1) 소스 판별 (기존 /test-download 로직과 동일한 규칙)
-        let source: string;
-        if (portal === "url") {
-            if (!directUrl) return res.status(400).json({ error: "directUrl required when portal==='url'" });
-            source = String(directUrl);
-        } else if (portal === "seoul") {
-            if (!id) return res.status(400).json({ error: "id required for portal==='seoul'" });
-            source = `https://data.seoul.go.kr/dataList/${encodeURIComponent(String(id))}/S/1/datasetView.do`;
-        } else if (portal === "data") {
-            if (!id) return res.status(400).json({ error: "id required for portal==='data'" });
-            source = String(id); // data.go.kr의 PK를 그대로 넘김
-        } else {
-            return res.status(400).json({ error: "unsupported portal" });
-        }
-
-        // 2) 파일 다운로드 (디스크 저장)
-        //    - DataDownloaderService.downloadDataFile(savePath)는 '파일명'을 내부에서 다시 결정하므로
-        //      여기서는 디렉토리만 지정해 주면 됨. (임의 더미 경로를 주되, 실제 파일명은 응답 경로의 basename)
-        const dummyTarget = path.join(saveDir, ".placeholder");
-        const savedPath = await dataDownloader.downloadDataFile(source, dummyTarget, {
-            fileDetailSn: fileDetailSn ? Number(fileDetailSn) : undefined,
-        });
-        const fileName = path.basename(savedPath);
-
-        console.log(`[TEST] 다운로드 완료 → ${savedPath}`);
-
-        // 3) CSV 분석 (결과는 터미널로만 출력)
-        //    - DataAnalysisService.analyzeCsvFile은 파일 내용을 잘라(최대 20,000자) LLM에 전달
-        const report = await dataAnalysis.analyzeCsvFile(savedPath, fileName, prompt);
-
-        console.log("\n====================[ 분석 보고서 START ]====================\n");
-        console.log(report);
-        console.log("\n=====================[ 분석 보고서 END ]=====================\n");
-
-        // 4) 응답은 메타만 (터미널 로그를 진짜 출력물로 사용)
-        return res.json({
-            ok: true,
-            portal,
-            sourceHint: portal === "url" ? directUrl : id,
-            savedPath,
-            fileName,
-            note: "실제 분석 보고서는 서버 터미널(log)로만 출력됩니다.",
-        });
+        const result = await publicDataService.downloadAndAnalyze(req.body);
+        return res.json(result);
     } catch (err) {
         console.error("[TEST] 다운로드/분석 중 오류:", err);
         return res.status(500).json({ ok: false, error: "download_or_analysis_failed", message: getErrorMessage(err) });

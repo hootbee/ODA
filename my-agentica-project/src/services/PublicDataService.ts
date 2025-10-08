@@ -11,6 +11,15 @@ import {
 import { DataDownloaderService } from "./DataDownloaderService";
 import { DataAnalysisService, DataAnalysisDeps } from "./DataAnalysisService";
 
+interface DownloadAndAnalyzeParams {
+    id?: string;
+    portal?: "seoul" | "data" | "url";
+    directUrl?: string;
+    fileDetailSn?: number;
+    saveDir?: string;
+    prompt?: string;
+}
+
 interface ConversationState {
   lastQuery?: string;
   lastResponse?: any;
@@ -182,6 +191,61 @@ export class PublicDataService {
   //   // DataDownloaderService의 버퍼 반환 메서드로 위임
   //   return this.downloaderService.downloadDataFileAsBuffer(publicDataPk);
   // }
+
+  public async downloadAndAnalyze(params: DownloadAndAnalyzeParams): Promise<any> {
+    console.log("\n[TEST] ===== PublicDataService.downloadAndAnalyze 시작 =====");
+    const {
+        id,
+        portal = "seoul",
+        directUrl,
+        fileDetailSn,
+        saveDir = path.join(this.downloadsDir, "tmp"),
+        prompt = "파일의 내용을 분석하고, 핵심 인사이트를 담은 보고서를 작성해줘.",
+    } = params;
+
+    // 1) 소스 판별
+    let source: string;
+    if (portal === "url") {
+        if (!directUrl) throw new Error("directUrl required when portal==='url'");
+        source = String(directUrl);
+    } else if (portal === "seoul") {
+        if (!id) throw new Error("id required for portal==='seoul'");
+        source = `https://data.seoul.go.kr/dataList/${encodeURIComponent(String(id))}/S/1/datasetView.do`;
+    } else if (portal === "data") {
+        if (!id) throw new Error("id required for portal==='data'");
+        source = String(id);
+    } else {
+        throw new Error("unsupported portal");
+    }
+
+    await fs.mkdir(saveDir, { recursive: true });
+
+    // 2) 파일 다운로드 (디스크 저장)
+    const dummyTarget = path.join(saveDir, ".placeholder");
+    const savedPath = await this.downloaderService.downloadDataFile(source, dummyTarget, {
+        fileDetailSn: fileDetailSn ? Number(fileDetailSn) : undefined,
+    });
+    const fileName = path.basename(savedPath);
+
+    console.log(`[TEST] 다운로드 완료 → ${savedPath}`);
+
+    // 3) CSV 분석 (결과는 터미널로만 출력)
+    const report = await this.analysisService.analyzeCsvFile(savedPath, fileName, prompt);
+
+    console.log("\n====================[ 분석 보고서 START ]====================\n");
+    console.log(report);
+    console.log("\n=====================[ 분석 보고서 END ]=====================\n");
+
+    // 4) 응답은 메타만
+    return {
+        ok: true,
+        portal,
+        sourceHint: portal === "url" ? directUrl : id,
+        savedPath,
+        fileName,
+        note: "실제 분석 보고서는 서버 터미널(log)로만 출력됩니다.",
+    };
+  }
 
   private async safeUnlink(p: string) {
     try { await fs.unlink(p); } catch {}
