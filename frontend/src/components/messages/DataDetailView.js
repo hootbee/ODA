@@ -7,11 +7,21 @@ const DataDetailView = ({ data }) => {
         <DetailContainer>
             <h3><span role="img" aria-label="icon">📋</span> {data.title || '데이터 상세 정보'}</h3>
             <DetailGrid>
-                <DetailItem><strong>📄 파일명:</strong> {data.fileDataName}</DetailItem>
-                <DetailItem><strong>📅 수정일:</strong> {data.modifiedDate}</DetailItem>
-                <DetailItem><strong>📂 분류:</strong> {data.classificationSystem}</DetailItem>
+                <DetailItem><strong>🆔 데이터 식별자:</strong> {data.publicDataPk}</DetailItem>
                 <DetailItem><strong>🏢 제공기관:</strong> {data.providerAgency}</DetailItem>
+                <DetailItem><strong>🏭 제공부서:</strong> {data.providerDepartment}</DetailItem>
+                <DetailItem><strong>📂 분류:</strong> {data.category}</DetailItem>
+                <DetailItem><strong>📅 데이터 갱신일:</strong> {data.modifiedDate}</DetailItem>
+                <DetailItem><strong>📞 담당자 연락처:</strong> {data.contactNumber}</DetailItem>
+                <DetailItem><strong>💻 원본 시스템:</strong> {data.sourceSystem}</DetailItem>
+                <DetailItem><strong>📜 라이선스:</strong> {data.licenseType}</DetailItem>
             </DetailGrid>
+            {data.usageTerms && (
+                <DescriptionSection>
+                    <strong>ℹ️ 활용 조건:</strong>
+                    <blockquote>{data.usageTerms}</blockquote>
+                </DescriptionSection>
+            )}
             {data.keywords && data.keywords.length > 0 && (
                 <KeywordSection>
                     <strong>🔑 키워드:</strong>
