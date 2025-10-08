@@ -25,15 +25,15 @@ public class DetailServiceImpl implements DetailService {
     @Override
     public Mono<PublicData> getDataDetails(String prompt) {
         return Mono.fromCallable(() -> {
-            String fileDataName = extractFileNameFromPrompt(prompt);
-            log.info("상세 정보 조회 요청: '{}'", fileDataName);
+            String title = extractFileNameFromPrompt(prompt);
+            log.info("상세 정보 조회 요청: '{}'", title);
 
-            Optional<PublicData> exactMatch = publicDataRepository.findByFileDataName(fileDataName);
+            Optional<PublicData> exactMatch = publicDataRepository.findByTitle(title);
             if (exactMatch.isPresent()) {
                 return exactMatch.get();
             }
 
-            List<PublicData> partialMatches = publicDataRepository.findByFileDataNameContaining(fileDataName);
+            List<PublicData> partialMatches = publicDataRepository.findByTitleContaining(title);
             if (!partialMatches.isEmpty()) {
                 return partialMatches.get(0);
             }

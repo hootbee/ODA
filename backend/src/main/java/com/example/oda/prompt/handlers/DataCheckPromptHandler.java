@@ -31,7 +31,7 @@ public class DataCheckPromptHandler implements PromptHandler {
    @Override
    public Mono<JsonNode> handle(ChatSession session, String prompt, String lastDataName) {
        // Find the PublicData entity by its name to get the PK
-       Optional<PublicData> publicDataOptional = publicDataRepository.findByFileDataName(lastDataName);
+       Optional<PublicData> publicDataOptional = publicDataRepository.findByTitle(lastDataName);
 
        if (publicDataOptional.isEmpty()) {
            ObjectNode errorNode = JsonNodeFactory.instance.objectNode();
@@ -40,7 +40,7 @@ public class DataCheckPromptHandler implements PromptHandler {
            return Mono.just(errorNode);
        }
 
-        Long publicDataPk = publicDataOptional.get().getPublicDataPk();
+        String publicDataPk = publicDataOptional.get().getPublicDataPk();
        if (publicDataPk == null) {
            ObjectNode errorNode = JsonNodeFactory.instance.objectNode();
            errorNode.put("type", "error");

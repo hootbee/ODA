@@ -30,23 +30,23 @@ public class UtilizationServiceImpl implements UtilizationService {
         this.objectMapper = objectMapper;
     }
 
-    private Mono<Optional<PublicData>> findDataByName(String fileName) {
-        return Mono.fromCallable(() -> publicDataRepository.findByFileDataName(fileName))
+    private Mono<Optional<PublicData>> findDataByTitle(String title) {
+        return Mono.fromCallable(() -> publicDataRepository.findByTitle(title))
                 .subscribeOn(Schedulers.boundedElastic());
     }
 
     @Override
     public Mono<JsonNode> getSingleUtilizationRecommendation(SingleUtilizationRequestDto requestDto) {
-        String fileName = requestDto.getDataInfo().getFileName();
+        String title = requestDto.getDataInfo().getTitle();
         String userPrompt = requestDto.getAnalysisType();
-        log.info("단일 활용 추천 요청: 파일명='{}', 사용자 프롬프트='{}'", fileName, userPrompt);
+        log.info("단일 활용 추천 요청: 제목='{}', 사용자 프롬프트='{}'", title, userPrompt);
 
-        return findDataByName(fileName)
+        return findDataByTitle(title)
                 .flatMap(optionalData -> {
                     if (optionalData.isPresent()) {
                         return aiModelService.getSingleUtilizationRecommendation(optionalData.get(), userPrompt);
                     }
-                    return Mono.just(createErrorNode("파일을 찾을 수 없습니다: " + fileName));
+                    return Mono.just(createErrorNode("데이터를 찾을 수 없습니다: " + title));
                 })
                 .doOnError(e -> log.error("단일 활용 추천 생성 실패", e))
                 .onErrorResume(e -> {
@@ -56,16 +56,16 @@ public class UtilizationServiceImpl implements UtilizationService {
 
     @Override
     public Mono<JsonNode> getFullUtilizationRecommendations(SingleUtilizationRequestDto requestDto) {
-        String fileName = requestDto.getDataInfo().getFileName();
-        log.info("전체 활용 추천 요청: 파일명='{}'", fileName);
+        String title = requestDto.getDataInfo().getTitle();
+        log.info("전체 활용 추천 요청: 제목='{}'", title);
 
-        return findDataByName(fileName)
+        return findDataByTitle(title)
                 .flatMap(optionalData -> {
                     if (optionalData.isPresent()) {
                         PublicData data = optionalData.get();
                         return aiModelService.getUtilizationRecommendations(data);
                     }
-                    return Mono.just(createErrorNode("파일을 찾을 수 없습니다: " + fileName));
+                    return Mono.just(createErrorNode("데이터를 찾을 수 없습니다: " + title));
                 })
                 .doOnError(e -> log.error("전체 활용 추천 생성 실패", e))
                 .onErrorResume(e ->

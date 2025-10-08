@@ -24,18 +24,54 @@ public class QueryPlannerServiceImpl implements QueryPlannerService {
     private final Map<String, Set<String>> categoryKeywords = new HashMap<>();
 
     public QueryPlannerServiceImpl() {
-        categoryKeywords.put("교통및물류", new HashSet<>(Arrays.asList("교통", "도로", "지하철", "버스", "물류", "주차", "교통사고", "신호등", "교통안전", "도로안전", "사고예방")));
-        categoryKeywords.put("공공질서및안전", new HashSet<>(Arrays.asList("안전", "보안", "방범", "치안", "안전사고", "시민안전", "공공안전", "생활안전")));
-        categoryKeywords.put("문화체육관광", new HashSet<>(Arrays.asList("문화재", "관광", "체육", "문화", "박물관", "공연", "축제", "예술")));
-        categoryKeywords.put("환경", new HashSet<>(Arrays.asList("환경", "대기", "수질", "폐기물", "오염", "녹지", "생태", "기후")));
-        categoryKeywords.put("교육", new HashSet<>(Arrays.asList("교육", "학교", "대학", "학습", "도서관", "연구", "학생", "교사")));
-        categoryKeywords.put("보건", new HashSet<>(Arrays.asList("보건", "병원", "의료", "건강", "질병", "의약", "코로나", "백신")));
-        categoryKeywords.put("사회복지", new HashSet<>(Arrays.asList("복지", "어린이", "노인", "장애", "저소득", "돌봄", "보육", "복지관")));
-        categoryKeywords.put("산업·통상·중소기업", new HashSet<>(Arrays.asList("산업", "기업", "창업", "경제", "무역", "중소기업", "공장", "제조업")));
-        categoryKeywords.put("일반공공행정", new HashSet<>(Arrays.asList("행정", "민원", "공무원", "정책", "규제", "법령", "시청", "구청")));
-        categoryKeywords.put("재정·세제·금융", new HashSet<>(Arrays.asList("재정", "세금", "금융", "예산", "투자", "경제", "세무", "은행"))); // ★ 괄호 수정
-        categoryKeywords.put("지역개발", new HashSet<>(Arrays.asList("개발", "도시", "지역", "건설", "인프라", "택지", "재개발", "도시계획")));
-        categoryKeywords.put("농림", new HashSet<>(Arrays.asList("농업", "임업", "농산물", "산림", "축산", "어업", "농가", "농촌")));
+
+        categoryKeywords.put("보건", new HashSet<>(Arrays.asList(
+                "보건", "의료", "병원", "건강", "질병", "감염병", "코로나", "백신", "의약", "검진", "진료"
+        )));
+
+        categoryKeywords.put("문화/관광", new HashSet<>(Arrays.asList(
+                "문화", "관광", "축제", "전시", "공연", "예술", "박물관", "문화재", "체육", "여행", "명소"
+        )));
+
+        categoryKeywords.put("산업/경제", new HashSet<>(Arrays.asList(
+                "산업", "경제", "기업", "창업", "제조", "무역", "고용", "중소기업", "시장", "소비", "투자", "금융"
+        )));
+
+        categoryKeywords.put("복지", new HashSet<>(Arrays.asList(
+                "복지", "사회복지", "돌봄", "노인", "아동", "장애인", "저소득", "보육", "생활지원", "복지관"
+        )));
+
+        categoryKeywords.put("환경", new HashSet<>(Arrays.asList(
+                "환경", "대기", "수질", "오염", "폐기물", "기후", "탄소", "생태", "미세먼지", "에너지", "녹지"
+        )));
+
+        categoryKeywords.put("교육", new HashSet<>(Arrays.asList(
+                "교육", "학교", "대학", "학생", "교사", "학습", "연구", "도서관", "교과", "평가"
+        )));
+
+        categoryKeywords.put("일반행정", new HashSet<>(Arrays.asList(
+                "행정", "정책", "민원", "공무원", "정부", "자치", "법령", "시청", "구청", "제도"
+        )));
+
+        categoryKeywords.put("교통", new HashSet<>(Arrays.asList(
+                "교통", "도로", "버스", "지하철", "철도", "신호등", "주차", "교통안전", "교통사고", "물류", "대중교통"
+        )));
+
+        categoryKeywords.put("인구/가구", new HashSet<>(Arrays.asList(
+                "인구", "가구", "출생", "사망", "인구통계", "이동", "통계", "세대", "인구수", "연령대"
+        )));
+
+        categoryKeywords.put("안전", new HashSet<>(Arrays.asList(
+                "안전", "재난", "재해", "방재", "방범", "치안", "응급", "소방", "사고", "대피", "위험"
+        )));
+
+        categoryKeywords.put("도시관리", new HashSet<>(Arrays.asList(
+                "도시", "지역", "개발", "도시계획", "시설", "도로관리", "조경", "인프라", "구역", "공원"
+        )));
+
+        categoryKeywords.put("주택/건설", new HashSet<>(Arrays.asList(
+                "주택", "건설", "부동산", "재개발", "건축", "아파트", "임대", "주거", "토지", "건축물"
+        )));
     }
 
     @Override

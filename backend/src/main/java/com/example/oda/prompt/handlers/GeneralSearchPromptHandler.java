@@ -73,7 +73,7 @@ public class GeneralSearchPromptHandler implements PromptHandler {
                 root.set("payload", payload);
             } else {
                 List<String> resultNames = sortedResults.stream()
-                        .map(PublicData::getFileDataName)
+                        .map(PublicData::getTitle)
                         .filter(name -> name != null && !name.trim().isEmpty())
                         .limit(plan.getLimit())
                         .collect(Collectors.toList());

@@ -48,12 +48,12 @@ public class LinkCommandHandler implements PromptHandler {
     }
 
     private Mono<JsonNode> handleOpenApi(String lastDataName) {
-        Optional<PublicData> dataOptional = publicDataRepository.findByFileDataName(lastDataName);
+        Optional<PublicData> dataOptional = publicDataRepository.findByTitle(lastDataName);
         ObjectNode response = objectMapper.createObjectNode();
 
         if (dataOptional.isPresent()) {
             PublicData data = dataOptional.get();
-            Long pk = data.getPublicDataPk();
+            String pk = data.getPublicDataPk();
             String url = "https://www.data.go.kr/data/" + pk + "/fileData.do#tab-layer-openapi";
             response.put("type", "link");
             response.put("url", url);

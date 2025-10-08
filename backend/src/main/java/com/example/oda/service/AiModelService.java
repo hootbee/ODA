@@ -11,5 +11,5 @@ public interface AiModelService {
     Mono<JsonNode> getQueryPlan(String prompt);
     Mono<JsonNode> getUtilizationRecommendations(PublicData data);
     Mono<JsonNode> getSingleUtilizationRecommendation(PublicData data, String analysisType);
-    Mono<JsonNode> analyzeDataByPk(Long publicDataPk);
+    Mono<JsonNode> analyzeDataByPk(String  publicDataPk);
 }

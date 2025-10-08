@@ -28,7 +28,7 @@ public class UtilizationPromptHandler implements PromptHandler {
     @Override
     public Mono<JsonNode> handle(ChatSession session, String prompt, String lastDataName) {
         // ✅ "/종합활용" 또는 "/종합 활용" (대소문자 무시, 공백 허용)
-        if (prompt.trim().matches("(?i)^/\\s*종합\\s*활용.*$")) {
+        if (prompt.trim().matches("(?i)^/\s*종합\s*활용.*$")) {
             return buildFullUtilMono(lastDataName);
         } else if (containsTraditionalUtilKeyword(prompt)) {
             return buildSingleUtilMono(lastDataName, prompt);
@@ -39,14 +39,14 @@ public class UtilizationPromptHandler implements PromptHandler {
 
     private boolean containsTraditionalUtilKeyword(String p) {
         String s = p.toLowerCase();
-        return s.matches(".*(비즈니스 활용|연구 활용|정책 활용|데이터 결합|분석 도구).*" ) ||
+        return s.matches(".*(비즈니스 활용|연구 활용|정책 활용|데이터 결합|분석 도구).*") ||
                 s.matches(".*(business 활용|research 활용|policy 활용|combination 활용|tool 활용).*");
     }
 
     private Mono<JsonNode> buildFullUtilMono(String fileName) {
         SingleUtilizationRequestDto dto = new SingleUtilizationRequestDto();
         SingleUtilizationRequestDto.DataInfo dataInfo = new SingleUtilizationRequestDto.DataInfo();
-        dataInfo.setFileName(fileName);
+        dataInfo.setTitle(fileName);
         dto.setDataInfo(dataInfo);
         return utilizationService.getFullUtilizationRecommendations(dto);
     }
@@ -54,7 +54,7 @@ public class UtilizationPromptHandler implements PromptHandler {
     private Mono<JsonNode> buildSingleUtilMono(String fileName, String analysisType) {
         SingleUtilizationRequestDto dto = new SingleUtilizationRequestDto();
         SingleUtilizationRequestDto.DataInfo dataInfo = new SingleUtilizationRequestDto.DataInfo();
-        dataInfo.setFileName(fileName);
+        dataInfo.setTitle(fileName);
         dto.setDataInfo(dataInfo);
         dto.setAnalysisType(analysisType);
         return utilizationService.getSingleUtilizationRecommendation(dto)
@@ -69,7 +69,7 @@ public class UtilizationPromptHandler implements PromptHandler {
     private Mono<JsonNode> buildCustomUtilMono(String fileName, String userPrompt) {
         SingleUtilizationRequestDto dto = new SingleUtilizationRequestDto();
         SingleUtilizationRequestDto.DataInfo dataInfo = new SingleUtilizationRequestDto.DataInfo();
-        dataInfo.setFileName(fileName);
+        dataInfo.setTitle(fileName);
         dto.setDataInfo(dataInfo);
         dto.setAnalysisType(userPrompt);
 
