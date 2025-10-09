@@ -42,6 +42,7 @@ export default function ChatPage() {
 
   const scrollContainerRef = useRef(null);
   const messageEndRef = useRef(null);
+  const effectRan = useRef(false); // Flag to prevent double-running effect in StrictMode
   const [showScrollTop, setShowScrollTop] = useState(false);
   const [showScrollBottom, setShowScrollBottom] = useState(false);
 
@@ -167,12 +168,22 @@ export default function ChatPage() {
   }, [handleNewChat]);
 
   useEffect(() => {
+    // In development, this effect runs twice. This check prevents double execution.
+    if (effectRan.current === true) {
+      return;
+    }
+
     if (loading) return;
     if (!isAuthenticated) {
       navigate("/login");
     } else {
       fetchHistory();
     }
+
+    // Mark that the effect has run once.
+    return () => {
+      effectRan.current = true;
+    };
   }, [isAuthenticated, loading, navigate, fetchHistory]);
 
   const conv = conversations[activeContextId] ?? {
