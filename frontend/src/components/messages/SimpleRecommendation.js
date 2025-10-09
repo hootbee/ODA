@@ -108,7 +108,7 @@ const Title = styled.h4`
 const Description = styled.div`
     margin: 0;
     color: #745761ff;
-    line-height: 1.1; /* 거의 붙은 느낌 */
+    line-height: 1.3; /* 거의 붙은 느낌 */
 
     & > p {
         margin: 0; /* 문단 간격 완전 제거 */
