@@ -2,6 +2,7 @@
   "name": "agentica-template-standalone",
   "version": "0.0.1",
   "description": "",
+  "license": "MIT",
   "scripts": {
     "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
     "start": "node dist/server.js",
@@ -72,6 +73,7 @@
     "dotenv": "^16.6.1",
     "express": "^5.1.0",
     "openai": "^5.10.2",
+    "puppeteer": "^24.23.0",
     "tough-cookie": "^5.1.2",
     "typia": "^9.6.0"
   }
