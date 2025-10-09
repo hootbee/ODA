@@ -1,5 +1,4 @@
-version: "3.8"
-
+# version 키는 이제 생략 권장
 services:
   agent:
     build:
@@ -10,14 +9,17 @@ services:
       - "3001:3001"
     volumes:
       - ./my-agentica-project:/app
-      - /app/node_modules
+      - agent_node_modules:/app/node_modules
     working_dir: /app
-    command: sh -c "npm install && npm run dev"
+    command: npm run dev
     env_file:
       - ./.env
     environment:
       - GEMINI_API_KEY=${GEMINI_API_KEY}
       - CHOKIDAR_USEPOLLING=true
+      - PUPPETEER_SKIP_DOWNLOAD=true
+      - PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser
+    shm_size: "1gb"        # (옵션) Puppeteer 안정성
 
   backend:
     build:
@@ -51,10 +53,14 @@ services:
       - "3000:3000"
     volumes:
       - ./frontend:/app
-      - /app/node_modules
+      - frontend_node_modules:/app/node_modules
     working_dir: /app
-    command: sh -c "npm install && npm start"
+    command: npm start
     environment:
       - CHOKIDAR_USEPOLLING=true
     depends_on:
       - backend
+
+volumes:
+  agent_node_modules:
+  frontend_node_modules:
