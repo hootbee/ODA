@@ -51,23 +51,57 @@ public class LinkCommandHandler implements PromptHandler {
         Optional<PublicData> dataOptional = publicDataRepository.findByTitle(lastDataName);
         ObjectNode response = objectMapper.createObjectNode();
 
-        if (dataOptional.isPresent()) {
-            PublicData data = dataOptional.get();
-            String pk = data.getPublicDataPk();
-            String url = "https://www.data.go.kr/data/" + pk + "/fileData.do#tab-layer-openapi";
-            response.put("type", "link");
-            response.put("url", url);
-        } else {
+        if (dataOptional.isEmpty()) {
             response.put("type", "error");
             response.put("message", "해당 데이터를 찾을 수 없습니다: " + lastDataName);
+            return Mono.just(response);
         }
+
+        PublicData data = dataOptional.get();
+        String rawPk = data.getPublicDataPk(); // 예: "OA-21094" 또는 "oa-21094" 또는 "21094"
+
+        String seoulPk = normalizeSeoulPk(rawPk); // "OA-21094" 형태로 정규화
+        if (seoulPk == null) {
+            response.put("type", "error");
+            response.put("message", "유효하지 않은 PK 형식입니다: " + rawPk);
+            return Mono.just(response);
+        }
+
+        // S/1은 서울열린데이터광장 상세 페이지 기본 패턴
+        String url = "https://data.seoul.go.kr/dataList/" + seoulPk + "/S/1/datasetView.do";
+
+        response.put("type", "link");
+        response.put("url", url);
         return Mono.just(response);
+    }
+    private String normalizeSeoulPk(String pk) {
+        if (pk == null || pk.isBlank()) return null;
+
+        String trimmed = pk.trim();
+
+        // 숫자만 들어온 경우 → OA- 접두어 붙이기
+        if (trimmed.matches("^\\d+$")) {
+            return "OA-" + trimmed;
+        }
+
+        // oa-/OA- 혼용 → 대문자로
+        if (trimmed.matches("^[oO][aA]-\\d+$")) {
+            return trimmed.toUpperCase(); // "OA-12345"
+        }
+
+        // 이미 정상 형태
+        if (trimmed.matches("^OA-\\d+$")) {
+            return trimmed;
+        }
+
+        // 그 외는 지원하지 않는 형식
+        return null;
     }
 
     private Mono<JsonNode> handleDataPortal() {
         ObjectNode response = objectMapper.createObjectNode();
         response.put("type", "link");
-        response.put("url", "https://www.data.go.kr/index.do");
+        response.put("url", "https://data.seoul.go.kr/");
         return Mono.just(response);
     }
 }
