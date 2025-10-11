@@ -164,7 +164,7 @@ function prepareVizFromText(format, text) {
 }
 
 /* ============================= 메인 컴포넌트 ============================= */
-export default function DataAnalysisResult({ data }) {
+function DataAnalysisResult({ data }) {
   // data 예시:
   // {
   //   analysis?: string,
