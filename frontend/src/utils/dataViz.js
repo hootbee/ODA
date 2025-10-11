@@ -1,124 +1,168 @@
 import Papa from "papaparse";
 
-/** 한글 CSV(UTF-8 with BOM 포함) 안전 파서 */
-export async function fetchCsv(url) {
-  const res = await fetch(url, { cache: "no-store" });
-  const text = await res.text();
-  return new Promise((resolve, reject) => {
-    Papa.parse(text, {
-      header: true,
-      skipEmptyLines: true,
-      dynamicTyping: true,
-      worker: false,
-      complete: (r) => resolve(r),
-      error: reject,
-    });
+/* ---------------- CSV 유틸 ---------------- */
+export function parseCSVText(csvText) {
+  const { data, errors } = Papa.parse((csvText || "").trim(), {
+    header: true,
+    skipEmptyLines: true,
+    dynamicTyping: true,
+  });
+  if (errors?.length) console.warn("CSV parse warnings:", errors.slice(0, 3));
+  return (data || []).map((row) => {
+    const clean = {};
+    Object.keys(row || {}).forEach((k) => (clean[(k || "").trim()] = row[k]));
+    return clean;
   });
 }
 
-const TIME_HINTS = ["일시", "시간", "시각", "측정일시", "date", "time", "timestamp"];
-const TIME_EXCLUDE_SUBSTR = ["(hhmi)", "hhmi"];
-
-/** 열 이름이 시간/일시 느낌인지 */
-function isTimeish(name = "") {
-  const n = String(name).toLowerCase();
-  if (TIME_HINTS.some((h) => n.includes(h))) return true;
-  if (TIME_EXCLUDE_SUBSTR.some((h) => n.includes(h))) return true;
-  return false;
+export async function fetchCsv(pathFromPublic) {
+  const res = await fetch(pathFromPublic, { cache: "no-store" });
+  const txt = await res.text();
+  return parseCSVText(txt);
 }
 
-/** 값이 숫자로 쓸만한지(결측 제외 비율 기반) */
-function numericScore(rows, key, sample = 200) {
-  const n = Math.min(rows.length, sample);
-  if (n === 0) return 0;
-  let ok = 0;
-  for (let i = 0; i < n; i++) {
-    const v = rows[i]?.[key];
+/* ---------------- 컬럼 특성 판별 ---------------- */
+function isMostlyNumeric(values, minRatio = 0.7) {
+  if (!values.length) return false;
+  let ok = 0, n = 0;
+  for (const v of values) {
     if (v === "" || v == null) continue;
     const num = typeof v === "number" ? v : Number(String(v).replace(/,/g, ""));
-    if (!Number.isNaN(num)) ok++;
+    if (Number.isFinite(num)) ok++;
+    n++;
   }
-  return ok / n;
+  return n > 0 && ok / n >= minRatio;
 }
 
-/** X축 후보 우선순위: 일시/시간 → 첫번째 열 → 인덱스 */
-function pickXKey(fields, rows) {
-  const byHint = fields.find((f) => isTimeish(f));
-  if (byHint) return byHint;
-
-  // 값이 날짜로 파싱 가능한 열
-  const dateLike = fields.find((f) => {
-    const v = rows[0]?.[f];
-    if (v == null) return false;
-    const d = new Date(v);
-    return !isNaN(d.getTime());
-  });
-  if (dateLike) return dateLike;
-
-  return fields[0] ?? "__index";
-}
-
-/** Y축(수치형) 열 후보 최대 6개 자동 선택 */
-function pickYKeys(fields, rows, xKey) {
-  const bad = new Set([xKey, ...fields.filter((f) => isTimeish(f))]);
-  const scored = fields
-    .filter((f) => !bad.has(f))
-    .map((f) => ({ key: f, score: numericScore(rows, f) }))
-    .filter((s) => s.score >= 0.6) // 60% 이상이 숫자로 읽히는 열만
-    .sort((a, b) => b.score - a.score)
-    .slice(0, 6)
-    .map((s) => s.key);
-
-  // 최후의 보루
-  if (!scored.length) {
-    const rest = fields.filter((f) => !bad.has(f));
-    return rest.slice(0, 3);
-  }
-  return scored;
-}
-
-/** 차트용 데이터로 정규화 */
-function normalize(rows, xKey) {
-  // X키가 없으면 인덱스 부여
-  if (!rows?.length) return [];
-  return rows.map((r, idx) => {
-    const x = r?.[xKey];
-    if (x == null) return { __index: idx, ...r };
-    // 날짜 객체로 바꾸면 Recharts가 예쁘게 못 그리니 문자열 포맷 유지
-    const asDate = new Date(x);
-    if (!isNaN(asDate.getTime())) {
-      const yyyy = asDate.getFullYear();
-      const mm = String(asDate.getMonth() + 1).padStart(2, "0");
-      const dd = String(asDate.getDate()).padStart(2, "0");
-      const hh = String(asDate.getHours()).padStart(2, "0");
-      const mi = String(asDate.getMinutes()).padStart(2, "0");
-      return { ...r, [xKey]: `${yyyy}-${mm}-${dd} ${hh}:${mi}` };
-    }
-    return r;
-  });
-}
-
-/**
- * 공개 API
- * CSV에서 차트 config 자동 생성
+/** 문자열 기반의 “날짜/시간” 판별:
+ *  - 값이 문자열이어야 함
+ *  - -, /, : 중 하나 이상 포함
+ *  - Date.parse 성공률이 minRatio 이상
+ *  (숫자형 값은 ‘날짜’로 보지 않습니다: scatter 오탐 방지)
  */
-export async function prepareVizFromCsv(url) {
-  const parsed = await fetchCsv(url);
-  const fields = parsed?.meta?.fields ?? [];
-  const rows = (parsed?.data ?? []).filter((r) => r && Object.keys(r).length);
+function isMostlyDateString(values, minRatio = 0.7) {
+  if (!values.length) return false;
+  let ok = 0, n = 0;
+  for (const v of values) {
+    if (typeof v !== "string") continue;
+    const s = v.trim();
+    if (!/[\/:\-]/.test(s)) continue;
+    const d = new Date(s);
+    if (!Number.isNaN(d.getTime())) ok++;
+    n++;
+  }
+  return n > 0 && ok / n >= minRatio;
+}
 
-  const xKey = pickXKey(fields, rows);
-  const yKeys = pickYKeys(fields, rows, xKey);
-  const data = normalize(rows, xKey);
-  const guess = yKeys.length > 4 ? "radar" : "line";
+function headerHasTimeHint(h = "") {
+  return /date|날짜|일시|시간|시각|time|timestamp|년|월|일|시|일자|hhmi/i.test(h);
+}
 
-  return {
-    data,
-    xKey: xKey || "__index",
-    yKeys,
-    guess,
-    fields,
-    rowCount: data.length,
-    summary: `${url}에서 ${yKeys.length}개 수치열을 감지했습니다. (행 ${data.length}개)`,
-  };
+function headerHasPercentHint(h = "") {
+  return /%|퍼센트|점유율|비율|율|rate|ratio|share/i.test(h);
+}
+
+function approxEquals(a, b, tol = 0.05) {
+  if (!Number.isFinite(a) || !Number.isFinite(b)) return false;
+  return Math.abs(a - b) <= Math.abs(b) * tol;
+}
+
+function isMonotonicNonDecreasing(values, minRatio = 0.85) {
+  let prev = -Infinity, ok = 0, steps = 0;
+  for (const v of values) {
+    const num = Number(v);
+    if (!Number.isFinite(num)) continue;
+    if (num >= prev) ok++;
+    prev = num;
+    steps++;
+  }
+  return steps > 0 && ok / steps >= minRatio;
+}
+
+/* ---------------- 차트 추천 ---------------- */
+export function recommendChart(rows) {
+  if (!Array.isArray(rows) || rows.length === 0) {
+    return { type: "none", xField: null, yFields: [] };
+  }
+  const headers = Object.keys(rows[0] || {});
+  if (!headers.length) return { type: "none", xField: null, yFields: [] };
+
+  // 열별 특성 수집
+  const cols = headers.map((h) => {
+    const values = rows.map((r) => r[h]).filter((v) => v !== "" && v != null);
+    const numeric = isMostlyNumeric(values);
+    const dateLike = headerHasTimeHint(h) || isMostlyDateString(values);
+    return { key: h, numeric, dateLike, values };
+  });
+
+  const timeCols = cols.filter((c) => c.dateLike);
+  const numCols  = cols.filter((c) => c.numeric);
+  const catCols  = cols.filter((c) => !c.numeric && !c.dateLike);
+
+  // ---------- PIE (엄격 조건) ----------
+  // ① 범주 1개 이상
+  // ② 숫자열 "정확히 1개" (여러 개면 파이 부적절 → 막대)
+  // ③ (퍼센트 컬럼명) 또는 (값 합계 ≈ 100%)
+  if (catCols.length >= 1 && numCols.length === 1) {
+    const cat = catCols[0].key;
+    const yKey = numCols[0].key;
+
+    const uniq = new Set(rows.map((r) => String(r[cat]).trim())).size;
+    if (uniq >= 2 && uniq <= 12) {
+      const sum = rows
+        .map((r) => Number(r[yKey]))
+        .filter((v) => Number.isFinite(v))
+        .reduce((a, b) => a + b, 0);
+
+      const percenty = headerHasPercentHint(yKey) || approxEquals(sum, 100, 0.05);
+      if (percenty) {
+        return { type: "pie", xField: cat, yFields: [yKey] };
+      }
+    }
+    // 퍼센트 성격이 아니면 막대로
+    return { type: "bar", xField: cat, yFields: [yKey] };
+  }
+
+  // ---------- TIME SERIES ----------
+  if (timeCols.length >= 1 && numCols.length >= 1) {
+    const xField = timeCols[0].key;
+    const yFields = numCols.map((c) => c.key);
+
+    // 누적/합계 힌트 또는 실측 비감소 → AREA
+    const hasCumulativeByName = yFields.some((k) =>
+      /누적|합계|total|cum|accum|cumulative|sum/i.test(k)
+    );
+    const hasCumulativeByShape = yFields.some((k) =>
+      isMonotonicNonDecreasing(rows.map((r) => r[k]))
+    );
+    if (hasCumulativeByName || hasCumulativeByShape) {
+      return { type: "area", xField, yFields };
+    }
+
+    // 혼합은 규칙 단순화: 지금은 다중 라인을 기본으로
+    return { type: "line", xField, yFields };
+  }
+
+  // ---------- SCATTER (숫자×숫자, 시간축 없음) ----------
+   if (timeCols.length === 0 && catCols.length === 0 && numCols.length >= 2) {
+     return { type: "scatter", xField: numCols[0].key, yFields: [numCols[1].key] };
+  }
+
+  // ---------- BAR (범주 + 숫자) ----------
+  if (catCols.length >= 1 && numCols.length >= 1) {
+    const xField = catCols[0].key;
+    const yFields = numCols.map((c) => c.key).slice(0, 3);
+    return { type: "bar", xField, yFields };
+  }
+
+  // ---------- Fallback ----------
+  const [first, ...rest] = headers;
+  return { type: "line", xField: first, yFields: rest.slice(0, 1) };
+}
+
+/* ---------------- CSV 파일 준비 ---------------- */
+export async function prepareVizFromCsv(csvPath) {
+  const rows = await fetchCsv(csvPath);
+  const chart = recommendChart(rows);
+  return { data: rows, chart };
 }
