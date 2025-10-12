@@ -33,7 +33,7 @@ const HelpMessage = () => (
       </li>
     </HelpList>
     <p id="refer">
-      ※ 본 서비스는 '공공데이터포털(http://www.data.go.kr/)'의 데이터를 활용하여 제공됩니다.
+      ※ 본 서비스는 '서울 열린데이터 광장(https://data.seoul.go.kr/)'의 데이터를 활용하여 제공됩니다.
     </p>
   </HelpContainer>
 );
