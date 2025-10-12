@@ -15,9 +15,44 @@ const initialMessages = [
   { id: 1, text: "안녕하세요! 무엇을 도와드릴까요?", sender: "bot" },
   {
     id: 2,
-    text: "저는 공공 데이터를 쉽게 찾고 활용할 수 있도록 돕는 AI 챗봇입니다.\n\n예) '부산시 주차장 데이터 보여줘'",
+    text: "저는 공공 데이터를 쉽게 찾고 활용할 수 있도록 돕는 AI 챗봇입니다.\n\n예) '부산시 주차장 데이터 보여줘'\n예) 'csv: /samples/ev.csv'",
     sender: "bot",
   },
+];
+
+const availableCommands = [
+  {
+    command: "/도움말",
+    description: "현재 지원되는 모든 명령어와 그에 맞는 사용 예시를 제공합니다.",
+  },
+  {
+    command: "자세히 [파일명]",
+    description: "선택된 데이터의 메타 데이터를 제공합니다.",
+  },
+  {
+    command: "/데이터 확인",
+    description: "현재 선택된 데이터를 분석 및 다운로드 할 수 있도록 도와줍니다.",
+  },
+  {
+    command: "/종합 활용",
+    description: "선택된 데이터를 바탕으로 4개의 카테고리 활용 방안을 제공합니다.",
+  },
+  {
+    command: "/활용 [원하는 방식/목적]",
+    description: "선택된 데이터와 이전 AI 응답을 바탕으로 특정 방식이나 목적에 맞는 활용 방안을 제공합니다.",
+  },
+  {
+    command: "/다른 데이터",
+    description: "다른 공공 데이터셋을 선택할 수 있도록 도와줍니다.",
+  },
+  {
+    command: "/포털사이트",
+    description: "공공 데이터 포털 사이트로 이동할 수 있는 링크를 제공합니다.",
+  },
+  {
+    command: "/오픈API",
+    description: "선택된 데이터의 오픈API 링크를 제공합니다.",
+  }
 ];
 
 /* ---------------------- 안전 파서 유틸 ---------------------- */
@@ -30,6 +65,46 @@ const safeParseIfJson = (x) => {
   }
 };
 
+/* ============================================================
+   CSV 인코딩 자동 판별(UTF-8 → EUC-KR 재시도)
+   사용법: csv: /samples/ev.csv  또는  csv: /samples/ev.csv enc=euc-kr
+   ============================================================ */
+async function fetchCsvTextWithAutoEncoding(url, encHint) {
+  const resp = await fetch(url, { cache: "no-store" });
+  if (!resp.ok) throw new Error(`CSV 요청 실패: ${resp.status}`);
+
+  const buf = await resp.arrayBuffer();
+
+  const tryDecode = (label) => {
+    try {
+      return new TextDecoder(label).decode(buf);
+    } catch {
+      return null;
+    }
+  };
+
+  // 1) 힌트 우선
+  if (encHint) {
+    const hinted = tryDecode(encHint.toLowerCase());
+    if (hinted) return hinted;
+  }
+
+  // 2) UTF-8
+  let text = tryDecode("utf-8") ?? "";
+
+  // 글깨짐(�/��) 많으면 EUC-KR 재시도
+  const hasMojibake = (s) => {
+    const bad = (s.match(/\uFFFD/g) || []).length;
+    const bad2 = (s.match(/��/g) || []).length;
+    return bad + bad2 > 2;
+  };
+  if (!text || hasMojibake(text)) {
+    const euckr = tryDecode("euc-kr") || tryDecode("ks_c_5601-1987");
+    if (euckr) return euckr;
+  }
+  return text;
+}
+
 export default function ChatPage() {
   const { isAuthenticated, loading } = useAuth();
   const navigate = useNavigate();
@@ -39,6 +114,8 @@ export default function ChatPage() {
   const [conversations, setConvs] = useState({});
   const [inputValue, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
+  const [showCommands, setShowCommands] = useState(false);
+  const [filteredCommands, setFilteredCommands] = useState(availableCommands);
 
   const scrollContainerRef = useRef(null);
   const messageEndRef = useRef(null);
@@ -209,16 +286,89 @@ export default function ChatPage() {
     updateConv((c) => ({ ...c, messages: [...c.messages, resetMessage] }));
   };
 
+  const handleInputChange = (value) => {
+  setInput(value);
+  if (value.startsWith("/")) {
+    setShowCommands(true);
+    if (value == "/") {
+      setFilteredCommands(availableCommands);
+    } else {
+      setFilteredCommands(
+        availableCommands.filter((c) => c.command.startsWith(value))
+      );
+    }
+  } else {
+    setShowCommands(false);
+    }
+  };
+
+const handleCommandSelect = (command) => {
+  setInput(command);
+  setShowCommands(false);
+};
+
   const handleSend = async (e, overridePrompt = null, overrideLast = null) => {
     e.preventDefault();
+    setShowCommands(false);
     const prompt = overridePrompt ?? inputValue.trim();
     if (!prompt) return;
 
+    // 사용자 메시지 먼저 출력
     const userMsg = { id: Date.now(), sender: "user", text: prompt };
     updateConv((c) => ({ ...c, messages: [...c.messages, userMsg] }));
     setInput("");
     setIsTyping(true);
 
+    /* =======================
+       ✅ 로컬 CSV 테스트 모드 (인코딩 자동판별 지원)
+       사용법:
+       - csv: /samples/ev.csv
+       - csv: /samples/ev.csv enc=euc-kr
+       - csv: https://example.com/data.csv
+       ======================= */
+    const csvMatch = prompt.match(
+      /^csv:\s*(\S+)(?:.*?\benc\s*=\s*([A-Za-z0-9_\-]+))?/i
+    );
+    if (csvMatch) {
+      try {
+        const src = csvMatch[1];
+        const encHint = csvMatch[2]; // 선택: enc=euc-kr 등
+        const url = /^https?:\/\//i.test(src)
+          ? src
+          : `${window.location.origin}${src.startsWith("/") ? "" : "/"}${src}`;
+
+        const csvText = await fetchCsvTextWithAutoEncoding(url, encHint);
+
+        // ⬇️ DataAnalysisResult가 그대로 이해하는 메시지 포맷
+        const fakeMsg = {
+          type: "data_analysis_result",
+          dataPayload: {
+            format: "csv",
+            text: csvText,
+            title: `로컬 CSV: ${src}`,
+          },
+          publicDataPk: "LOCAL-CSV",
+        };
+        const botMessage = parseBotMessage(fakeMsg);
+        updateConv((c) => ({
+          ...c,
+          messages: [...c.messages, botMessage],
+        }));
+      } catch (error) {
+        console.error("CSV 로드/디코딩 오류:", error);
+        const errorMsg = parseBotMessage({
+          type: "error",
+          message:
+            "CSV 파일을 불러오지 못했습니다. 경로/인코딩(예: enc=euc-kr)을 확인해주세요.",
+        });
+        updateConv((c) => ({ ...c, messages: [...c.messages, errorMsg] }));
+      } finally {
+        setIsTyping(false);
+      }
+      return; // 백엔드 호출 없이 종료
+    }
+
+    // ===== 여기부터는 기존 백엔드/에이전트 호출 =====
     try {
       const { data } = await axios.post(
         "http://localhost:8080/api/prompt",
@@ -303,7 +453,7 @@ export default function ChatPage() {
 
           <MessageList
             messages={conv.messages}
-            onCategorySelect={onCategory} // ★ 전달!
+            onCategorySelect={onCategory}
             isTyping={isTyping}
             scrollContainerRef={scrollContainerRef}
             messageEndRef={messageEndRef}
@@ -312,8 +462,11 @@ export default function ChatPage() {
 
           <MessageForm
             inputValue={inputValue}
-            setInputValue={setInput}
+            setInputValue={handleInputChange}
             handleSendMessage={handleSend}
+            showCommands={showCommands}
+            commands={filteredCommands}
+            onCommandSelect={handleCommandSelect}
           />
         </ChatWrapper>
         <ScrollControls>
@@ -335,7 +488,7 @@ export default function ChatPage() {
       </ChatPane>
     </Container>
   );
-}
+};
 
 /* -------------------------- styled-components -------------------------- */
 

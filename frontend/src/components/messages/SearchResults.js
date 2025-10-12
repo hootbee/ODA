@@ -60,3 +60,4 @@ const ResultItem = styled.li`
     margin-right: 8px;
   }
 `;
+

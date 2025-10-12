@@ -32,15 +32,19 @@ const HelpMessage = () => (
         <strong>새로운 데이터 검색 시작:</strong> '다른 데이터 조회'
       </li>
     </HelpList>
+    <p id="refer">
+      ※ 본 서비스는 '서울 열린데이터 광장(https://data.seoul.go.kr/)'의 데이터를 활용하여 제공됩니다.
+    </p>
   </HelpContainer>
 );
 
 export default HelpMessage;
 
 const HelpContainer = styled.div`
-  background: #f9fafb;
-  border: 1px solid #e5e7eb;
+  background: white;
+  border: 1px solid #e2e8f0;
   border-radius: 16px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
   padding: 20px;
   h4 {
     font-size: 1.2em;
@@ -52,6 +56,12 @@ const HelpContainer = styled.div`
     margin: 0 0 16px 0;
     line-height: 1.6;
   }
+
+  #refer {
+    font-size: 0.75em;
+    margin-top: 12px;
+    color: #677386ff;
+    }
 `;
 
 const HelpList = styled.ul`
@@ -59,7 +69,7 @@ const HelpList = styled.ul`
   padding: 0;
   margin: 0;
   li {
-    background: #ffffff;
+    background: #f9fafb;
     border: 1px solid #e5e7eb;
     padding: 12px;
     border-radius: 8px;
@@ -67,7 +77,7 @@ const HelpList = styled.ul`
     font-size: 0.95em;
     color: #4b5563;
     strong {
-      color: #1f2937;
+      color: #374151;
     }
   }
 `;
