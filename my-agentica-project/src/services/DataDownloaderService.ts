@@ -18,7 +18,7 @@ export class DataDownloaderService {
   ): Promise<string> {
     const { buffer, fileName } = await this.downloadCore(publicDataPk, opts);
 
-    const abs = path.resolve(savePath);
+    const abs = path.resolve("/tmp", path.basename(savePath));
     const dir = path.dirname(abs);
     const finalPath = path.join(dir, fileName);
 
