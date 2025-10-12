@@ -43,16 +43,15 @@ public class GeminiService implements AiModelService {
                 .bodyToMono(JsonNode.class)
                 .doOnError(e -> log.error("Error calling AI service for query plan", e));
     }
+
     public Mono<JsonNode> getUtilizationRecommendations(PublicData data) {
         Map<String, Object> dataInfo = Map.of(
-            "fileName", data.getFileDataName() != null ? data.getFileDataName() : "",
             "title", data.getTitle() != null ? data.getTitle() : "",
-            "category", data.getClassificationSystem() != null ? data.getClassificationSystem() : "",
-            "keywords", data.getKeywords() != null ? data.getKeywords() : "",
+            "category", data.getCategory() != null ? data.getCategory() : "",
+            "keywords", data.getTags() != null ? data.getTags() : "",
             "description", data.getDescription() != null ? data.getDescription() : "",
             "providerAgency", data.getProviderAgency() != null ? data.getProviderAgency() : ""
-        );
-        
+        );        
         Map<String, Object> requestBody = Map.of("dataInfo", dataInfo);
 
         return webClient.post()
@@ -67,10 +66,9 @@ public class GeminiService implements AiModelService {
     @Override
     public Mono<JsonNode> getSingleUtilizationRecommendation(PublicData data, String analysisType) {
         Map<String, Object> dataInfo = Map.of(
-            "fileName", data.getFileDataName() != null ? data.getFileDataName() : "",
             "title", data.getTitle() != null ? data.getTitle() : "",
-            "category", data.getClassificationSystem() != null ? data.getClassificationSystem() : "",
-            "keywords", data.getKeywords() != null ? data.getKeywords() : "",
+            "category", data.getCategory() != null ? data.getCategory() : "",
+            "keywords", data.getTags() != null ? data.getTags() : "",
             "description", data.getDescription() != null ? data.getDescription() : "",
             "providerAgency", data.getProviderAgency() != null ? data.getProviderAgency() : ""
         );
@@ -93,8 +91,8 @@ public class GeminiService implements AiModelService {
     // and will be removed in the next step.
 
     @Override
-    public Mono<JsonNode> analyzeDataByPk(Long publicDataPk) {
-        Map<String, Long> requestBody = Map.of("publicDataPk", publicDataPk);
+    public Mono<JsonNode> analyzeDataByPk(String publicDataPk) {
+        Map<String, String> requestBody = Map.of("publicDataPk", publicDataPk);
         log.info("Requesting data analysis from agent for PK: {}", publicDataPk);
 
         return webClient.post()

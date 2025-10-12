@@ -12,7 +12,7 @@ public class SingleUtilizationRequestDto {
     @Getter
     @Setter
     public static class DataInfo {
-        private String fileName;
+        private String title;
         // 필요한 경우 여기에 추가 필드를 정의할 수 있습니다 (예: title, category 등)
     }
 }

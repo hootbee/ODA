@@ -65,24 +65,18 @@ public class SearchServiceImpl implements SearchService {
             // 각 검색 메소드별 상세 로깅
             try {
                 List<PublicData> providerResults = publicDataRepository.findByProviderAgencyContainingIgnoreCase(keyword);
-                log.info("  - 제공기관 검색 '{}': {}개", keyword, providerResults.size());
+                log.info("  - 제공기관 검색 '{}': {}", keyword, providerResults.size());
                 keywordResults.addAll(providerResults);
 
-                List<PublicData> nameResults = publicDataRepository.findByFileDataNameContainingIgnoreCase(keyword);
-                log.info("  - 파일명 검색 '{}': {}개", keyword, nameResults.size());
-                keywordResults.addAll(nameResults);
-
                 List<PublicData> titleResults = publicDataRepository.findByTitleContainingIgnoreCase(keyword);
-                log.info("  - 제목 검색 '{}': {}개", keyword, titleResults.size());
+                log.info("  - 제목 검색 '{}': {}", keyword, titleResults.size());
                 keywordResults.addAll(titleResults);
 
-                List<PublicData> keywordSearchResults = publicDataRepository.findByKeywordsContainingIgnoreCase(keyword);
-                log.info("  - 키워드 필드 검색 '{}': {}개", keyword, keywordSearchResults.size());
+                List<PublicData> keywordSearchResults = publicDataRepository.findByTagsContainingIgnoreCase(keyword);
+                log.info("  - 키워드 필드 검색 '{}': {}", keyword, keywordSearchResults.size());
                 keywordResults.addAll(keywordSearchResults);
 
                 List<PublicData> descResults = publicDataRepository.findByDescriptionContainingIgnoreCase(keyword);
-                log.info("  - 설명 검색 '{}': {}개", keyword, descResults.size());
-                keywordResults.addAll(descResults);
 
             } catch (Exception e) {
                 log.error("키워드 '{}' 검색 중 오류: {}", keyword, e.getMessage(), e);
@@ -101,9 +95,9 @@ public class SearchServiceImpl implements SearchService {
     public List<PublicData> deduplicateResults(List<PublicData> allResults) {
         try {
             return allResults.stream()
-                    .filter(publicData -> publicData != null && publicData.getFileDataName() != null)
+                    .filter(publicData -> publicData != null && publicData.getTitle() != null)
                     .collect(Collectors.toMap(
-                            PublicData::getFileDataName,
+                            PublicData::getTitle,
                             Function.identity(),
                             (existing, replacement) -> existing,
                             LinkedHashMap::new))
@@ -113,7 +107,7 @@ public class SearchServiceImpl implements SearchService {
         } catch (Exception e) {
             log.warn("중복 제거 중 오류 발생, 기본 distinct 사용: {}", e.getMessage());
             return allResults.stream()
-                    .filter(publicData -> publicData != null && publicData.getFileDataName() != null)
+                    .filter(publicData -> publicData != null && publicData.getTitle() != null)
                     .distinct()
                     .collect(Collectors.toList());
         }
@@ -145,19 +139,18 @@ public class SearchServiceImpl implements SearchService {
 
     private int calculateScoresByKeyword(PublicData data, List<String> keywords) {
         int score = 0;
-        String dataName = data.getFileDataName() != null ? data.getFileDataName().toLowerCase() : "";
-        String dataKeywords = data.getKeywords() != null ? data.getKeywords().toLowerCase() : "";
         String dataTitle = data.getTitle() != null ? data.getTitle().toLowerCase() : "";
+        String dataTags = data.getTags() != null ? data.getTags().toLowerCase() : "";
         String providerAgency = data.getProviderAgency() != null ? data.getProviderAgency().toLowerCase() : "";
         String description = data.getDescription() != null ? data.getDescription().toLowerCase() : "";
 
         for (String keyword : keywords) {
             String lowerKeyword = keyword.toLowerCase();
             if (providerAgency.contains(lowerKeyword)) score += SCORE_PROVIDER_AGENCY;
-            if (dataName.startsWith(lowerKeyword)) score += SCORE_DATA_NAME_STARTS_WITH;
-            if (isKeywordExactMatch(dataKeywords, lowerKeyword)) score += SCORE_KEYWORD_EXACT_MATCH;
-            else if (dataKeywords.contains(lowerKeyword)) score += SCORE_KEYWORD_CONTAINS;
-            if (dataName.contains(lowerKeyword)) score += SCORE_DATA_NAME_CONTAINS;
+            if (dataTitle.startsWith(lowerKeyword)) score += SCORE_DATA_NAME_STARTS_WITH;
+            if (isKeywordExactMatch(dataTags, lowerKeyword)) score += SCORE_KEYWORD_EXACT_MATCH;
+            else if (dataTags.contains(lowerKeyword)) score += SCORE_KEYWORD_CONTAINS;
+            if (dataTitle.contains(lowerKeyword)) score += SCORE_DATA_NAME_CONTAINS;
             if (dataTitle.contains(lowerKeyword)) score += SCORE_TITLE_CONTAINS;
             if (description.contains(lowerKeyword)) score += SCORE_DESCRIPTION_CONTAINS;
             if (keywords.size() >= 2 && description.contains(String.join(" ", keywords).toLowerCase()))
@@ -172,18 +165,18 @@ public class SearchServiceImpl implements SearchService {
         }
         int score = 0;
         String primaryKeyword = keywords.get(0).toLowerCase();
-        String dataName = data.getFileDataName() != null ? data.getFileDataName().toLowerCase() : "";
+        String dataTitle = data.getTitle() != null ? data.getTitle().toLowerCase() : "";
         String providerAgency = data.getProviderAgency() != null ? data.getProviderAgency().toLowerCase() : "";
         String description = data.getDescription() != null ? data.getDescription().toLowerCase() : "";
 
         if (isRegionKeyword(primaryKeyword)) {
             if (providerAgency.contains(primaryKeyword)) score += PRIMARY_KEYWORD_REGION_PROVIDER;
-            if (dataName.startsWith(primaryKeyword)) score += PRIMARY_KEYWORD_REGION_NAME_STARTS;
-            if (dataName.contains(primaryKeyword)) score += PRIMARY_KEYWORD_REGION_NAME_CONTAINS;
+            if (dataTitle.startsWith(primaryKeyword)) score += PRIMARY_KEYWORD_REGION_NAME_STARTS;
+            if (dataTitle.contains(primaryKeyword)) score += PRIMARY_KEYWORD_REGION_NAME_CONTAINS;
             if (description.contains(primaryKeyword)) score += PRIMARY_KEYWORD_REGION_DESC;
         } else {
             if (providerAgency.contains(primaryKeyword)) score += PRIMARY_KEYWORD_NORMAL_PROVIDER;
-            if (dataName.contains(primaryKeyword)) score += PRIMARY_KEYWORD_NORMAL_NAME;
+            if (dataTitle.contains(primaryKeyword)) score += PRIMARY_KEYWORD_NORMAL_NAME;
             if (description.contains(primaryKeyword)) score += PRIMARY_KEYWORD_NORMAL_DESC;
         }
         return score;
@@ -191,12 +184,12 @@ public class SearchServiceImpl implements SearchService {
 
     private int calculateBonusScores(PublicData data, List<String> keywords) {
         int score = 0;
-        if (data.getModifiedDate() != null && data.getModifiedDate().isAfter(java.time.LocalDateTime.now().minusYears(1))) {
+        if (data.getDataUpdatedAt() != null && data.getDataUpdatedAt().isAfter(java.time.LocalDateTime.now().minusYears(1))) {
             score += SCORE_RECENTLY_MODIFIED;
         }
 
-        if (data.getClassificationSystem() != null) {
-            String classification = data.getClassificationSystem().toLowerCase();
+        if (data.getCategory() != null) {
+            String classification = data.getCategory().toLowerCase();
             for (String keyword : keywords) {
                 if (classification.contains(keyword.toLowerCase())) {
                     score += SCORE_CLASSIFICATION_CONTAINS;

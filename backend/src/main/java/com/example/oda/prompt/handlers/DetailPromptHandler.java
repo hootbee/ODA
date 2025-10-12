@@ -27,12 +27,12 @@ public class DetailPromptHandler implements PromptHandler {
 
     @Override
     public boolean canHandle(String prompt, String lastDataName) {
-        return prompt.contains("상세") || prompt.contains("자세히");
+        return prompt.trim().startsWith("/자세히");
     }
 
     @Override
     public Mono<JsonNode> handle(ChatSession session, String prompt, String lastDataName) {
-        String extractedFileName = prompt.replaceAll("상세정보|자세히|상세", "").trim();
+        String extractedFileName = prompt.replaceFirst("^/자세히\\s*", "").trim();
         String effectiveFileName;
 
         if (extractedFileName.isEmpty() || extractedFileName.equals("---")) {
@@ -57,17 +57,21 @@ public class DetailPromptHandler implements PromptHandler {
                     root.put("type", "data_detail");
 
                     ObjectNode payload = objectMapper.createObjectNode();
-                    payload.put("fileDataName", publicData.getFileDataName());
+                    payload.put("publicDataPk", publicData.getPublicDataPk());
                     payload.put("title", publicData.getTitle());
-                    payload.put("classificationSystem", publicData.getClassificationSystem());
+                    payload.put("category", publicData.getCategory());
                     payload.put("providerAgency", publicData.getProviderAgency());
-                    payload.put("modifiedDate", publicData.getModifiedDate() != null ? publicData.getModifiedDate().toString() : "정보 없음");
-                    payload.put("fileExtension", publicData.getFileExtension());
+                    payload.put("providerDepartment", publicData.getProviderDepartment());
+                    payload.put("sourceSystem", publicData.getSourceSystem());
+                    payload.put("licenseType", publicData.getLicenseType());
+                    payload.put("usageTerms", publicData.getUsageTerms());
+                    payload.put("contactNumber", publicData.getContactNumber());
+                    payload.put("modifiedDate", publicData.getDataUpdatedAt() != null ? publicData.getDataUpdatedAt().toString() : "정보 없음");
                     payload.put("description", publicData.getDescription());
 
                     ArrayNode keywordsNode = objectMapper.createArrayNode();
-                    if (publicData.getKeywords() != null && !publicData.getKeywords().trim().isEmpty()) {
-                        String[] keywords = publicData.getKeywords().split(",");
+                    if (publicData.getTags() != null && !publicData.getTags().trim().isEmpty()) {
+                        String[] keywords = publicData.getTags().split(",");
                         for (String keyword : keywords) {
                             keywordsNode.add(keyword.trim());
                         }

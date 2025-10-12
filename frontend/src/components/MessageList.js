@@ -13,6 +13,7 @@ import HelpMessage from "./messages/HelpMessage";
 import ContextResetMessage from "./messages/ContextResetMessage";
 import ErrorMessage from "./messages/ErrorMessage";
 import DataAnalysisResult from "./messages/DataAnalysisResult";
+import LinkMessage from "./messages/LinkMessage";
 
 // A simple component to render normal text messages
 const TextMessage = ({ content }) => (
@@ -34,14 +35,21 @@ const MessageBody = ({ message, onCategorySelect }) => {
       return <SearchNotFound data={message.data} />;
     case "context_reset":
       return <ContextResetMessage />;
-    case "utilization-dashboard":
-      return (
-        <UtilizationDashboard
-          data={message.data}
-          fileName={message.fileName}
-          onCategorySelect={onCategorySelect} // ★ 전달
-        />
-      );
+      case "utilization-dashboard":
+          return (
+              <>
+                  <UtilizationDashboard
+                      data={message.data}
+                      fileName={message.fileName}
+                      onCategorySelect={onCategorySelect} // ★ 그대로 전달
+                  />
+                  <TipMessage>
+                      💡 대시보드 활용 방안을 원하시면 <strong>"비즈니스 측면에서 활용해보고 싶어"</strong>를 입력하세요.
+                      <br />
+                      또는 다른 데이터를 보고 싶다면 <strong>"다른 데이터"</strong>, 데이터 분석을 원하시면 <strong>"데이터 확인"</strong>을 입력해 주세요.
+                  </TipMessage>
+              </>
+          );
     case "data_detail":
       return (
         <>
@@ -56,6 +64,8 @@ const MessageBody = ({ message, onCategorySelect }) => {
       );
     case "help":
       return <HelpMessage />;
+    case "link":
+      return <LinkMessage url={message.url} />;
     case "error":
       return <ErrorMessage>{message.text}</ErrorMessage>;
       case "simple_recommendation":
