@@ -48,7 +48,7 @@ const SuggestionsContainer = styled.div`
   right: 1.5rem;
   background-color: rgba(255, 255, 255, 0.85);
   border: 1px solid #e0e9ff;
-  border-radius: 12px;
+  border-radius: 20px;
   box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.08);
   z-index: 20;
   max-height: 180px;
@@ -60,12 +60,10 @@ const SuggestionHeader = styled.div`
     top: 0;
     padding: 8px 16px;
     background-color: rgba(255, 255, 255, 1);
-    backdrop-filter: blur(8px);
     font-size: 0.8rem;
     font-weight: 500;
     color: #0073ffff;
     border-bottom: 1px solid #f0f2f5;
-    z-inddex: 1;
 `;
 
 const SuggestionItem = styled.div`
