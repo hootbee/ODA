@@ -70,6 +70,7 @@
     "@wrtnlabs/connector-youtube-transcript": "^0.1.506",
     "@wrtnlabs/connector-zoom": "^0.1.506",
     "axios": "^1.11.0",
+    "cors": "^2.8.5",
     "dotenv": "^16.6.1",
     "express": "^5.1.0",
     "openai": "^5.10.2",
