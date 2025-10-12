@@ -30,13 +30,16 @@ ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser
 
 # 비root 사용자 추가 (sandbox 문제 해결)
 RUN addgroup -S pptr && adduser -S -G pptr pptr
-RUN mkdir -p /home/pptr/Downloads /app/tmp && chown -R pptr:pptr /home/pptr /app
-USER pptr
+RUN mkdir -p /home/pptr/Downloads && chown -R pptr:pptr /home/pptr
 
 # Copy build artifacts and node_modules
 COPY --from=build /app/dist ./dist
 COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/package.json ./
+
+RUN chown -R pptr:pptr /app
+
+USER pptr
 
 # Expose port
 EXPOSE 3001
