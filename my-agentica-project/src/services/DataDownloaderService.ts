@@ -5,6 +5,7 @@ import axios, { AxiosInstance } from "axios";
 import iconv from "iconv-lite";
 import puppeteer from "puppeteer"; // npm i puppeteer
 import { setTimeout as delay } from "timers/promises";
+import https from "https";
 
 export class DataDownloaderService {
   /**
@@ -73,7 +74,14 @@ export class DataDownloaderService {
       args: ["--no-sandbox","--disable-setuid-sandbox","--disable-dev-shm-usage","--disable-gpu"],
     });
     const page = await browser.newPage();
-    await page.setDefaultNavigationTimeout(60000);
+
+    // Automatically accept confirmation dialogs for large files etc.
+    page.on('dialog', async dialog => {
+      console.log(`[Puppeteer] Dialog opened: "${dialog.message()}" - Accepting.`);
+      await dialog.accept();
+    });
+
+    await page.setDefaultNavigationTimeout(90000); // Increased timeout
     await page.setUserAgent(
         "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Safari/537.36"
     );
@@ -120,7 +128,7 @@ export class DataDownloaderService {
         console.log("[Seoul] Found form → submit()");
         const waitReq = page.waitForRequest(
             (req) => /download\.do|datafile\.seoul\.go\.kr|bigfile/.test(req.url()),
-            { timeout: 15000 }
+            { timeout: 30000 }
         );
         await page.evaluate(() => {
           const f =
@@ -160,7 +168,7 @@ export class DataDownloaderService {
           console.log(`[Seoul] Click try: ${sel}`);
           const waitReq = page.waitForRequest(
               (req) => /download\.do|datafile\.seoul\.go\.kr|bigfile/.test(req.url()),
-              { timeout: 15000 }
+              { timeout: 30000 }
           );
           await el.click().catch(() => {});
           await delay(500);
@@ -187,7 +195,7 @@ export class DataDownloaderService {
           try {
             const req = await page.waitForRequest(
                 (r) => /download\.do|datafile\.seoul\.go\.kr|bigfile/.test(r.url()),
-                { timeout: 15000 }
+                { timeout: 30000 }
             );
             capturedReq = {
               url: req.url(),
@@ -212,7 +220,7 @@ export class DataDownloaderService {
           console.log("[Seoul] Direct href found:", href);
           const waitReq = page.waitForRequest(
               (req) => /download\.do|datafile\.seoul\.go\.kr|bigfile/.test(req.url()),
-              { timeout: 15000 }
+              { timeout: 30000 }
           );
           await page.goto(href, { waitUntil: "networkidle2" });
           const req = await waitReq;
@@ -245,7 +253,12 @@ export class DataDownloaderService {
     delete headers["host"];
     delete headers["content-length"];
 
+    const agent = new https.Agent({
+        rejectUnauthorized: false
+    });
+
     const axiosResp = await axios({
+      httpsAgent: agent,
       url: capturedReq.url,
       method: (capturedReq.method as any) || "GET",
       headers,
@@ -281,7 +294,11 @@ export class DataDownloaderService {
       publicDataPk: string,
       opts?: { fileDetailSn?: number }
   ): Promise<{ buffer: Buffer; fileName: string; contentType: string }> {
+    const agent = new https.Agent({
+        rejectUnauthorized: false
+    });
     const client = axios.create({
+      httpsAgent: agent,
       timeout: 60000,
       maxRedirects: 5,
       validateStatus: () => true,
