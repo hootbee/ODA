@@ -26,7 +26,7 @@ const DataDetailView = ({ data }) => {
                 <KeywordSection>
                     <strong>🔑 키워드:</strong>
                     <KeywordContainer>
-                        {data.keywords.map((kw, i) => <KeywordTag key={i}>{kw}</KeywordTag>)}
+                        {[...new Set(data.keywords)].map((kw, i) => <KeywordTag key={i}>{kw}</KeywordTag>)}
                     </KeywordContainer>
                 </KeywordSection>
             )}
