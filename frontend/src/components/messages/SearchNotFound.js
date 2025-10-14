@@ -15,7 +15,7 @@ export default SearchNotFound;
 const SearchNotFoundContainer = styled.div`
   background-color: #fffbeb;
   border: 1px solid #fef3c7;
-  border-radius: 16px;
+  border-radius: 20px;
   padding: 20px;
   text-align: center;
   h4 { font-size: 1.2em; color: #b45309; margin: 0 0 8px 0; }

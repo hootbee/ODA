@@ -3,19 +3,24 @@ import React from "react";
 import styled from "styled-components";
 
 const DashboardContainer = styled.div`
-  background: #e9e9eb;
+  background: white;
+  border: 1px solid #e2e8f0;
   border-radius: 20px;
   padding: 16px;
   margin: 8px 0;
   color: black;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
 `;
 
 const DashboardHeader = styled.div`
   text-align: center;
   margin-bottom: 16px;
   h3 {
-    margin: 0 0 8px 0;
     font-size: 1.4em;
+    margin-top: 0px;
+    margin-bottom: 16px;
+    padding-bottom: 12px;
+    border-bottom: 2px solid #f1f5f9;
   }
   p {
     margin: 0;
@@ -31,17 +36,12 @@ const CategoriesGrid = styled.div`
 `;
 
 const CategoryCard = styled.div`
-  background: rgba(141, 141, 141, 0.1);
+  background: #f9fafb;
   border: 1px solid rgba(181, 181, 181, 0.2);
   border-radius: 10px;
   padding: 14px;
   cursor: pointer;
   transition: all 0.3s ease;
-  &:hover {
-    background: rgba(255, 255, 255, 0.2);
-    transform: translateY(-2px);
-    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
-  }
 `;
 
 const CategoryHeader = styled.div`
@@ -180,7 +180,6 @@ const UtilizationDashboard = ({ data, fileName, onCategorySelect }) => {
     <DashboardContainer>
       <DashboardHeader>
         <h3>`{fileName}` 데이터 활용 방안 요약</h3>
-        <p>카테고리를 눌러 자세한 추천을 받아보세요.</p>
       </DashboardHeader>
 
       <CategoriesGrid>

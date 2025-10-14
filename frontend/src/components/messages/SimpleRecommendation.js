@@ -91,7 +91,7 @@ const RecommendationList = styled.div`
 `;
 
 const RecommendationItem = styled.div`
-    background-color: #f9fafb;
+    background: white
     padding: 20px;
     border-radius: 12px; 
 `;

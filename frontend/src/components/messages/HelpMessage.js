@@ -21,10 +21,10 @@ const HelpMessage = () => (
         <strong>데이터 상세 정보:</strong> '/자세히 [파일명]'
       </li>
       <li>
-        <strong>데이터 활용 방안:</strong> '/종합활용' 또는 '/활용 [원하는 방식/목적]' 또는 '/자유'
+        <strong>데이터 활용 방안:</strong> '/종합활용' 또는 '/활용 [원하는 방식/목적]'
       </li>
       <li>
-        <strong>자유로운 대화:</strong> '/자유'
+        <strong>자유로운 대화:</strong> '/자유 [원하는 방식/목적]'
       </li>
       <li>
         <strong>데이터 파일 다운로드 및 분석:</strong> '/데이터 확인'
@@ -44,7 +44,7 @@ export default HelpMessage;
 const HelpContainer = styled.div`
   background: white;
   border: 1px solid #e2e8f0;
-  border-radius: 16px;
+  border-radius: 20px;
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
   padding: 20px;
   h4 {

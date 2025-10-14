@@ -15,7 +15,7 @@ const StyledMessage = styled.div`
   padding: 12px 18px;
   border: 1px solid #e0e7ff;
   background-color: #fafbff;
-  border-radius: 15px;
+  border-radius: 20px;
   text-align: center;
   width: 100%;
   max-width: 100%;

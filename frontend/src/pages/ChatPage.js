@@ -42,7 +42,7 @@ const availableCommands = [
     description: "선택된 데이터와 이전 AI 응답을 바탕으로 특정 방식이나 목적에 맞는 활용 방안을 제공합니다.",
   },
   {
-    command: "/자유",
+    command: "/자유 [원하는 방식/목적]",
     description: "사용자와 AI가 자유롭게 대화합니다.",
   },
   {
