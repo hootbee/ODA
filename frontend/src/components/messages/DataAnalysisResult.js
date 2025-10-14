@@ -114,57 +114,70 @@ export default DataAnalysisResult;
 /* ---------------- 스타일 ---------------- */
 
 const AnalysisContainer = styled.div`
-    background-color: #f9fafb;
-    border: 1px solid #e0f2fe;
+    background: white;
     border-radius: 20px;
+    border: 1px solid #e2e8f0;
     padding: 20px;
-    margin: 10px 0;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
 `;
 
 const Header = styled.div`
     display: flex;
     justify-content: space-between;
     align-items: center;
-    border-bottom: 2px solid #e0f2fe;
-    margin-bottom: 12px;
+    border-bottom: 2px solid #f1f5f9;
+    padding-bottom: 12px;
+    margin-bottom: 16px;
 
     h4 {
-        font-size: 1.2em;
-        color: #0c4a6e;
-        margin: 0 0 8px 0;
+        font-size: 1.3em;
+        font-weight: 700;
+        color: #1a202c;
+        margin: 0;
     }
 `;
 
 const DownloadButton = styled.button`
-    background-color: #0099ff;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background-color: #0099ffff;
     color: white;
     border: none;
     border-radius: 20px;
     padding: 8px 16px;
-    margin-bottom: 20px;
     font-size: 0.9em;
-    font-weight: bold;
+    font-weight: 500;
     cursor: pointer;
-    transition: background-color 0.2s;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+    transition: all 0.2s ease-in-out;
 
     &:hover {
-        background-color: #0073ff;
+        background-color: #007acc;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0, 122, 204, 0.2);
     }
 `;
 
 const Content = styled.div`
     color: #374151;
-    line-height: 1.2;
+    line-height: 1.7;
+    font-size: 0.95em;
 
     h1, h2, h3 {
         color: #1e3a8a;
-        margin-top: 0.4em;
-        margin-bottom: 0.2em;
-        line-height: 1.2;
+        margin-top: 1em;
+        margin-bottom: 0em;
+        line-height: 1.3;
+    }
+
+    h4 {
+        margin-top: 0.5em;
+        margin-bottom: 0em;
     }
 
     p {
-        margin-bottom: 0.8em;
+        margin-bottom: 0em;
     }
 
     strong {
@@ -173,26 +186,30 @@ const Content = styled.div`
 
     ul, ol {
         padding-left: 20px;
-        margin-bottom: 1em;
+        margin-bottom: 0em;
     }
 
     li {
-        margin-bottom: 0.4em;
+        margin-bottom: 0em;
     }
 
     code {
-        background-color: #e5e7eb;
-        padding: 2px 5px;
+        background-color: #eef2ff;
+        color: #4338ca;
+        padding: 3px 6px;
         border-radius: 4px;
         font-family: "Courier New", Courier, monospace;
+        font-size: 0.9em;
     }
 `;
 
 const TableContainer = styled.div`
     overflow-x: auto;
-    margin-top: 1.2em;
-    border: 1px solid #d1d5db;
-    border-radius: 8px;
+    margin: 20px 0;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    background-color: #f9fafb; 
+    margin-bottom: 50px;
 `;
 
 const StyledTable = styled.table`
@@ -201,20 +218,24 @@ const StyledTable = styled.table`
     font-size: 0.9em;
 
     th, td {
-        padding: 10px 12px;
+        padding: 12px 15px;
         text-align: left;
         border-bottom: 1px solid #e5e7eb;
         white-space: nowrap;
     }
 
+    tbody tr:last-child td {
+      border-bottom: none;
+    }
+
     thead th {
-        background-color: #f9fafb;
+        background-color: #f3f4f6;
         color: #374151;
         font-weight: 600;
     }
 
-    tbody tr:nth-child(even) {
-        background-color: #f9fafb;
+    tbody tr {
+        background-color: #fff;
     }
 
     tbody tr:hover {
