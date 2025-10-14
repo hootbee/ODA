@@ -95,7 +95,7 @@ const MainPage = () => {
   return (
     <MainContainer>
       <FloatingBubble_Q1 top="20%" left="15%" delay="-2s">어떤 도움이 필요하신가요?</FloatingBubble_Q1>
-      <FloatingBubble_A1 top="35%" left="10%" delay="0s">전주의 데이터 3개를 찾고 있어</FloatingBubble_A1>
+      <FloatingBubble_A1 top="35%" left="10%" delay="0s">서울의 교통 데이터 3개를 찾고 있어</FloatingBubble_A1>
       <FloatingBubble_Q2 top="50%" left="65%" delay="-2s">이 데이터에 대한 자세한 정보가 필요하신가요?</FloatingBubble_Q2>
       <FloatingBubble_A2 top="65%" left="73%" delay="0s">이 데이터의 활용 방안을 알려줘</FloatingBubble_A2>
       <ContentWrapper>
