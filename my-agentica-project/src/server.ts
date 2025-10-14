@@ -54,7 +54,8 @@ app.post("/api/search-hybrid", async (req, res) => {
 
         const searchResult = await searchResponse.json();
         
-        // 최종 결과를 클라이언트에 반환
+        // 3. 최종 결과를 클라이언트에 반환
+        console.log("[Agent] Returning final search result to caller:", JSON.stringify(searchResult, null, 2));
         res.json(searchResult);
 
     } catch (error) {
