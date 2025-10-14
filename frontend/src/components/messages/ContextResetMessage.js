@@ -5,7 +5,7 @@ const ContextResetMessage = () => (
     <StyledMessage>
         <p>🔄 데이터 선택이 해제되었습니다.</p>
         <span>새로운 데이터를 검색하고 싶으시면 원하는 키워드를 입력해주세요.</span>
-        <small>예: '서울시 교통 데이터', '부산 관광 정보' 등</small>
+        <small>예: '서울시 교통 데이터', '강남 버스 데이터' 등</small>
     </StyledMessage>
 );
 
