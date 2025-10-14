@@ -10,8 +10,7 @@ const SearchResults = ({ data }) => (
             ))}
         </ResultsList>
         <TipMessage>
-            💡 특정 데이터에 대한 자세한 정보가 필요하시면 '[파일명] 상세정보' 또는 '[파일명] 자세히'라고 말씀하세요.
-        </TipMessage>
+            💡 특정 데이터의 자세한 정보가 필요하시면 '/상세정보 [파일명]' 또는 '/자세히 [파일명]' 을 입력하세요.        </TipMessage>
     </SearchResultsContainer>
 );
 

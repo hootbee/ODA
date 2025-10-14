@@ -54,12 +54,12 @@ const MessageBody = ({ message, onCategorySelect }) => {
       return (
         <>
           <DataDetailView data={message.data} />
-          <TipMessage>
-            💡 '데이터 확인'을 입력하면 데이터 다운로드 및 분석 후 결과를
-            알려드립니다. 분석이 끝나면 데이터는 삭제됩니다.
-            <br />
-            <strong>예시:</strong> "데이터 확인", "전체 활용", "비즈니스 활용"
-          </TipMessage>
+            <TipMessage>
+                💡 '/데이터 확인'을 입력하면 데이터 다운로드 및 분석 후 결과를
+                알려드립니다. 분석이 끝나면 데이터는 삭제됩니다.
+                <br />
+                <strong>예시:</strong> "/데이터 확인", "/종합 활용", "/활용 비즈니스 관점에서 활용"
+            </TipMessage>
         </>
       );
     case "help":
