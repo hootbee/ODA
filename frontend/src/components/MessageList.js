@@ -44,9 +44,9 @@ const MessageBody = ({ message, onCategorySelect }) => {
                       onCategorySelect={onCategorySelect} // ★ 그대로 전달
                   />
                   <TipMessage>
-                      💡 대시보드 활용 방안을 원하시면 <strong>"비즈니스 측면에서 활용해보고 싶어"</strong>를 입력하세요.
+                      💡 대시보드 활용 방안을 원하시면 <strong>"/활용 비즈니스 측면에서 활용해보고 싶어"</strong>를 입력하세요.
                       <br />
-                      또는 다른 데이터를 보고 싶다면 <strong>"다른 데이터"</strong>, 데이터 분석을 원하시면 <strong>"데이터 확인"</strong>을 입력해 주세요.
+                      또는 다른 데이터를 보고 싶다면 <strong>"/다른 데이터"</strong>, 데이터 분석을 원하시면 <strong>"/데이터 확인"</strong>을 입력해 주세요.
                   </TipMessage>
               </>
           );
