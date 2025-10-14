@@ -13,8 +13,7 @@ import {
 import {
   chatJsonArrayTC,
   chatJsonBuckets,
-  chatJsonObjectTC,
-  chatRawText, // 추가
+  chatRawText, // chatJsonObjectTC 대신 chatRawText 사용
 } from "../lib/aiClient";
 
 const TRACE = true;
