@@ -26,6 +26,43 @@ app.use((req: Request, res: Response, next: NextFunction) => {
 
 const getErrorMessage = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
+/* ===== 하이브리드 검색 엔드포인트 ===== */
+app.post("/api/search-hybrid", async (req, res) => {
+    console.log(`[Agent] Received request on /api/search-hybrid`);
+    console.log(`[Agent] Request body:`, req.body);
+    const { prompt } = req.body;
+    if (!prompt) {
+        return res.status(400).json({ error: "prompt is required" });
+    }
+
+    try {
+        // PublicDataService에 이미 생성된 쿼리 플래너 사용
+        const finalPlan = await publicDataService.createQueryPlan({ prompt });
+
+        // 생성된 최종 계획으로 Java 백엔드에 검색 실행 요청
+        console.log("Executing search with final plan:", finalPlan);
+        const searchResponse = await fetch("http://backend:8080/api/execute-plan", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(finalPlan),
+        });
+
+        if (!searchResponse.ok) {
+            const errorBody = await searchResponse.text();
+            throw new Error(`Java backend search failed with status: ${searchResponse.status}, body: ${errorBody}`);
+        }
+
+        const searchResult = await searchResponse.json();
+        
+        // 최종 결과를 클라이언트에 반환
+        res.json(searchResult);
+
+    } catch (error) {
+        console.error("[HybridSearch] Error:", error);
+        res.status(500).json({ error: "Failed to complete the hybrid search", message: getErrorMessage(error) });
+    }
+});
+
 /* ===== 통합 분석 ===== */
 app.post("/api/analyze-data-by-pk", async (req, res) => {
     const { publicDataPk, prompt } = req.body;
@@ -140,6 +177,7 @@ app.get("/health", (_req, res) => {
 /* ===== 서버 시작 ===== */
 app.listen(port, () => {
     console.log(`🚀 Agentica AI Service running on http://localhost:${port}`);
+    console.log(`   POST /api/search-hybrid`);
     console.log(`   POST /api/analyze-data-by-pk`);
     console.log(`   GET  /api/download-by-pk/:publicDataPk`);
     console.log(`   POST /api/data-utilization/full`);
