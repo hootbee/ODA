@@ -83,9 +83,9 @@ const MessageBody = ({ message, onCategorySelect }) => {
       return (
         <>
           <DataAnalysisResult data={message.data} />
-          <TipMessage>
-            📊 분석이 완료되었습니다. 예: "이 데이터로 사업 아이템 추천"
-          </TipMessage>
+            <TipMessage>
+                📊 분석이 완료되었습니다. 예: "/활용 이 데이터로 사업 아이템 추천"
+            </TipMessage>
         </>
       );
     default:
