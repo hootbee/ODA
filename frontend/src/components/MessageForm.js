@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef, useImperativeHandle, forwardRef } from 'react';
 import styled from 'styled-components'; // styled-components import 추가
 import { FiArrowUp } from "react-icons/fi";
 
@@ -14,7 +14,15 @@ const CommandSuggestions = ({ commands, onCommandSelect }) => (
     </SuggestionsContainer>
   );
 
-function MessageForm({ inputValue, setInputValue, handleSendMessage, showCommands, commands, onCommandSelect }) {
+const MessageForm = forwardRef(({ inputValue, setInputValue, handleSendMessage, showCommands, commands, onCommandSelect }, ref) => {
+    const inputRef = useRef(null);
+
+    useImperativeHandle(ref, () => ({
+        focusInput: () => {
+            inputRef.current?.focus();
+        }
+    }));
+
     return (
       <FormWrapper>
         {showCommands && commands.length > 0 && (
@@ -22,6 +30,7 @@ function MessageForm({ inputValue, setInputValue, handleSendMessage, showCommand
         )}
         <MessageFormContainer onSubmit={handleSendMessage}>
             <MessageInput
+                ref={inputRef}
                 type="text"
                 placeholder="메시지를 입력하거나 /를 입력하세요..."
                 value={inputValue}
@@ -33,7 +42,8 @@ function MessageForm({ inputValue, setInputValue, handleSendMessage, showCommand
         </MessageFormContainer>
       </FormWrapper>
     );
-}
+});
+
 
 // ============== Styled Components ==============
 

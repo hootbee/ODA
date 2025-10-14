@@ -113,6 +113,8 @@ export default function ChatPage() {
   const { isAuthenticated, loading } = useAuth();
   const navigate = useNavigate();
 
+  const messageFormRef = useRef(null);
+
   const [contexts, setContexts] = useState([]);
   const [activeContextId, setActiveId] = useState(null);
   const [conversations, setConvs] = useState({});
@@ -309,6 +311,10 @@ export default function ChatPage() {
 const handleCommandSelect = (command) => {
   setInput(command);
   setShowCommands(false);
+
+  setTimeout(() => {
+    messageFormRef.current?.focusInput();
+  }, 0);
 };
 
   const handleSend = async (e, overridePrompt = null, overrideLast = null) => {
@@ -465,6 +471,7 @@ const handleCommandSelect = (command) => {
           />
 
           <MessageForm
+            ref={messageFormRef}
             inputValue={inputValue}
             setInputValue={handleInputChange}
             handleSendMessage={handleSend}
