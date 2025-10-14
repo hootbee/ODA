@@ -107,3 +107,28 @@ You are a data utilization expert.
   console.log("[DEBUG: aiClient.ts] LLM(buckets):", text);
   return safeParseJson(text) ?? null;
 }
+
+/** 원본 텍스트(마크다운 등) 반환 */
+export async function chatRawText(prompt: string): Promise<string> {
+  const model = geminiClient.getGenerativeModel({
+    model: DEFAULT_GEMINI_MODEL,
+    systemInstruction: `
+You are a helpful assistant who provides concise and well-structured answers in Korean Markdown.
+`,
+  });
+
+  try {
+    const result = await model.generateContent({
+      contents: [{ role: "user", parts: [{ text: prompt }] }],
+      generationConfig: {
+        temperature: 0.6,
+        maxOutputTokens: 4000,
+      },
+    });
+    return result.response.text() ?? "";
+  } catch (e) {
+    console.error("[DEBUG: aiClient.ts] chatRawText에서 예외 발생:", e);
+    const message = e instanceof Error ? e.message : String(e);
+    return `AI 모델 호출 중 오류가 발생했습니다: ${message}`;
+  }
+}
