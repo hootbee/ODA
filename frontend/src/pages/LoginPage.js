@@ -113,12 +113,15 @@ const StatusText = styled.div`
 `;
 
 const LoadingContainer = styled.div`
-    height: 100%;
+    height: 100vh;
+    width: 100%;
     display: flex;
     flex-direction: column;
-    justify-content: center;
+    justify-content: flex-start;
     align-items: center;
+    padding-top: 20vh;
     background: linear-gradient(150deg, #f4f8ff 0%, #a1ceffff 100%);
+    font-family: "Poppins", sans-serif;
 `;
 
 const spin = keyframes`
