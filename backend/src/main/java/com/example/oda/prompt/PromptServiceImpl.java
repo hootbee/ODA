@@ -7,6 +7,8 @@ import com.example.oda.entity.PublicData;
 import com.example.oda.prompt.dto.*;
 import com.example.oda.repository.ChatMessageRepository;
 import com.example.oda.repository.ChatSessionRepository;
+import com.example.oda.entity.MessageSender;
+import com.example.oda.prompt.handlers.PromptHandler;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
@@ -21,6 +23,7 @@ import reactor.core.scheduler.Schedulers;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -32,13 +35,15 @@ public class PromptServiceImpl implements PromptService {
     private final WebClient webClient;
     private final SearchService searchService;
     private final ObjectMapper objectMapper;
+    private final List<PromptHandler> promptHandlers;
 
-    public PromptServiceImpl(ChatMessageRepository chatMessageRepository, ChatSessionRepository chatSessionRepository, WebClient.Builder webClientBuilder, SearchService searchService, ObjectMapper objectMapper) {
+    public PromptServiceImpl(ChatMessageRepository chatMessageRepository, ChatSessionRepository chatSessionRepository, WebClient.Builder webClientBuilder, SearchService searchService, ObjectMapper objectMapper, List<PromptHandler> promptHandlers) {
         this.chatMessageRepository = chatMessageRepository;
         this.chatSessionRepository = chatSessionRepository;
         this.webClient = webClientBuilder.baseUrl("http://agent:3001").build();
         this.searchService = searchService;
         this.objectMapper = objectMapper;
+        this.promptHandlers = promptHandlers;
     }
 
     @Override
@@ -46,48 +51,69 @@ public class PromptServiceImpl implements PromptService {
     public Mono<ChatResponseDto> processPrompt(PromptRequestDto dto, Authentication authentication) {
         final String prompt = dto.getPrompt();
         final Long sessionId = dto.getSessionId();
-
-        log.info("=== 프롬프트 처리 시작 (AI 에이전트 위임) ===");
-        log.info("입력 프롬프트: '{}'", prompt);
+        final String reqLastDataName = dto.getLastDataName();
 
         String email = getEmail(authentication);
         if (email == null) {
             return Mono.error(new IllegalStateException("사용자 이메일을 찾을 수 없습니다."));
         }
 
-        // 1. 세션 관리 (기존 로직과 유사)
-        Mono<ChatSession> sessionMono = Mono.fromCallable(() -> (sessionId == null)
-                        ? createSession(prompt, email)
-                        : chatSessionRepository.findById(sessionId).orElseThrow(() -> new RuntimeException("세션을 찾을 수 없습니다: " + sessionId)))
-                .subscribeOn(Schedulers.boundedElastic());
+        return Mono.fromCallable(() -> {
+                    ChatSession session = (sessionId == null)
+                            ? createSession(prompt, email)
+                            : chatSessionRepository.findById(sessionId).orElseThrow(() -> new RuntimeException("세션을 찾을 수 없습니다: " + sessionId));
+                    String effectiveLastDataName = (reqLastDataName == null || reqLastDataName.isBlank()) ? session.getLastDataName() : reqLastDataName;
+                    return new SessionData(session, effectiveLastDataName, prompt, email);
+                })
+                .subscribeOn(Schedulers.boundedElastic())
+                .flatMap(sessionData -> {
+                    // 1. 특정 명령어 핸들러가 있는지 먼저 확인
+                    Optional<PromptHandler> commandHandler = promptHandlers.stream()
+                            .filter(h -> h.canHandle(sessionData.prompt(), sessionData.lastDataName()))
+                            .findFirst();
 
-        // 2. AI 에이전트 호출
-        return sessionMono.flatMap(session -> {
-            String targetUrl = "http://localhost:3001/api/search-hybrid";
-            log.info("[Backend] Attempting to call AI Agent at: {}", targetUrl);
-            log.info("[Backend] Sending prompt: '{}'", prompt);
+                    Mono<JsonNode> responseMono;
+                    if (commandHandler.isPresent()) {
+                        // 2. 명령어 핸들러가 있으면 해당 핸들러로 처리
+                        log.info("명령어 감지. 핸들러로 위임: {}", commandHandler.get().getClass().getSimpleName());
+                        responseMono = commandHandler.get().handle(sessionData.session(), sessionData.prompt(), sessionData.lastDataName());
+                    } else {
+                        // 3. 없으면 AI 에이전트로 위임 (기본 검색 로직)
+                        log.info("일반 검색 요청. AI 에이전트로 위임...");
+                        responseMono = delegateToAIAgent(sessionData.prompt());
+                    }
 
-            return this.webClient.post()
-                    .uri("/api/search-hybrid")
-                    .bodyValue(Map.of("prompt", prompt))
-                    .retrieve()
-                    .bodyToMono(JsonNode.class)
-                    .doOnError(error -> {
-                        log.error("[Backend] WebClient Error: {}", error.getMessage());
-                        if (error instanceof org.springframework.web.reactive.function.client.WebClientRequestException) {
-                            org.springframework.web.reactive.function.client.WebClientRequestException ex = (org.springframework.web.reactive.function.client.WebClientRequestException) error;
-                            log.error("[Backend] Request URI: {}", ex.getUri());
-                            log.error("[Backend] Request Method: {}", ex.getMethod());
-                        }
-                    })
-                    .flatMap(jsonResponse -> {
-                        log.info("[Backend] Successfully received response from AI Agent.");
-                        // 3. 채팅 메시지 저장 및 DTO 변환
-                        saveSingleChatMessage(session, email, MessageSender.USER, prompt);
-                        saveSingleChatMessage(session, email, MessageSender.BOT, jsonResponse.toPrettyString());
-                        return Mono.just(new ChatResponseDto(jsonResponse, session.getId(), session.getSessionTitle(), session.getLastDataName()));
+                    return responseMono.flatMap(jsonResponse -> {
+                        saveSingleChatMessage(sessionData.session(), sessionData.email(), MessageSender.USER, sessionData.prompt());
+                        saveSingleChatMessage(sessionData.session(), sessionData.email(), MessageSender.BOT, jsonResponse.toPrettyString());
+                        return Mono.just(new ChatResponseDto(jsonResponse, sessionData.session().getId(), sessionData.session().getSessionTitle(), sessionData.session().getLastDataName()));
                     });
-        });
+                });
+    }
+
+    private Mono<JsonNode> delegateToAIAgent(String prompt) {
+        String targetUrl = "http://agent:3001/api/search-hybrid";
+        log.info("[Backend] Attempting to call AI Agent at: {}", targetUrl);
+        log.info("[Backend] Sending prompt: '{}'", prompt);
+
+        return this.webClient.post()
+                .uri("/api/search-hybrid")
+                .bodyValue(Map.of("prompt", prompt))
+                .retrieve()
+                .bodyToMono(JsonNode.class)
+                .doOnSuccess(response -> log.info("[Backend] Successfully received response from AI Agent."))
+                .onErrorResume(error -> {
+                    // WebClient에서 발생하는 모든 오류(네트워크, 4xx/5xx 상태 코드 등)를 여기서 일괄 처리합니다.
+                    log.error("[Backend] An error occurred while communicating with the AI Agent: {}", error.getMessage());
+
+                    // 사용자 요청에 따라, 다운로드 실패 관련 오류 메시지를 생성합니다.
+                    ObjectNode errorNode = objectMapper.createObjectNode();
+                    errorNode.put("type", "error");
+                    errorNode.put("message", "다운로드할 CSV 파일을 찾을 수 없습니다. 파일이 존재하지 않거나 지원하지 않는 형식(예: ZIP)일 수 있습니다.");
+                    
+                    // 이 JSON 노드를 성공적으로 반환하여, 컨트롤러가 200 OK로 응답하게 합니다.
+                    return Mono.just(errorNode);
+                });
     }
 
     @Override

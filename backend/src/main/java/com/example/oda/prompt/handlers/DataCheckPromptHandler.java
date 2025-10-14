@@ -48,6 +48,12 @@ public class DataCheckPromptHandler implements PromptHandler {
            return Mono.just(errorNode);
        }
 
-       return geminiService.analyzeDataByPk(publicDataPk);
+       return geminiService.analyzeDataByPk(publicDataPk)
+               .onErrorResume(error -> {
+                   ObjectNode errorNode = JsonNodeFactory.instance.objectNode();
+                   errorNode.put("type", "error");
+                   errorNode.put("message", "CSV 파일을 찾을 수 없거나, 지원하지 않는 형식(예: ZIP)입니다.");
+                   return Mono.just(errorNode);
+               });
    }
 }
