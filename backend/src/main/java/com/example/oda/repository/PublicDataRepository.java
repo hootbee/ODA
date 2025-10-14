@@ -55,4 +55,9 @@ public interface PublicDataRepository extends JpaRepository<PublicData, String> 
     // ⭐ 유사한 제목 검색 (정확하지 않은 경우 대비)
     @Query("SELECT p FROM PublicData p WHERE UPPER(p.title) LIKE UPPER(CONCAT('%', :title, '%'))")
     List<PublicData> findByTitleContaining(@Param("title") String title);
+
+    // PK 타입인 String으로만 조회하도록 수정
+    Optional<PublicData> findFirstByPublicDataPk(String publicDataPk);
+
+    Optional<PublicData> findFirstByTitle(String title);
 }

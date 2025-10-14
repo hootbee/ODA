@@ -15,7 +15,7 @@ const initialMessages = [
   { id: 1, text: "안녕하세요! 무엇을 도와드릴까요?", sender: "bot" },
   {
     id: 2,
-    text: "저는 공공 데이터를 쉽게 찾고 활용할 수 있도록 돕는 AI 챗봇입니다.\n\n예) '부산시 주차장 데이터 보여줘'\n예) 'csv: /samples/ev.csv'",
+    text: "저는 공공 데이터를 쉽게 찾고 활용할 수 있도록 돕는 AI 챗봇입니다.\n\n예) '부산시 주차장 데이터 보여줘'",
     sender: "bot",
   },
 ];

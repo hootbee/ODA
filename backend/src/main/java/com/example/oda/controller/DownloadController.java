@@ -31,4 +31,10 @@ public class DownloadController {
 
         return new ResponseEntity<>(bytes, headers, HttpStatus.OK);
     }
+
+    @GetMapping(value = "/download", params = "publicDataPk")
+    public Mono<ResponseEntity<byte[]>> downloadOnlyPk(@RequestParam("publicDataPk") String publicDataPk) {
+        return fileDownloadService.downloadFile(publicDataPk);
+    }
+
 }

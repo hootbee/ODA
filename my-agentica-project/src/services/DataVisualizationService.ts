@@ -78,3 +78,17 @@ export function inferChartSpec(params: {
     data: table,
   };
 }
+
+export function toDataAnalysisResult(payload: { title: string; format: 'csv'|'json'; url?: string; text?: string; publicDataPk?: string; analysis?: string; }) {
+  return {
+    type: 'data_analysis_result',
+    analysis: payload.analysis ?? '### 요약\n- 자동 전처리 및 기본 차트 구성을 완료했습니다.',
+    dataPayload: {
+      title: payload.title,
+      format: payload.format,
+      ...(payload.url ? { url: payload.url } : {}),
+      ...(payload.text ? { text: payload.text } : {}),
+    },
+    ...(payload.publicDataPk ? { publicDataPk: payload.publicDataPk } : {})
+  };
+}

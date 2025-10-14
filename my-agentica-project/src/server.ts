@@ -267,4 +267,26 @@ app.post("/api/test-download-and-analyze", async (req: Request, res: Response) =
         return res.status(500).json({ ok: false, error: "download_or_analysis_failed", message: getErrorMessage(err) });
     }
 });
+
+app.post('/analyze', async (req, res) => {
+  const { intent, publicDataPk, title, sourceUrl } = req.body;
+
+  if (intent === 'visualize' && publicDataPk) {
+    // 1) 원격 CSV/JSON 확보
+    const { format, textOrUrl } = await DataDownloaderService.fetch(publicDataPk, sourceUrl);
+    // 2) 필요시 열명 정규화, 타입 캐스팅
+    const norm = await DataVisualizationService.normalize({ format, textOrUrl });
+    // 3) 프론트 표준 스키마로 반환
+    const result = DataVisualizationService.toDataAnalysisResult({
+      title: title ?? '데이터 시각화',
+      format: norm.format,
+      ...(norm.url ? { url: norm.url } : { text: norm.text }),
+      publicDataPk
+    });
+    return res.json({ response: result });
+  }
+
+  return res.json({ response: { type: 'error', message: '지원하지 않는 요청입니다.' }});
+});
+
 export default app;
