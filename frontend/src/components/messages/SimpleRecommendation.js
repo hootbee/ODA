@@ -81,37 +81,37 @@ export default SimpleRecommendation;
 
 // ============== Styled Components ==============
 const RecommendationList = styled.div`
+    background: white;
+    border-radius: 20px;
+    padding: 3px;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
     display: flex;
     flex-direction: column;
-    gap: 20px;
-    text-align: left;
-    width: 100%;
 `;
 
 const RecommendationItem = styled.div`
-    background-color: #ffffff;
+    background-color: #f9fafb;
     padding: 20px;
-    border-radius: 16px;
-    border: 1px solid #eef2f9;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
-    line-height: 1.7;
-    color: #34495e;
+    border-radius: 12px; 
 `;
 
 const Title = styled.h4`
-    margin: 0 0 12px 0;
     font-size: 1.3em;
     font-weight: 700;
-    color: #2c3e50;
+    color: #1a202c;
+    margin: 0 0 16px 0;
+    border-bottom: 2px solid #f1f5f9;
+    padding-bottom: 12px;
 `;
 
 const Description = styled.div`
     margin: 0;
-    color: #745761ff;
-    line-height: 1.3; /* 거의 붙은 느낌 */
+    color: #4a5568;
+    line-height: 1.5;
 
     & > p {
-        margin: 0; /* 문단 간격 완전 제거 */
+        margin: 0; 
     }
 `;
 

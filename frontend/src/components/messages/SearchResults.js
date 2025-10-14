@@ -9,23 +9,10 @@ const SearchResults = ({ data }) => (
                 <ResultItem key={index}>{result}</ResultItem>
             ))}
         </ResultsList>
-        <TipMessage>
-            💡 특정 데이터의 자세한 정보가 필요하시면 '/상세정보 [파일명]' 또는 '/자세히 [파일명]' 을 입력하세요.        </TipMessage>
     </SearchResultsContainer>
 );
 
 export default SearchResults;
-
-const TipMessage = styled.div`
-  margin-top: 12px;
-  padding: 10px 15px;
-  background-color: #f0f7ff;
-  border-radius: 15px;
-  font-size: 0.9em;
-  color: #4a5568;
-  line-height: 1.5;
-  text-align: left;
-`;
 
 const SearchResultsContainer = styled.div`
   background: white;

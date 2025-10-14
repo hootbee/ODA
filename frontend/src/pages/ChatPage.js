@@ -15,7 +15,7 @@ const initialMessages = [
   { id: 1, text: "안녕하세요! 무엇을 도와드릴까요?", sender: "bot" },
   {
     id: 2,
-    text: "저는 공공 데이터를 쉽게 찾고 활용할 수 있도록 돕는 AI 챗봇입니다.\n\n예) '부산시 주차장 데이터 보여줘'\n예) 'csv: /samples/ev.csv'",
+    text: "저는 공공 데이터를 쉽게 찾고 활용할 수 있도록 돕는 AI 챗봇입니다.\n\n예) '서울시 주차장 데이터 보여줘'\n예) 'csv: /samples/ev.csv'",
     sender: "bot",
   },
 ];
@@ -26,7 +26,7 @@ const availableCommands = [
     description: "현재 지원되는 모든 명령어와 그에 맞는 사용 예시를 제공합니다.",
   },
   {
-    command: "자세히 [파일명]",
+    command: "/자세히 [파일명]",
     description: "선택된 데이터의 메타 데이터를 제공합니다.",
   },
   {
@@ -40,6 +40,10 @@ const availableCommands = [
   {
     command: "/활용 [원하는 방식/목적]",
     description: "선택된 데이터와 이전 AI 응답을 바탕으로 특정 방식이나 목적에 맞는 활용 방안을 제공합니다.",
+  },
+  {
+    command: "/자유",
+    description: "사용자와 AI가 자유롭게 대화합니다.",
   },
   {
     command: "/다른 데이터",

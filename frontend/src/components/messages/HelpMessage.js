@@ -18,18 +18,19 @@ const HelpMessage = () => (
         <strong>특정 데이터 검색:</strong> '서울시 교통 데이터 보여줘'
       </li>
       <li>
-        <strong>데이터 상세 정보:</strong> '[파일명] 자세히' 또는 '[파일명]
-        상세정보'
+        <strong>데이터 상세 정보:</strong> '/자세히 [파일명]'
       </li>
       <li>
-        <strong>데이터 활용 방안:</strong> '[파일명] 전체 활용' 또는 '[파일명]
-        비즈니스 활용'
+        <strong>데이터 활용 방안:</strong> '/종합활용' 또는 '/활용 [원하는 방식/목적]' 또는 '/자유'
       </li>
       <li>
-        <strong>데이터 파일 다운로드 및 분석:</strong> '데이터 확인'
+        <strong>자유로운 대화:</strong> '/자유'
       </li>
       <li>
-        <strong>새로운 데이터 검색 시작:</strong> '다른 데이터 조회'
+        <strong>데이터 파일 다운로드 및 분석:</strong> '/데이터 확인'
+      </li>
+      <li>
+        <strong>새로운 데이터 검색 시작:</strong> '/다른 데이터'
       </li>
     </HelpList>
     <p id="refer">

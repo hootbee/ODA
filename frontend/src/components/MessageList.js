@@ -30,7 +30,14 @@ const TipMessage = ({ children }) => (
 const MessageBody = ({ message, onCategorySelect }) => {
   switch (message.type) {
     case "search_results":
-      return <SearchResults data={message.data} />;
+      return (
+      <>
+        <SearchResults data={message.data} />
+        <TipMessage>
+            💡 특정 데이터의 자세한 정보가 필요하시면 '/상세정보 [파일명]' 또는 '/자세히 [파일명]' 을 입력하세요.
+        </TipMessage>
+      </>
+      );
     case "search_not_found":
       return <SearchNotFound data={message.data} />;
     case "context_reset":
@@ -75,7 +82,7 @@ const MessageBody = ({ message, onCategorySelect }) => {
               <>
                   <SimpleRecommendation recommendations={message.recommendations} />
                   <TipMessage>
-                      💡 다른 데이터 조회를 원하시면 '/다른 데이터'을 입력하세요.
+                      💡 다른 데이터 조회를 원하시면 '/다른 데이터'를 입력하세요.
                   </TipMessage>
               </>
           );
@@ -254,6 +261,9 @@ const MessageItem = styled.div`
       "data_detail",
       "help",
       "utilization-dashboard",
+      "simple_recommendation",
+      "data_analysis",
+      "link",
     ].includes(props.type)
       ? "0"
       : "10px 15px"};
@@ -280,6 +290,9 @@ const MessageItem = styled.div`
         "data_detail",
         "help",
         "utilization-dashboard",
+        "link",
+        "data_analysis",
+        "simple_recommendation",
       ].includes(props.type)
     )
       return "transparent";
