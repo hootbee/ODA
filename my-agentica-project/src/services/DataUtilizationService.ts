@@ -14,6 +14,7 @@ import {
   chatJsonArrayTC,
   chatJsonBuckets,
   chatJsonObjectTC,
+  chatRawText, // 추가
 } from "../lib/aiClient";
 
 const TRACE = true;
@@ -115,11 +116,15 @@ export class DataUtilizationService {
       "\n[DEBUG: DataUtilizationService.ts] generateSimplePassThrough 진입"
     );
     const prompt = buildSimplePrompt(userPrompt, previousResult);
-    const obj = await chatJsonObjectTC(prompt);
-    const o =
-      obj && obj.title && obj.content
-        ? obj
-        : { title: "결과", content: "생성 실패" };
+    
+    // JSON이 아닌 원본 텍스트를 받아옵니다.
+    const rawContent = await chatRawText(prompt);
+
+    const o = {
+        title: userPrompt.length > 30 ? userPrompt.substring(0, 30) + "..." : userPrompt,
+        content: rawContent || "AI가 답변을 생성하지 못했습니다."
+    };
+
     return {
       type: "simple_recommendation",
       recommendations: [o],
