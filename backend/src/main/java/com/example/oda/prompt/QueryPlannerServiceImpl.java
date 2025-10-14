@@ -166,14 +166,140 @@ public class QueryPlannerServiceImpl implements QueryPlannerService {
         return found;
     }
 
+    // 1-A. extractRegions: 별칭(에일리어스) 완전 지원
     private List<String> extractRegions(String prompt) {
         List<String> regions = Arrays.asList(
-                "서울","부산","대구","인천","광주","대전","울산","세종",
-                "경기","강원","충북","충남","전북","전남","경북","경남","제주","서구"
+                "서울","종로구","중구","용산구","성동구","광진구","동대문구","중랑구","성북구","강북구",
+                "도봉구","노원구","은평구","서대문구","마포구","양천구","강서구","구로구","금천구",
+                "영등포구","동작구","관악구","서초구","강남구","송파구","강동구"
         );
-        List<String> found = regions.stream().filter(prompt::contains).distinct().collect(Collectors.toList());
-        log.debug("[QueryPlan] 지역 키워드 추출: {}", found);
-        return found;
+
+        // 🔹 각 자치구의 대표 약칭 / 주요 동명 포함
+        Map<String,String> alias = Map.ofEntries(
+                Map.entry("종로", "종로구"),
+                Map.entry("중구청", "중구"),
+                Map.entry("용산", "용산구"),
+                Map.entry("성동", "성동구"),
+                Map.entry("광진", "광진구"),
+                Map.entry("동대문", "동대문구"),
+                Map.entry("중랑", "중랑구"),
+                Map.entry("성북", "성북구"),
+                Map.entry("강북", "강북구"),
+                Map.entry("도봉", "도봉구"),
+                Map.entry("노원", "노원구"),
+                Map.entry("은평", "은평구"),
+                Map.entry("서대문", "서대문구"),
+                Map.entry("마포", "마포구"),
+                Map.entry("양천", "양천구"),
+                Map.entry("목동", "양천구"),
+                Map.entry("강서", "강서구"),
+                Map.entry("구로", "구로구"),
+                Map.entry("금천", "금천구"),
+                Map.entry("영등포", "영등포구"),
+                Map.entry("여의도", "영등포구"),
+                Map.entry("동작", "동작구"),
+                Map.entry("관악", "관악구"),
+                Map.entry("봉천", "관악구"),
+                Map.entry("서초", "서초구"),
+                Map.entry("방배", "서초구"),
+                Map.entry("잠원", "서초구"),
+                Map.entry("강남", "강남구"),
+                Map.entry("삼성동", "강남구"),
+                Map.entry("역삼동", "강남구"),
+                Map.entry("논현동", "강남구"),
+                Map.entry("청담동", "강남구"),
+                Map.entry("압구정", "강남구"),
+                Map.entry("대치동", "강남구"),
+                Map.entry("개포동", "강남구"),
+                Map.entry("수서동", "강남구"),
+                Map.entry("일원동", "강남구"),
+                Map.entry("신사동", "강남구"),
+                Map.entry("송파", "송파구"),
+                Map.entry("잠실", "송파구"),
+                Map.entry("문정동", "송파구"),
+                Map.entry("가락동", "송파구"),
+                Map.entry("오금동", "송파구"),
+                Map.entry("강동", "강동구"),
+                Map.entry("천호", "강동구"),
+                Map.entry("둔촌", "강동구")
+        );
+
+        String p = prompt;
+        for (var e : alias.entrySet()) {
+            if (p.contains(e.getKey())) {
+                p += " " + e.getValue(); // 별칭 있으면 정규 구명 추가
+            }
+        }
+
+        return regions.stream()
+                .filter(p::contains)
+                .distinct()
+                .collect(Collectors.toList());
+    }
+
+    // 1-B. extractAgency: 서울 전체 자치구 지원
+    private String extractAgency(String prompt) {
+        Map<String, String> agencies = new HashMap<>();
+        agencies.put("서울특별시", "서울특별시");
+        agencies.put("서울", "서울특별시");
+        agencies.put("종로구", "서울특별시 종로구");
+        agencies.put("중구", "서울특별시 중구");
+        agencies.put("용산구", "서울특별시 용산구");
+        agencies.put("성동구", "서울특별시 성동구");
+        agencies.put("광진구", "서울특별시 광진구");
+        agencies.put("동대문구", "서울특별시 동대문구");
+        agencies.put("중랑구", "서울특별시 중랑구");
+        agencies.put("성북구", "서울특별시 성북구");
+        agencies.put("강북구", "서울특별시 강북구");
+        agencies.put("도봉구", "서울특별시 도봉구");
+        agencies.put("노원구", "서울특별시 노원구");
+        agencies.put("은평구", "서울특별시 은평구");
+        agencies.put("서대문구", "서울특별시 서대문구");
+        agencies.put("마포구", "서울특별시 마포구");
+        agencies.put("양천구", "서울특별시 양천구");
+        agencies.put("강서구", "서울특별시 강서구");
+        agencies.put("구로구", "서울특별시 구로구");
+        agencies.put("금천구", "서울특별시 금천구");
+        agencies.put("영등포구", "서울특별시 영등포구");
+        agencies.put("동작구", "서울특별시 동작구");
+        agencies.put("관악구", "서울특별시 관악구");
+        agencies.put("서초구", "서울특별시 서초구");
+        agencies.put("강남구", "서울특별시 강남구");
+        agencies.put("송파구", "서울특별시 송파구");
+        agencies.put("강동구", "서울특별시 강동구");
+
+        // 별칭도 함께 지원
+        Map<String, String> alias = Map.ofEntries(
+                Map.entry("강남", "서울특별시 강남구"),
+                Map.entry("서초", "서울특별시 서초구"),
+                Map.entry("송파", "서울특별시 송파구"),
+                Map.entry("마포", "서울특별시 마포구"),
+                Map.entry("영등포", "서울특별시 영등포구"),
+                Map.entry("강동", "서울특별시 강동구"),
+                Map.entry("용산", "서울특별시 용산구"),
+                Map.entry("성북", "서울특별시 성북구"),
+                Map.entry("노원", "서울특별시 노원구"),
+                Map.entry("관악", "서울특별시 관악구"),
+                Map.entry("은평", "서울특별시 은평구"),
+                Map.entry("서대문", "서울특별시 서대문구")
+        );
+        agencies.putAll(alias);
+
+        // 길이 긴 키 먼저 검사 (중구/중랑구 혼동 방지)
+        List<String> sortedKeys = agencies.keySet().stream()
+                .sorted((k1, k2) -> k2.length() - k1.length())
+                .collect(Collectors.toList());
+
+        String agency = "기타기관";
+        for (String key : sortedKeys) {
+            if (prompt.contains(key)) {
+                agency = agencies.get(key);
+                break;
+            }
+        }
+
+        log.debug("[QueryPlan] 제공 기관 추출: {}", agency);
+        return agency;
     }
 
     private List<String> extractYears(String prompt) {
@@ -200,7 +326,7 @@ public class QueryPlannerServiceImpl implements QueryPlannerService {
                 "관련","대한","있는","그","이","저","것","에","를","와","과","의","년",
                 "데이터","정보","자료","나는","내가","우리","어떤","어느","무엇","뭐",
                 "하기","위해서","하려면","하고있어","찾고있어","좋을까","것이","것을",
-                "현황","시설","업체","목록"
+                "현황","시설","업체","목록", "관련된"
         ));
         stop.addAll(excludeWords);
 
@@ -236,38 +362,6 @@ public class QueryPlannerServiceImpl implements QueryPlannerService {
         }
         log.debug("[QueryPlan] 검색 연도 추출: {}", year);
         return year;
-    }
-
-    private String extractAgency(String prompt) {
-        String lower = prompt.toLowerCase();
-        Map<String, String> agencies = new HashMap<>();
-        agencies.put("인천", "인천광역시서구");
-        agencies.put("대구", "대구광역시서구");
-        agencies.put("서울", "서울특별시");
-        agencies.put("부산", "부산광역시");
-        agencies.put("대전", "대전광역시");
-        agencies.put("광주", "광주광역시");
-        agencies.put("울산", "울산광역시");
-        agencies.put("세종", "세종특별자치시");
-        agencies.put("경기", "경기도");
-        agencies.put("강원", "강원도");
-        agencies.put("충북", "충청북도");
-        agencies.put("충남", "충청남도");
-        agencies.put("전북", "전라북도");
-        agencies.put("전남", "전라남도");
-        agencies.put("경북", "경상북도");
-        agencies.put("경남", "경상남도");
-        agencies.put("제주", "제주특별자치도");
-
-        String agency = "기타기관";
-        for (Map.Entry<String, String> e : agencies.entrySet()) {
-            if (lower.contains(e.getKey())) {
-                agency = e.getValue();
-                break;
-            }
-        }
-        log.debug("[QueryPlan] 제공 기관 추출: {}", agency);
-        return agency;
     }
 
     private boolean hasDateRelatedTerms(String prompt) {

@@ -7,7 +7,7 @@ import com.example.oda.prompt.dto.QueryPlanDto;
 import com.example.oda.entity.ChatMessage;
 import com.example.oda.prompt.PromptService;
 import com.example.oda.prompt.QueryPlannerService;
-import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -16,7 +16,6 @@ import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
 
 import java.util.List;
-import java.util.Map;
 
 @RestController
 @CrossOrigin(origins = {"http://localhost:3000", "http://localhost:3001"})
@@ -35,6 +34,13 @@ public class PromptController {
     public ResponseEntity<QueryPlanDto> getQueryPlan(@RequestBody PromptRequestDto requestDto) {
         QueryPlanDto queryPlan = queryPlannerService.createQueryPlan(requestDto.getPrompt());
         return ResponseEntity.ok(queryPlan);
+    }
+
+    @PostMapping("/api/execute-plan")
+    public Mono<ResponseEntity<ObjectNode>> executePlan(@RequestBody QueryPlanDto queryPlan) {
+        return promptService.executePlan(queryPlan)
+                .map(response -> ResponseEntity.ok(response))
+                .defaultIfEmpty(ResponseEntity.notFound().build());
     }
 
     @PostMapping("/api/prompt")

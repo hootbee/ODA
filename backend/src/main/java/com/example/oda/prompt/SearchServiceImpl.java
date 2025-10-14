@@ -25,10 +25,9 @@ public class SearchServiceImpl implements SearchService {
     private static final int SCORE_PROVIDER_AGENCY = 200;
     private static final int SCORE_DATA_NAME_STARTS_WITH = 150;
     private static final int SCORE_KEYWORD_EXACT_MATCH = 100;
-    private static final int SCORE_KEYWORD_CONTAINS = 60;
-    private static final int SCORE_DATA_NAME_CONTAINS = 40;
-    private static final int SCORE_TITLE_CONTAINS = 25;
-    private static final int SCORE_DESCRIPTION_CONTAINS = 30;
+    private static final int SCORE_KEYWORD_CONTAINS = 50;
+    private static final int SCORE_DATA_NAME_CONTAINS = 70;
+    private static final int SCORE_DESCRIPTION_CONTAINS = 20;
     private static final int SCORE_DESCRIPTION_ALL_KEYWORDS = 50;
     private static final int SCORE_RECENTLY_MODIFIED = 20;
     private static final int SCORE_CLASSIFICATION_CONTAINS = 20;
@@ -77,6 +76,8 @@ public class SearchServiceImpl implements SearchService {
                 keywordResults.addAll(keywordSearchResults);
 
                 List<PublicData> descResults = publicDataRepository.findByDescriptionContainingIgnoreCase(keyword);
+                log.info("  - 설명 검색 '{}': {}", keyword, descResults.size());
+                keywordResults.addAll(descResults);
 
             } catch (Exception e) {
                 log.error("키워드 '{}' 검색 중 오류: {}", keyword, e.getMessage(), e);
@@ -116,7 +117,30 @@ public class SearchServiceImpl implements SearchService {
     @Override
     public List<PublicData> sortResultsByRelevance(List<PublicData> uniqueResults, List<String> keywords, String prompt) {
         return uniqueResults.stream()
-                .sorted((a, b) -> calculateRelevanceScore(b, keywords) - calculateRelevanceScore(a, keywords))
+                .sorted((a, b) -> {
+                    int scoreA = calculateRelevanceScore(a, keywords);
+                    int scoreB = calculateRelevanceScore(b, keywords);
+
+                    // 1. 점수로 1차 정렬 (내림차순)
+                    if (scoreA != scoreB) {
+                        return scoreB - scoreA;
+                    }
+
+                    // 2. 점수가 같을 경우, 제목 길이로 2차 정렬 (오름차순 - 짧은 제목 우선)
+                    int titleLengthA = a.getTitle() != null ? a.getTitle().length() : Integer.MAX_VALUE;
+                    int titleLengthB = b.getTitle() != null ? b.getTitle().length() : Integer.MAX_VALUE;
+
+                    if (titleLengthA != titleLengthB) {
+                        return titleLengthA - titleLengthB;
+                    }
+
+                    // 3. 제목 길이도 같으면, 최종 수정일로 3차 정렬 (내림차순 - 최신 날짜 우선)
+                    if (a.getDataUpdatedAt() != null && b.getDataUpdatedAt() != null) {
+                        return b.getDataUpdatedAt().compareTo(a.getDataUpdatedAt());
+                    }
+
+                    return 0; // 모든 기준이 같으면 기존 순서 유지
+                })
                 .collect(Collectors.toList());
     }
 
@@ -151,7 +175,6 @@ public class SearchServiceImpl implements SearchService {
             if (isKeywordExactMatch(dataTags, lowerKeyword)) score += SCORE_KEYWORD_EXACT_MATCH;
             else if (dataTags.contains(lowerKeyword)) score += SCORE_KEYWORD_CONTAINS;
             if (dataTitle.contains(lowerKeyword)) score += SCORE_DATA_NAME_CONTAINS;
-            if (dataTitle.contains(lowerKeyword)) score += SCORE_TITLE_CONTAINS;
             if (description.contains(lowerKeyword)) score += SCORE_DESCRIPTION_CONTAINS;
             if (keywords.size() >= 2 && description.contains(String.join(" ", keywords).toLowerCase()))
                 score += SCORE_DESCRIPTION_ALL_KEYWORDS;

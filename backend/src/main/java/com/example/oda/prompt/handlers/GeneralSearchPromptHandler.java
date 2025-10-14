@@ -18,7 +18,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 @Slf4j
-@Component
+// @Component
 @RequiredArgsConstructor
 @Order(5)
 public class GeneralSearchPromptHandler implements PromptHandler {

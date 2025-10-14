@@ -12,9 +12,11 @@ import reactor.core.publisher.Mono;
 
 import java.util.List;
 
+import com.fasterxml.jackson.databind.node.ObjectNode;
+
 @Component
 @RequiredArgsConstructor
-@Order(4)
+@Order(5)
 public class UtilizationPromptHandler implements PromptHandler {
 
     private final UtilizationService utilizationService;
@@ -22,15 +24,30 @@ public class UtilizationPromptHandler implements PromptHandler {
 
     @Override
     public boolean canHandle(String prompt, String lastDataName) {
-        return lastDataName != null && !lastDataName.isBlank();
+        String trimmedPrompt = prompt.trim();
+        boolean isUtilCommand = trimmedPrompt.startsWith("/종합활용") || trimmedPrompt.startsWith("/종합 활용") || trimmedPrompt.startsWith("/활용") || trimmedPrompt.startsWith("/자유");
+
+        // 1. 활용 관련 명령어를 사용했거나, 2. 이미 데이터가 선택된 상태일 때 이 핸들러가 처리 대상이 됩니다.
+        return isUtilCommand || (lastDataName != null && !lastDataName.isBlank());
     }
 
     @Override
     public Mono<JsonNode> handle(ChatSession session, String prompt, String lastDataName) {
-        // ✅ "/종합활용" 또는 "/종합 활용" (대소문자 무시, 공백 허용)
-        if (prompt.trim().matches("(?i)^/\s*종합\s*활용.*$")) {
+        // 데이터가 선택되었는지 먼저 확인합니다.
+        if (lastDataName == null || lastDataName.isBlank()) {
+            ObjectNode errorNode = objectMapper.createObjectNode();
+            errorNode.put("type", "error");
+            errorNode.put("message", "데이터가 선택되지 않았습니다. 먼저 데이터를 검색하거나 선택해주세요.");
+            return Mono.just(errorNode);
+        }
+
+        String trimmedPrompt = prompt.trim();
+
+        // "/종합활용" 명령어 처리
+        if (trimmedPrompt.matches("(?i)^/\\s*종합\\s*활용.*$")) {
             return buildFullUtilMono(lastDataName);
-        }else {
+        } else {
+            // 그 외 모든 프롬프트(/활용, /자유, 일반 텍스트)는 커스텀 활용으로 처리
             return buildCustomUtilMono(lastDataName, prompt);
         }
     }

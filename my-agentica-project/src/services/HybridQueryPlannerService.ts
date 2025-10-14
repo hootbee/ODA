@@ -18,41 +18,22 @@ export class HybridQueryPlannerService {
    * 하이브리드 쿼리 계획 생성 (상세 로깅 포함)
    */
   public async createQueryPlan(prompt: string) {
-    console.log(`\n🔍 하이브리드 쿼리 분석 시작: "${prompt}"`);
+    console.log(`\n[AI-Only Mode] 쿼리 분석 시작: "${prompt}"`);
     console.log("=".repeat(60));
 
-    // 1) 규칙 기반 빠른 처리 (스프링 백엔드 호출)
-    const ruleBasedPlan = await this.fetchRuleBasedPlan(prompt);
-    console.log(`\n📊 규칙 기반 분석 결과:`);
-    console.log(`   카테고리: ${ruleBasedPlan.majorCategory}`);
-    console.log(`   키워드: [${(ruleBasedPlan.keywords || []).join(", ")}]`);
-    console.log(`   키워드 수: ${(ruleBasedPlan.keywords || []).length}`);
+    // 규칙 기반 계획을 건너뛰고, 기본 빈 계획으로 시작합니다.
+    const initialPlan = this.getDefaultPlan();
+    console.log("⚡ 규칙 기반을 건너뛰고 항상 AI를 통해 계획을 생성합니다.");
 
-    // 2) AI 보완 필요성 판단
-    const needsAI = this.needsAIEnhancement(prompt, ruleBasedPlan);
-    console.log(`\n🤖 AI 보완 필요성 판단: ${needsAI ? "✅ 필요" : "❌ 불필요"}`);
+    // 항상 AI 보완을 실행
+    const enhancedPlan = await this.enhanceWithAI(prompt, initialPlan);
 
-    if (needsAI) {
-      const reasons = this.getAIEnhancementReasons(prompt, ruleBasedPlan);
-      console.log(`   보완 이유: ${reasons.join(", ")}`);
-
-      console.log("🧠 AI 보완 진행 중...");
-      const enhanced = await this.enhanceWithAI(prompt, ruleBasedPlan);
-
-      console.log(`\n✨ AI 보완 완료:`);
-      console.log(`   개선된 카테고리: ${enhanced.majorCategory}`);
-      console.log(`   개선된 키워드: [${(enhanced.keywords || []).join(", ")}]`);
-      console.log(
-          `   키워드 수 변화: ${(ruleBasedPlan.keywords || []).length} → ${(enhanced.keywords || []).length}`
-      );
-
-      console.log("=".repeat(60));
-      return enhanced;
-    }
-
-    console.log("⚡ 규칙 기반 처리로 충분함");
+    console.log(`\n✨ AI 처리 완료:`);
+    console.log(`   카테고리: ${enhancedPlan.majorCategory}`);
+    console.log(`   키워드: [${(enhancedPlan.keywords || []).join(", ")}]`);
     console.log("=".repeat(60));
-    return ruleBasedPlan;
+    
+    return enhancedPlan;
   }
 
   /**
@@ -117,49 +98,75 @@ export class HybridQueryPlannerService {
    * 프롬프트: 규칙 기반 결과를 개선한 JSON 객체만 반환하도록 지시
    */
   private buildEnhancementPrompt(prompt: string, ruleBasedPlan: any): string {
+    const allowedKeywords = [
+      // 보건
+      "보건", "의료", "병원", "건강", "질병", "감염병", "코로나", "백신", "의약", "검진", "진료", "미용", "위생",
+      // 문화/관광
+      "문화", "관광", "축제", "전시", "공연", "예술", "박물관", "문화재", "체육", "여행", "명소",
+      // 산업/경제
+      "산업", "경제", "기업", "창업", "제조", "무역", "고용", "중소기업", "시장", "소비", "투자", "금융",
+      // 복지
+      "복지", "사회복지", "돌봄", "노인", "아동", "장애인", "저소득", "보육", "생활지원", "복지관",
+      // 환경
+      "환경", "대기", "수질", "오염", "폐기물", "기후", "탄소", "생태", "미세먼지", "에너지", "녹지",
+      // 교육
+      "교육", "학교", "대학", "학생", "교사", "학습", "연구", "도서관", "교과", "평가",
+      // 일반행정
+      "행정", "정책", "민원", "공무원", "정부", "자치", "법령", "시청", "구청", "제도",
+      // 교통
+      "교통", "도로", "버스", "지하철", "철도", "신호등", "주차", "교통안전", "교통사고", "물류", "대중교통",
+      // 인구/가구
+      "인구", "가구", "출생", "사망", "인구통계", "이동", "통계", "세대", "인구수", "연령대",
+      // 안전
+      "안전", "재난", "재해", "방재", "방범", "치안", "응급", "소방", "사고", "대피", "위험",
+      // 도시관리
+      "도시", "지역", "개발", "도시계획", "시설", "도로관리", "조경", "인프라", "구역", "공원",
+      // 주택/건설
+      "주택", "건설", "부동산", "재개발", "건축", "아파트", "임대", "주거", "토지", "건축물",
+      // 지역 (서울)
+      "서울", "종로구", "중구", "용산구", "성동구", "광진구", "동대문구", "중랑구", "성북구", "강북구", "도봉구", "노원구", "은평구", "서대문구", "마포구", "양천구", "강서구", "구로구", "금천구", "영등포구", "동작구", "관악구", "서초구", "강남구", "송파구", "강동구",
+      "종로", "중구청", "용산", "성동", "광진", "동대문", "중랑", "성북", "강북", "도봉", "노원", "은평", "서대문", "마포", "양천", "목동", "강서", "구로", "금천", "영등포", "여의도", "동작", "관악", "봉천", "서초", "방배", "잠원", "강남", "삼성동", "역삼동", "논현동", "청담동", "압구정", "대치동", "개포동", "수서동", "일원동", "신사동", "송파", "잠실", "문정동", "가락동", "오금동", "강동", "천호", "둔촌"
+    ];
     const allowedCategories = [
-      "교통및물류",
-      "공공질서및안전",
-      "일반공공행정",
-      "사회복지",
-      "문화체육관광",
-      "교육",
-      "환경",
-      "산업·통상·중소기업",
-      "보건",
-      "농림",
-      "지역개발",
-      "재정·세제·금융",
-      "과학기술",
-      "통신",
+      "교통", "안전", "환경", "복지", "문화/관광", "보건", "산업/경제", "교육", "일반행정", "인구/가구", "도시관리", "주택/건설"
     ];
 
     return `
-당신은 쿼리 플래너 보조자입니다. 아래의 "규칙 기반 쿼리 계획"을 참고하여 더 나은 계획을 제시하세요.
-반드시 아래 JSON 스키마만 반환하고, 마크다운/설명은 포함하지 마세요.
+당신은 서울시 공공데이터 검색을 위한 쿼리 플래너입니다. 사용자의 프롬프트를 분석하여 검색에 가장 적합한 JSON 쿼리 계획을 생성해야 합니다.
 
 원본 사용자 프롬프트: ${JSON.stringify(prompt)}
-규칙 기반 쿼리 계획: ${JSON.stringify(ruleBasedPlan)}
 
-다음 요구사항을 만족하세요:
-1) 키워드 확장/보완: 누락된 핵심 키워드 추가, 동의어/유의어 보강, 불필요 단어 제거
-2) 카테고리 정밀화: 의도에 맞는 대분류 선택(아래 목록 중 택1)
-   - ${allowedCategories.join(", ")}
-3) 검색 전략: limit, hasDateFilter, searchYear, providerAgency를 상황에 맞게 조정
+다음 요구사항을 반드시 만족하세요:
+1.  **키워드(keywords) 생성**:
+    -   사용자 프롬프트의 핵심 의도를 파악하여 관련 키워드를 6~10개 생성합니다.
+    -   **중요**: 생성하는 모든 키워드는 반드시 아래 '허용된 키워드 목록'에 있는 단어 중에서만 선택해야 합니다. 목록에 없는 단어는 절대 사용하지 마세요.
+    -   **중요**: 사용자 프롬프트에 '마포', '강남구' 같은 지역명이 있으면, 반드시 그 지역명을 'keywords' 배열의 첫 번째 요소로 포함시키세요.
 
-응답은 반드시 아래 JSON 객체 포맷으로만 반환:
+2.  **카테고리(majorCategory) 선택**:
+    -   생성된 키워드와 사용자 프롬프트의 전체적인 맥락에 가장 적합한 카테고리 1개를 아래 '허용된 카테고리 목록'에서 선택하세요.
+
+3.  **검색 전략(searchYear, providerAgency, hasDateFilter, limit) 조정**:
+    -   사용자 프롬프트에 연도, 기관명, 날짜 관련 표현이 있으면 그에 맞게 값을 설정하세요. 없으면 기본값을 사용하세요.
+
+---
+[허용된 키워드 목록]
+${[...new Set(allowedKeywords)].join(", ")}
+
+[허용된 카테고리 목록]
+${allowedCategories.join(", ")}
+---
+
+응답은 반드시 아래 JSON 객체 포맷으로만 반환하고, 다른 설명은 절대 추가하지 마세요:
 {
-  "majorCategory": "위 목록 중 하나",
-  "keywords": ["핵심 키워드", "..."],
+  "majorCategory": "위 '허용된 카테고리 목록' 중 하나",
+  "keywords": ["위 '허용된 키워드 목록'에서만 선택", "..."],
   "searchYear": 2024 | null,
   "providerAgency": "기관명 또는 '기타기관'",
   "hasDateFilter": true/false,
   "limit": 10
 }
-    `.trim();
-  }
-
-  /**
+  `.trim();
+  }  /**
    * LLM 호출 (항상 JSON만 오도록 강제)
    */
   private async chatJSON(prompt: string): Promise<string> {
@@ -230,7 +237,7 @@ export class HybridQueryPlannerService {
    */
   private async fetchRuleBasedPlan(prompt: string): Promise<any> {
     try {
-      const response = await fetch("http://localhost:8080/api/query-plan", {
+      const response = await fetch("http://backend:8080/api/query-plan", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ prompt }),

@@ -39,10 +39,16 @@ export class DataAnalysisService {
     console.log(`[DEBUG] userPrompt: ${userPrompt}`);
 
     const fileContent = await this.readFileContent(filePath);
+
+    // ✅ 데이터 행 유무를 먼저 체크 (할루시네이션 방지)
+    if (!this.hasDataRows(fileContent)) {
+      return this.buildNoDataReport(fileName, fileContent);
+    }
+
     const prompt = this.buildAnalysisPrompt(fileContent, fileName, userPrompt, previousResult);
     const raw = await this.chatWithReportOutput(prompt);
 
-    // 안전장치: 모델이 실수로 마크다운 표를 만들었을 때 JSON으로 자동 변환
+    // 모델이 표를 잘못 만들었을 때만 보정 (데이터 있을 때만)
     const normalized = this.ensureJsonTables(raw, fileContent);
     return normalized;
   }
@@ -108,7 +114,8 @@ ${previousResult}
 2. 분석 대상 파일: "${fileName}"
 3. **다음 컬럼들을 반드시 고려해야 합니다.**
 ${columnListMarkdown ? columnListMarkdown : "- (헤더 정보 없음)"}
-4. 데이터가 부족하거나 분석이 불가능하면, "제공된 데이터만으로는 유의미한 분석을 하기 어렵습니다." 라고 명시하세요.
+4. **데이터가 부족하거나 데이터 행(투플)이 없으면**, 아래 문구를 그대로 본문에 명시하고 분석을 중단하세요.  
+   → "제공된 데이터만으로는 유의미한 분석을 하기 어렵습니다."
 
 # 분석 대상 데이터 (${fileName})
 ${fileContent}
@@ -208,6 +215,40 @@ REPORT STRUCTURE (항상 이 순서):
     console.log(`[DEBUG] LLM 응답 수신 (앞부분):\n${text.substring(0, 500)} ...`);
     return text;
   }
+  /** CSV에 실제 데이터 행(투플)이 있는지 확인 (헤더만 있거나 전부 빈 값이면 false) */
+  private hasDataRows(fileContent: string): boolean {
+    const lines = (fileContent ?? "").split("\n").map(s => s.trim());
+    if (lines.length < 2) return false; // 헤더만 존재
+
+    // 헤더 제외 데이터 행 중, 하나라도 비어있지 않은 셀 존재하면 true
+    return lines.slice(1).some(line => {
+      if (!line) return false;
+      const cells = line.split(",").map(c => c.trim());
+      return cells.some(c => c.length > 0);
+    });
+  }
+  /** 데이터가 없을 때 반환할 최소 보고서 (할루시네이션 금지) */
+  private buildNoDataReport(fileName: string, fileContent: string): string {
+    const firstLine = (fileContent ?? "").split("\n")[0] ?? "";
+    const headers = firstLine
+        ? firstLine.split(",").map(s => s.trim()).filter(Boolean)
+        : [];
+
+    return [
+      "## 분석 개요",
+      `- 대상 파일: **${fileName}**`,
+      "- 제공된 CSV에 **데이터 행(투플)** 이 없습니다.",
+      "",
+      "## 결론 및 제안",
+      "- 제공된 데이터만으로는 유의미한 분석을 하기 어렵습니다.",
+      "- 원천 데이터 수집 파이프라인/내보내기 옵션을 확인해 주세요.",
+      "",
+      "## 참고: 데이터 샘플",
+      "```json",
+      JSON.stringify({ headers, rows: [] }, null, 2),
+      "```",
+    ].join("\n");
+  }
 
   /**
    *  안전장치:
@@ -218,37 +259,35 @@ REPORT STRUCTURE (항상 이 순서):
     const hasJsonBlocks = /```json[\s\S]*?```/i.test(text);
     let out = text;
 
-    if (!hasJsonBlocks) {
-      // 마크다운 표(헤더/구분선/데이터행) 탐지 후 JSON으로 치환
-      out = this.convertMarkdownTablesToJson(out);
-    } else {
-      // 그래도 혹시 섞여 있는 경우 추가 변환 시도(중복 변환 방지 위해 JSON 블록은 건드리지 않음)
-      out = this.convertMarkdownTablesToJson(out);
+    // 마크다운 표를 JSON으로 바꾸는 보정 (존재 시)
+    out = this.convertMarkdownTablesToJson(out);
+
+    // ✅ 데이터가 없으면 어떤 표도 억지로 추가하지 않음
+    const hasRows = this.hasDataRows(fileContent);
+    const stillNoJson = !/```json[\s\S]*?```/i.test(out);
+
+    if (!hasRows) {
+      return out; // 헤더만 있는 경우, 빈 JSON 테이블은 buildNoDataReport에서 이미 처리
     }
 
-    // 마지막 “참고: 데이터 샘플”에 모든 컬럼 포함했는지 강제하기는 어려우므로
-    // 최소한 표가 하나는 있도록 보정(없다면 CSV 헤더 기반 3~5행 생성)
-    const stillNoJson = !/```json[\s\S]*?```/i.test(out);
+    // 데이터가 있고 표가 하나도 없을 때만 최소 샘플 테이블 추가
     if (stillNoJson) {
       const lines = fileContent.trim().split("\n");
-      if (lines.length >= 2) {
-        const headers = lines[0].split(",").map((s) => s.trim());
-        const rows = lines.slice(1, Math.min(lines.length, 6)).map((r) =>
-            r.split(",").map((s) => s.trim())
-        );
-        const fallback = [
-          "\n\n### 참고: 데이터 샘플\n",
-          "```json",
-          JSON.stringify({ headers, rows }, null, 2),
-          "```",
-        ].join("\n");
-        out = out + fallback;
-      }
+      const headers = lines[0].split(",").map((s) => s.trim());
+      const rows = lines.slice(1, Math.min(lines.length, 6)).map((r) =>
+          r.split(",").map((s) => s.trim())
+      );
+      const fallback = [
+        "\n\n### 참고: 데이터 샘플\n",
+        "```json",
+        JSON.stringify({ headers, rows }, null, 2),
+        "```",
+      ].join("\n");
+      out = out + fallback;
     }
 
     return out;
   }
-
   /** 마크다운 표(|---|)를 JSON 코드블록으로 변환 (간단 케이스 지원) */
   private convertMarkdownTablesToJson(text: string): string {
     const lines = text.split("\n");

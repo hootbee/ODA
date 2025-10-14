@@ -42,12 +42,30 @@ export class DataDownloaderService {
       publicDataPk: string,
       opts?: { fileDetailSn?: number }
   ): Promise<{ buffer: Buffer; fileName: string; contentType: string }> {
-    // 1) 서울시 포털 상세 URL이면 Puppeteer 캡처+리플레이 경로
-    if (this.isSeoulDatasetViewUrl(publicDataPk)) {
-      return this.downloadViaPuppeteerReplay(publicDataPk);
+    try {
+        let result: { buffer: Buffer; fileName: string; contentType: string };
+
+        // 1) 서울시 포털 상세 URL이면 Puppeteer 캡처+리플레이 경로
+        if (this.isSeoulDatasetViewUrl(publicDataPk)) {
+            result = await this.downloadViaPuppeteerReplay(publicDataPk);
+        } 
+        // 2) 아니면 data.go.kr 기본 플로우
+        else {
+            result = await this.downloadViaDataGoKr(publicDataPk, opts);
+        }
+
+        // 3) 결과 확인: ZIP 파일인 경우 예외 발생시켜 catch 블록으로 넘김
+        if (result.fileName && result.fileName.toLowerCase().endsWith('.zip')) {
+            throw new Error(`Unsupported file type: ZIP. (File: ${result.fileName})`);
+        }
+
+        return result;
+
+    } catch (error: any) {
+        console.error(`[Downloader] Core download failed for "${publicDataPk}":`, error.message);
+        // 모든 다운로드 관련 오류를 하나의 예외로 통일하여 처리
+        throw new Error("다운로드할 CSV 파일을 찾을 수 없습니다. 파일이 존재하지 않거나 지원하지 않는 형식(예: ZIP)일 수 있습니다.");
     }
-    // 2) 아니면 data.go.kr 기본 플로우
-    return this.downloadViaDataGoKr(publicDataPk, opts);
   }
 
   private isSeoulDatasetViewUrl(input: string): boolean {

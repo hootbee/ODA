@@ -2,7 +2,7 @@ import { DataInfo } from "./dataUtilization.schema";
 
 export function buildSimplePrompt(userPrompt: string, previousResult?: any): string {
     const prev = previousResult ? JSON.stringify(previousResult, null, 2) : "";
-    const safePrev = prev.length > 4000 ? prev.slice(0, 4000) + " …(truncated)" : prev;
+    const safePrev = prev.length > 3000 ? prev.slice(0, 3000) + " …(truncated)" : prev;
     const context = previousResult
         ? `
 # 이전 대화 내용 (참고)
@@ -13,18 +13,20 @@ ${safePrev}
         : "";
 
     const prompt = `
-# 요청사항
-아래 사용자의 요구에 맞춘 답변을 생성하세요.
-- 응답은 반드시 { "title": "...", "content": "..." } 형식의 JSON 객체여야 합니다.
-- 마크다운, 주석, 기타 텍스트 없이 순수한 JSON 객체만 반환해야 합니다.
+# 임무
+당신은 사용자의 질문에 간결하고 명확한 마크다운 형식으로 답변하는 AI 어시스턴트입니다.
+
+# 출력 규칙
+- 답변은 항상 마크다운 형식으로 작성하세요.
+- 코드 예시나 아키텍처 설명이 포함되어도 좋지만, 전체 답변이 너무 길어지지 않도록 핵심만 간결하게 요약해주세요.
+- 답변에 제목을 포함할 필요는 없습니다.
+
 ${context}
-[사용자 요청]
-${userPrompt}
+
+# 사용자 요청
+"${userPrompt}"
 `.trim();
-    console.log(`[DEBUG: dataUtilization.prompts.ts] buildSimplePrompt 생성 완료:
---- PROMPT START ---
-${prompt}
---- PROMPT END ---`);
+    console.log(`[DEBUG: dataUtilization.prompts.ts] buildSimplePrompt 생성 완료:\n--- PROMPT START ---\n${prompt}\n--- PROMPT END ---`);
     return prompt;
 }
 

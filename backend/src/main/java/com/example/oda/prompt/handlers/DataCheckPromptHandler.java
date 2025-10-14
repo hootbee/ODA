@@ -24,12 +24,18 @@ public class DataCheckPromptHandler implements PromptHandler {
 
    @Override
    public boolean canHandle(String prompt, String lastDataName) {
-       // Trigger on "데이터 확인" when a dataset is in context
-       return lastDataName != null && !lastDataName.isBlank() && prompt.trim().equals("/데이터 확인");
+       return prompt.trim().equals("/데이터 확인");
    }
 
    @Override
    public Mono<JsonNode> handle(ChatSession session, String prompt, String lastDataName) {
+       if (lastDataName == null || lastDataName.isBlank()) {
+           ObjectNode errorNode = JsonNodeFactory.instance.objectNode();
+           errorNode.put("type", "error");
+           errorNode.put("message", "데이터가 선택되지 않았습니다. 먼저 데이터를 검색하거나 선택해주세요.");
+           return Mono.just(errorNode);
+       }
+
        // Find the PublicData entity by its name to get the PK
        Optional<PublicData> publicDataOptional = publicDataRepository.findByTitle(lastDataName);
 
@@ -48,6 +54,12 @@ public class DataCheckPromptHandler implements PromptHandler {
            return Mono.just(errorNode);
        }
 
-       return geminiService.analyzeDataByPk(publicDataPk);
+       return geminiService.analyzeDataByPk(publicDataPk)
+               .onErrorResume(error -> {
+                   ObjectNode errorNode = JsonNodeFactory.instance.objectNode();
+                   errorNode.put("type", "error");
+                   errorNode.put("message", "CSV 파일을 찾을 수 없거나, 지원하지 않는 형식(예: ZIP)입니다.");
+                   return Mono.just(errorNode);
+               });
    }
 }
