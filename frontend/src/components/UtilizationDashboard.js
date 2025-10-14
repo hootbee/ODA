@@ -179,7 +179,9 @@ const UtilizationDashboard = ({ data, fileName, onCategorySelect }) => {
   return (
     <DashboardContainer>
       <DashboardHeader>
-        <h3>`{fileName}` 데이터 활용 방안 요약</h3>
+        {/*<h3>`{fileName}` 데이터 활용 방안 요약</h3>*/}
+        <h3>데이터 활용 방안 요약</h3>
+
       </DashboardHeader>
 
       <CategoriesGrid>
