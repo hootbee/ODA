@@ -7,14 +7,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
 import org.springframework.beans.factory.annotation.Value; // ← 이 import 추가!
-
-
-import java.util.List;
 import java.util.Map;
 
 @Service
@@ -22,11 +18,9 @@ public class GeminiService implements AiModelService {
 
     private static final Logger log = LoggerFactory.getLogger(GeminiService.class);
     private final WebClient webClient;
-    private final ObjectMapper objectMapper;
 
     public GeminiService(ObjectMapper objectMapper, WebClient.Builder webClientBuilder, 
                         @Value("${agent.server.url:http://agent:3001}") String agentServerUrl) {
-        this.objectMapper = objectMapper;
         this.webClient = webClientBuilder
                 .baseUrl(agentServerUrl) // ← 환경변수 사용
                 .build();

@@ -30,6 +30,9 @@ const HelpMessage = () => (
         <strong>데이터 파일 다운로드 및 분석:</strong> '/데이터 확인'
       </li>
       <li>
+        <strong>추천 그래프로 살펴보기:</strong> '/데이터 시각화'
+      </li>
+      <li>
         <strong>새로운 데이터 검색 시작:</strong> '/다른 데이터'
       </li>
     </HelpList>
