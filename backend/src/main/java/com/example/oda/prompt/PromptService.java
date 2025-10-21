@@ -1,9 +1,11 @@
 package com.example.oda.prompt;
 
+import com.example.oda.entity.ChatSession;
 import com.example.oda.prompt.dto.ChatHistoryDto;
 import com.example.oda.prompt.dto.ChatResponseDto;
 import com.example.oda.prompt.dto.PromptRequestDto;
 import com.example.oda.entity.ChatMessage;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.springframework.security.core.Authentication;
 import reactor.core.publisher.Mono;

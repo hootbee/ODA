@@ -7,7 +7,6 @@ import com.example.oda.entity.PublicData;
 import com.example.oda.prompt.dto.*;
 import com.example.oda.repository.ChatMessageRepository;
 import com.example.oda.repository.ChatSessionRepository;
-import com.example.oda.entity.MessageSender;
 import com.example.oda.prompt.handlers.PromptHandler;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;

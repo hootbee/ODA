@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import styled from "styled-components";
 
 const COLOR_PALETTE = [
@@ -128,6 +128,20 @@ const ChartRenderer = ({ chart, colorOffset = 0 }) => {
   }
 };
 
+// ✅ Tooltip 스타일 추가
+const Tooltip = styled.div`
+  position: absolute;
+  background: #1e293b;
+  color: #fff;
+  padding: 5px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  pointer-events: none;
+  white-space: nowrap;
+  z-index: 1000;
+  transform: translate(-50%, -130%);
+`;
+
 const extractLabelValue = (data) => {
   if (!Array.isArray(data)) return [];
   return data
@@ -157,11 +171,38 @@ const extractScatterPoints = (data) => {
     .filter(Boolean);
 };
 
+const chunkLabel = (label, chunkSize) => {
+  const cleanLabel = typeof label === "string" ? label.trim() : "";
+  if (!cleanLabel) return [];
+  const result = [];
+  for (let i = 0; i < cleanLabel.length; i += chunkSize) {
+    result.push(cleanLabel.slice(i, i + chunkSize));
+  }
+  return result;
+};
+
+const getLabelFontSize = (label, totalCount) => {
+  const length = typeof label === "string" ? label.trim().length : 0;
+  if (totalCount >= 8 || length >= 14) return 3.8;
+  if (totalCount >= 6 || length >= 11) return 4.3;
+  if (totalCount >= 4 || length >= 8) return 4.8;
+  return 5.4;
+};
+
+const getLabelLines = (label, totalCount) => {
+  const fontSize = getLabelFontSize(label, totalCount);
+  const maxChunk = Math.max(4, 6);
+  const lines = chunkLabel(label, maxChunk);
+  return lines.length > 0 ? lines : [label];
+};
+
+// ✅ BarChart Tooltip 추가
 const BarChart = ({ data, xLabel, yLabel, colorOffset }) => {
+  const [tooltip, setTooltip] = useState(null);
   const values = extractLabelValue(data);
   if (values.length === 0) return <ChartPlaceholder>표시할 데이터가 없습니다.</ChartPlaceholder>;
 
-  const labels = values.map((item) => item.label);
+  const totalCount = values.length;
   const numbers = values.map((item) => item.value);
   const maxValue = Math.max(...numbers);
   const minValue = Math.min(...numbers);
@@ -179,50 +220,48 @@ const BarChart = ({ data, xLabel, yLabel, colorOffset }) => {
   const barWidth = Math.max((innerWidth - gap * (values.length - 1)) / values.length, 6);
 
   return (
-    <ChartWrapper>
-      <Svg viewBox={`0 0 ${viewWidth} ${viewHeight}`} preserveAspectRatio="xMidYMid meet">
+    <ChartWrapper style={{ position: "relative" }}>
+      {tooltip && (
+        <Tooltip style={{ left: tooltip.x, top: tooltip.y }}>{tooltip.text}</Tooltip>
+      )}
+      <Svg viewBox={`0 0 ${viewWidth} ${viewHeight}`}>
         <line x1={marginSide} y1={zeroLine} x2={viewWidth - marginSide} y2={zeroLine} stroke="#cbd5f5" strokeWidth={1} />
         {values.map((item, index) => {
           const isNegative = item.value < 0;
           const yValue = valueToY(item.value);
           const barHeight = Math.abs(zeroLine - yValue);
-          const clampedHeight = Number.isFinite(barHeight) ? Math.max(barHeight, 1) : 1;
           const x = marginSide + index * (barWidth + gap);
-          const rectY = isNegative ? zeroLine : zeroLine - clampedHeight;
+          const rectY = isNegative ? zeroLine : zeroLine - barHeight;
           const color = COLOR_PALETTE[(index + colorOffset) % COLOR_PALETTE.length];
+          const fontSize = getLabelFontSize(item.label, totalCount);
+          const labelLines = getLabelLines(item.label, totalCount);
+          const lineHeight = fontSize + 1.2;
+          const baseLabelY = viewHeight - 6 - (labelLines.length - 1) * lineHeight;
 
           return (
-            <g key={`bar-${index}`}>
-              <rect
-                x={x}
-                y={Math.min(rectY, zeroLine)}
-                width={barWidth}
-                height={clampedHeight}
-                fill={color}
-                rx={2}
-              />
-              <text x={x + barWidth / 2} y={viewHeight - 6} textAnchor="middle" fontSize={6} fill="#475569">
-                {labels[index]}
+            <g key={index}
+              onMouseEnter={(e) => setTooltip({ x: e.nativeEvent.offsetX, y: e.nativeEvent.offsetY, text: `${item.label}: ${item.value}` })}
+              onMouseLeave={() => setTooltip(null)}
+            >
+              <rect x={x} y={rectY} width={barWidth} height={barHeight} fill={color} rx={2}/>
+              <text x={x + barWidth / 2} y={baseLabelY} textAnchor="middle" fontSize={fontSize} fill="#475569">
+                {labelLines.map((line, i) => (
+                  <tspan key={i} x={x + barWidth / 2} dy={i === 0 ? 0 : lineHeight}>{line}</tspan>
+                ))}
               </text>
             </g>
           );
         })}
-        {yLabel && (
-          <text x={4} y={marginTop} fontSize={6} fill="#64748b" textAnchor="start">
-            {yLabel}
-          </text>
-        )}
-        {xLabel && (
-          <text x={viewWidth / 2} y={viewHeight - 2} fontSize={6} fill="#64748b" textAnchor="middle">
-            {xLabel}
-          </text>
-        )}
+        {yLabel && <text x={4} y={marginTop} fontSize={6} fill="#64748b">{yLabel}</text>}
+        {xLabel && <text x={viewWidth / 2} y={viewHeight - 2} fontSize={6} fill="#64748b" textAnchor="middle">{xLabel}</text>}
       </Svg>
     </ChartWrapper>
   );
 };
 
+// ✅ LineChart Tooltip 추가
 const LineChart = ({ data, xLabel, yLabel, colorOffset }) => {
+  const [tooltip, setTooltip] = useState(null);
   const values = extractLabelValue(data);
   if (values.length === 0) return <ChartPlaceholder>표시할 데이터가 없습니다.</ChartPlaceholder>;
 
@@ -237,7 +276,6 @@ const LineChart = ({ data, xLabel, yLabel, colorOffset }) => {
   const marginSide = 18;
   const innerWidth = viewWidth - marginSide * 2;
   const innerHeight = viewHeight - marginTop - marginBottom;
-  const zeroLine = maxValue <= 0 ? marginTop : minValue >= 0 ? viewHeight - marginBottom : viewHeight - marginBottom - ((0 - minValue) / range) * innerHeight;
   const color = COLOR_PALETTE[colorOffset % COLOR_PALETTE.length];
 
   const points = values.map((item, index) => {
@@ -246,45 +284,38 @@ const LineChart = ({ data, xLabel, yLabel, colorOffset }) => {
     return { x, y, label: item.label, value: item.value };
   });
 
-  const pathD = points
-    .map((point, index) => `${index === 0 ? "M" : "L"} ${point.x} ${point.y}`)
-    .join(" ");
+  const pathD = points.map((p, i) => `${i === 0 ? "M" : "L"} ${p.x} ${p.y}`).join(" ");
 
   return (
-    <ChartWrapper>
-      <Svg viewBox={`0 0 ${viewWidth} ${viewHeight}`} preserveAspectRatio="xMidYMid meet">
-        <line x1={marginSide} y1={zeroLine} x2={viewWidth - marginSide} y2={zeroLine} stroke="#cbd5f5" strokeWidth={1} />
+    <ChartWrapper style={{ position: "relative" }}>
+      {tooltip && <Tooltip style={{ left: tooltip.x, top: tooltip.y }}>{tooltip.text}</Tooltip>}
+      <Svg viewBox={`0 0 ${viewWidth} ${viewHeight}`}>
         <path d={pathD} fill="none" stroke={color} strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
-        {points.map((point, index) => (
-          <g key={`point-${index}`}>
-            <circle cx={point.x} cy={point.y} r={2.5} fill={color} />
-            <text x={point.x} y={viewHeight - 5} textAnchor="middle" fontSize={6} fill="#475569">
-              {point.label}
-            </text>
-          </g>
+        {points.map((p, i) => (
+          <circle
+            key={i}
+            cx={p.x}
+            cy={p.y}
+            r={3}
+            fill={color}
+            onMouseEnter={(e) => setTooltip({ x: e.nativeEvent.offsetX, y: e.nativeEvent.offsetY, text: `${p.label}: ${p.value}` })}
+            onMouseLeave={() => setTooltip(null)}
+          />
         ))}
-        {yLabel && (
-          <text x={6} y={marginTop} fontSize={6} fill="#64748b" textAnchor="start">
-            {yLabel}
-          </text>
-        )}
-        {xLabel && (
-          <text x={viewWidth / 2} y={viewHeight - 2} fontSize={6} fill="#64748b" textAnchor="middle">
-            {xLabel}
-          </text>
-        )}
+        {yLabel && <text x={6} y={marginTop} fontSize={6} fill="#64748b">{yLabel}</text>}
+        {xLabel && <text x={viewWidth / 2} y={viewHeight - 2} fontSize={6} fill="#64748b" textAnchor="middle">{xLabel}</text>}
       </Svg>
     </ChartWrapper>
   );
 };
 
+// ✅ PieChart Tooltip 추가
 const PieChart = ({ data, colorOffset }) => {
+  const [tooltip, setTooltip] = useState(null);
   const values = extractLabelValue(data);
   if (values.length === 0) return <ChartPlaceholder>표시할 데이터가 없습니다.</ChartPlaceholder>;
 
   const total = values.reduce((sum, item) => sum + Math.max(item.value, 0), 0);
-  if (total <= 0) return <ChartPlaceholder>유효한 비율 데이터를 찾을 수 없습니다.</ChartPlaceholder>;
-
   let cumulativeAngle = -Math.PI / 2;
   const center = 50;
   const radius = 40;
@@ -296,7 +327,8 @@ const PieChart = ({ data, colorOffset }) => {
     const endAngle = cumulativeAngle + angle;
     cumulativeAngle = endAngle;
     const color = COLOR_PALETTE[(index + colorOffset) % COLOR_PALETTE.length];
-    return { ...item, startAngle, endAngle, color };
+    const percentage = Math.round((value / total) * 1000) / 10;
+    return { ...item, startAngle, endAngle, color, percentage };
   });
 
   const toPoint = (angle) => ({
@@ -305,29 +337,33 @@ const PieChart = ({ data, colorOffset }) => {
   });
 
   return (
-    <PieWrapper>
-      <Svg viewBox="0 0 120 100" preserveAspectRatio="xMidYMid meet">
+    <PieWrapper style={{ position: "relative" }}>
+      {tooltip && <Tooltip style={{ left: tooltip.x, top: tooltip.y }}>{tooltip.text}</Tooltip>}
+      <Svg viewBox="0 0 120 100">
         <g transform="translate(10,5)">
-          {segments.map((segment, index) => {
-            const start = toPoint(segment.startAngle);
-            const end = toPoint(segment.endAngle);
-            const largeArc = segment.endAngle - segment.startAngle > Math.PI ? 1 : 0;
-            const pathData = [
-              `M ${center} ${center}`,
-              `L ${start.x} ${start.y}`,
-              `A ${radius} ${radius} 0 ${largeArc} 1 ${end.x} ${end.y}`,
-              "Z",
-            ].join(" ");
-            return <path key={`slice-${index}`} d={pathData} fill={segment.color} opacity={0.92} stroke="#ffffff" strokeWidth={0.5} />;
+          {segments.map((s, i) => {
+            const start = toPoint(s.startAngle);
+            const end = toPoint(s.endAngle);
+            const largeArc = s.endAngle - s.startAngle > Math.PI ? 1 : 0;
+            const d = `M ${center} ${center} L ${start.x} ${start.y} A ${radius} ${radius} 0 ${largeArc} 1 ${end.x} ${end.y} Z`;
+            return (
+              <path
+                key={i}
+                d={d}
+                fill={s.color}
+                onMouseEnter={(e) => setTooltip({ x: e.nativeEvent.offsetX, y: e.nativeEvent.offsetY, text: `${s.label}: ${s.value} (${s.percentage}%)` })}
+                onMouseLeave={() => setTooltip(null)}
+              />
+            );
           })}
         </g>
       </Svg>
       <Legend>
-        {segments.map((segment, index) => (
-          <li key={`legend-${index}`}>
-            <ColorDot style={{ backgroundColor: segment.color }} />
-            <span>{segment.label}</span>
-            <strong>{Math.round((Math.max(segment.value, 0) / total) * 1000) / 10}%</strong>
+        {segments.map((s, i) => (
+          <li key={i}>
+            <ColorDot style={{ backgroundColor: s.color }} />
+            <span>{s.label}</span>
+            <strong>{s.percentage}%</strong>
           </li>
         ))}
       </Legend>
@@ -335,7 +371,9 @@ const PieChart = ({ data, colorOffset }) => {
   );
 };
 
+// ✅ ScatterChart Tooltip 추가
 const ScatterChart = ({ data, xLabel, yLabel, colorOffset }) => {
+  const [tooltip, setTooltip] = useState(null);
   const points = extractScatterPoints(data);
   if (points.length === 0) return <ChartPlaceholder>표시할 데이터가 없습니다.</ChartPlaceholder>;
 
@@ -354,42 +392,27 @@ const ScatterChart = ({ data, xLabel, yLabel, colorOffset }) => {
   };
 
   return (
-    <ChartWrapper>
-      <Svg viewBox={`0 0 ${viewWidth} ${viewHeight}`} preserveAspectRatio="xMidYMid meet">
-        <rect
-          x={padding}
-          y={padding}
-          width={viewWidth - padding * 2}
-          height={viewHeight - padding * 2}
-          fill="#f8fafc"
-          stroke="#d0d7f0"
-          strokeWidth={1}
-          rx={4}
-        />
-        {points.map((point, index) => {
-          const x = padding + scale(point.x, minX, maxX, viewWidth - padding * 2);
-          const y = viewHeight - padding - scale(point.y, minY, maxY, viewHeight - padding * 2);
+    <ChartWrapper style={{ position: "relative" }}>
+      {tooltip && <Tooltip style={{ left: tooltip.x, top: tooltip.y }}>{tooltip.text}</Tooltip>}
+      <Svg viewBox={`0 0 ${viewWidth} ${viewHeight}`}>
+        {points.map((p, i) => {
+          const x = padding + scale(p.x, minX, maxX, viewWidth - padding * 2);
+          const y = viewHeight - padding - scale(p.y, minY, maxY, viewHeight - padding * 2);
           return (
-            <g key={`scatter-${index}`}>
-              <circle cx={x} cy={y} r={3} fill={color} opacity={0.85} />
-              {point.label && (
-                <text x={x + 3.5} y={y - 3} fontSize={6} fill="#475569">
-                  {point.label}
-                </text>
-              )}
-            </g>
+            <circle
+              key={i}
+              cx={x}
+              cy={y}
+              r={3}
+              fill={color}
+              opacity={0.85}
+              onMouseEnter={(e) => setTooltip({ x: e.nativeEvent.offsetX, y: e.nativeEvent.offsetY, text: `${p.label}: (${p.x}, ${p.y})` })}
+              onMouseLeave={() => setTooltip(null)}
+            />
           );
         })}
-        {xLabel && (
-          <text x={viewWidth / 2} y={viewHeight - 2} fontSize={6} fill="#64748b" textAnchor="middle">
-            {xLabel}
-          </text>
-        )}
-        {yLabel && (
-          <text x={4} y={12} fontSize={6} fill="#64748b" textAnchor="start">
-            {yLabel}
-          </text>
-        )}
+        {xLabel && <text x={viewWidth / 2} y={viewHeight - 2} fontSize={6} fill="#64748b" textAnchor="middle">{xLabel}</text>}
+        {yLabel && <text x={4} y={12} fontSize={6} fill="#64748b" textAnchor="start">{yLabel}</text>}
       </Svg>
     </ChartWrapper>
   );
