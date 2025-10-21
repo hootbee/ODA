@@ -132,6 +132,10 @@ export const parseBotMessage = (content, metadata = {}) => {
         messageObject.type = "data_analysis";
         messageObject.data = content;
         return messageObject;
+      case "data_visualization":
+        messageObject.type = "data_visualization";
+        messageObject.data = content;
+        return messageObject;
       default:
         console.warn("⚠️ 알 수 없는 타입:", content.type);
         messageObject.type = "text";

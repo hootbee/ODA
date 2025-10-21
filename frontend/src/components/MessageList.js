@@ -13,6 +13,7 @@ import HelpMessage from "./messages/HelpMessage";
 import ContextResetMessage from "./messages/ContextResetMessage";
 import ErrorMessage from "./messages/ErrorMessage";
 import DataAnalysisResult from "./messages/DataAnalysisResult";
+import DataVisualizationResult from "./messages/DataVisualizationResult";
 import LinkMessage from "./messages/LinkMessage";
 
 // A simple component to render normal text messages
@@ -53,7 +54,7 @@ const MessageBody = ({ message, onCategorySelect }) => {
                   <TipMessage>
                       💡 대시보드 활용 방안을 원하시면 <strong>"/활용 비즈니스 측면에서 활용해보고 싶어"</strong>를 입력하세요.
                       <br />
-                      또는 다른 데이터를 보고 싶다면 <strong>"/다른 데이터"</strong>, 데이터 분석을 원하시면 <strong>"/데이터 확인"</strong>을 입력해 주세요.
+                      또는 다른 데이터를 보고 싶다면 <strong>"/다른 데이터"</strong>, 데이터 분석이 필요하면 <strong>"/데이터 확인"</strong>, 그래프로 보고 싶다면 <strong>"/데이터 시각화"</strong>를 입력해 주세요.
                   </TipMessage>
               </>
           );
@@ -62,10 +63,11 @@ const MessageBody = ({ message, onCategorySelect }) => {
         <>
           <DataDetailView data={message.data} />
             <TipMessage>
-                💡 '/데이터 확인'을 입력하면 데이터 다운로드 및 분석 후 결과를
-                알려드립니다. 분석이 끝나면 데이터는 삭제됩니다.
+                💡 '/데이터 확인'을 입력하면 데이터 다운로드 및 분석 후 결과를 알려드립니다. 분석이 끝나면 데이터는 삭제됩니다.
                 <br />
-                <strong>예시:</strong> "/데이터 확인", "/종합 활용", "/활용 비즈니스 관점에서 활용"
+                그래프로 빠르게 확인하고 싶다면 "/데이터 시각화"도 활용할 수 있어요.
+                <br />
+                <strong>예시:</strong> "/데이터 확인", "/데이터 시각화", "/활용 비즈니스 관점에서 활용"
             </TipMessage>
         </>
       );
@@ -91,8 +93,19 @@ const MessageBody = ({ message, onCategorySelect }) => {
         <>
           <DataAnalysisResult data={message.data} />
             <TipMessage>
-                📊 분석이 완료되었습니다. 예: "/활용 이 데이터로 사업 아이템 추천"
+                📊 분석이 완료되었습니다. 추가 그래프가 필요하면 "/데이터 시각화"를, 활용 아이디어가 필요하면 "/활용 [원하는 방식]"을 요청해보세요.
             </TipMessage>
+        </>
+      );
+    case "data_visualization":
+      return (
+        <>
+          <DataVisualizationResult data={message.data} />
+          <TipMessage>
+            💡 그래프를 바탕으로 활용 아이디어가 필요하면 "/활용 [원하는 방식]"을 요청해보세요.
+            <br />
+            다른 분석을 보려면 "/데이터 확인" 또는 새로운 데이터를 찾으려면 "/다른 데이터"를 입력할 수 있습니다.
+          </TipMessage>
         </>
       );
     default:
