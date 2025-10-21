@@ -34,6 +34,10 @@ const availableCommands = [
     description: "현재 선택된 데이터를 분석 및 다운로드 할 수 있도록 도와줍니다.",
   },
   {
+    command: "/데이터 시각화",
+    description: "선택된 데이터를 기반으로 가장 적절한 그래프와 차트를 추천합니다.",
+  },
+  {
     command: "/종합 활용",
     description: "선택된 데이터를 바탕으로 4개의 카테고리 활용 방안을 제공합니다.",
   },
