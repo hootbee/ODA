@@ -77,6 +77,19 @@ app.post("/api/analyze-data-by-pk", async (req, res) => {
     }
 });
 
+/* ===== 데이터 시각화 ===== */
+app.post("/api/visualize-data-by-pk", async (req, res) => {
+    const { publicDataPk, prompt } = req.body;
+    if (!publicDataPk) return res.status(400).json({ error: "publicDataPk is required" });
+    try {
+        const result = await publicDataService.visualizeDataByPk({ publicDataPk, prompt });
+        res.json(result);
+    } catch (error) {
+        console.error("[Visualization] Error:", error);
+        res.status(500).json({ error: "Failed to generate visualizations", message: getErrorMessage(error) });
+    }
+});
+
 /* ===== 파일 다운로드 ===== */
 app.get("/api/download-by-pk/:publicDataPk", async (req, res) => {
     const { publicDataPk } = req.params;
@@ -180,6 +193,7 @@ app.listen(port, () => {
     console.log(`🚀 Agentica AI Service running on http://localhost:${port}`);
     console.log(`   POST /api/search-hybrid`);
     console.log(`   POST /api/analyze-data-by-pk`);
+    console.log(`   POST /api/visualize-data-by-pk`);
     console.log(`   GET  /api/download-by-pk/:publicDataPk`);
     console.log(`   POST /api/data-utilization/full`);
     console.log(`   POST /api/data-utilization/single`);

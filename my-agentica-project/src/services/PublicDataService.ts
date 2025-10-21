@@ -10,6 +10,7 @@ import {
 } from "./dataUtilization.schema";
 import { DataDownloaderService } from "./DataDownloaderService";
 import { DataAnalysisService, DataAnalysisDeps } from "./DataAnalysisService";
+import { DataVisualizationService, VisualizationResult } from "./DataVisualizationService";
 
 interface AnalyzeDataParams {
     publicDataPk?: string;
@@ -21,11 +22,10 @@ interface AnalyzeDataParams {
 }
 
 interface ConversationState {
-
   lastQuery?: string;
   lastResponse?: any;
-  lastAction?: "utilization" | "analysis" | null;
-  lastDataInfo?: { pk?: string; title?: string; [key: string]: any };
+  lastAction?: "utilization" | "analysis" | "visualization" | null;
+  lastDataInfo?: { pk?: string; title?: string; fileName?: string; [key: string]: any };
 }
 
 type Deps = {
@@ -34,6 +34,7 @@ type Deps = {
   queryPlanner?: HybridQueryPlannerService;
   downloader?: DataDownloaderService;
   analysis?: DataAnalysisService;
+  visualization?: DataVisualizationService;
   downloadsDir?: string;
 };
 
@@ -42,6 +43,7 @@ export class PublicDataService {
   private readonly utilizationService: DataUtilizationService;
   private readonly downloaderService: DataDownloaderService;
   private readonly analysisService: DataAnalysisService;
+  private readonly visualizationService: DataVisualizationService;
   private readonly downloadsDir: string;
   private conversationState: ConversationState = {};
 
@@ -52,6 +54,9 @@ export class PublicDataService {
     this.analysisService =
         deps.analysis ??
         new DataAnalysisService({ llm: deps.llm, model: deps.model } satisfies DataAnalysisDeps);
+    this.visualizationService =
+        deps.visualization ??
+        new DataVisualizationService({ llm: deps.llm, model: deps.model });
     this.downloadsDir = deps.downloadsDir ?? path.resolve(process.cwd(), "downloads");
   }
 
@@ -200,6 +205,95 @@ export class PublicDataService {
       };
       console.log("[DEBUG: PublicDataService.ts] conversationState 업데이트 완료");
       return { success: true, analysis, publicDataPk: sourceId, fileName };
+    } finally {
+      if (downloadedFilePath) await this.safeUnlink(downloadedFilePath);
+    }
+  }
+
+  public async visualizeDataByPk(input: AnalyzeDataParams) {
+    console.log("\n[DEBUG: PublicDataService.ts] --------------------------------------------------");
+    console.log("[DEBUG: PublicDataService.ts] visualizeDataByPk 진입");
+    console.log("[DEBUG: PublicDataService.ts] 입력값 (input):", input);
+
+    const {
+        prompt = "데이터를 이해하기 쉬운 그래프로 보여줘",
+        portal = "seoul",
+        directUrl,
+        fileDetailSn,
+    } = input;
+
+    const sourceId = input.publicDataPk ?? input.id ?? this.conversationState.lastDataInfo?.pk;
+    console.log(`[DEBUG: PublicDataService.ts] 시각화 대상 ID: ${sourceId}`);
+    if (!sourceId) throw new Error("시각화할 데이터의 식별자(publicDataPk or id)가 필요합니다.");
+
+    let downloadSource: string;
+    if (portal === "url") {
+        if (!directUrl) throw new Error("directUrl is required when portal is 'url'");
+        downloadSource = directUrl;
+    } else if (portal === "seoul") {
+        downloadSource = `https://data.seoul.go.kr/dataList/${encodeURIComponent(String(sourceId))}/S/1/datasetView.do`;
+    } else {
+        downloadSource = sourceId;
+    }
+
+    const useHistory =
+        this.conversationState.lastAction === "visualization" && this.conversationState.lastDataInfo?.pk === sourceId;
+    const previousResult = useHistory ? (this.conversationState.lastResponse as VisualizationResult | undefined) : undefined;
+    console.log(`[DEBUG: PublicDataService.ts] 시각화 히스토리 사용: ${useHistory}`);
+
+    let downloadedFilePath: string | null = null;
+    try {
+      await fs.mkdir(this.downloadsDir, { recursive: true });
+      console.log("[DEBUG: PublicDataService.ts] 시각화용 파일 다운로드 시작...");
+
+      downloadedFilePath = await this.downloaderService.downloadDataFile(downloadSource, this.downloadsDir, {
+          fileDetailSn: fileDetailSn ? Number(fileDetailSn) : undefined,
+      });
+      const fileName = path.basename(downloadedFilePath);
+      console.log(`[DEBUG: PublicDataService.ts] 시각화용 파일 다운로드 완료: ${fileName}`);
+
+      if (!downloadedFilePath.toLowerCase().endsWith(".csv")) {
+        await this.safeUnlink(downloadedFilePath);
+        console.warn(`[DEBUG: PublicDataService.ts] CSV 파일이 아니므로 시각화 중단: ${fileName}`);
+        return {
+          success: true,
+          type: "data_visualization",
+          publicDataPk: sourceId,
+          fileName,
+          summary: "다운로드된 파일이 CSV 형식이 아니어서 그래프를 생성할 수 없습니다.",
+          charts: [],
+          notes: ["현재는 CSV 파일만 지원합니다."],
+        };
+      }
+
+      const cleanedPrompt = typeof prompt === "string" && prompt.trim().length > 0
+          ? prompt.trim()
+          : "데이터를 이해하기 쉬운 그래프로 보여줘";
+
+      console.log("[DEBUG: PublicDataService.ts] visualizationService.generateFromCsv 호출 예정...");
+      const visualization = await this.visualizationService.generateFromCsv(
+          downloadedFilePath,
+          fileName,
+          cleanedPrompt,
+          previousResult,
+      );
+      console.log("[DEBUG: PublicDataService.ts] visualizationService로부터 시각화 결과 수신 완료");
+
+      this.conversationState = {
+        lastQuery: cleanedPrompt,
+        lastResponse: visualization,
+        lastAction: "visualization",
+        lastDataInfo: { pk: sourceId, fileName },
+      };
+      console.log("[DEBUG: PublicDataService.ts] 시각화 conversationState 업데이트 완료");
+
+      return {
+        success: true,
+        type: "data_visualization",
+        publicDataPk: sourceId,
+        fileName,
+        ...visualization,
+      };
     } finally {
       if (downloadedFilePath) await this.safeUnlink(downloadedFilePath);
     }
