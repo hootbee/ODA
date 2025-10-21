@@ -4,6 +4,7 @@ package com.example.oda.service;
 import com.example.oda.entity.PublicData;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.core.ParameterizedTypeReference;
@@ -109,5 +110,24 @@ public class GeminiService implements AiModelService {
                     return response;
                 })
                 .doOnError(e -> log.error("Error calling agent service for data analysis", e));
+    }
+
+    public Mono<JsonNode> visualizeDataByPk(String publicDataPk) {
+        Map<String, String> requestBody = Map.of("publicDataPk", publicDataPk);
+        log.info("Requesting data visualization from agent for PK: {}", publicDataPk);
+
+        return webClient.post()
+                .uri("/api/visualize-data-by-pk")
+                .header("Content-Type", "application/json")
+                .bodyValue(requestBody)
+                .retrieve()
+                .bodyToMono(JsonNode.class)
+                .map(response -> {
+                    if (response instanceof ObjectNode objectNode && !objectNode.has("type")) {
+                        objectNode.put("type", "data_visualization");
+                    }
+                    return response;
+                })
+                .doOnError(e -> log.error("Error calling agent service for data visualization", e));
     }
 }
