@@ -500,6 +500,9 @@ const ChartWrapper = styled.div`
   border-radius: 12px;
   padding: 12px;
   border: 1px solid #e2e8f0;
+  overflow: hidden; 
+  position: relative;
+  box-sizing: border-box;
 `;
 
 const ChartPlaceholder = styled.div`
@@ -516,8 +519,12 @@ const ChartPlaceholder = styled.div`
 `;
 
 const Svg = styled.svg`
-  width: 100%;
-  height: auto;
+  display: block;
+  width: 100%;    
+  height: auto; 
+  max-width: 100%; 
+  max-height: 100%; 
+  overflow: visible;
 `;
 
 const PieWrapper = styled.div`
