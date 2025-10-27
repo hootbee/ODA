@@ -283,20 +283,63 @@ export default function ChatPage() {
     scrollToBottom();
   }, [conv.messages]);
 
-  const handleContextReset = () => {
-    updateConv((currentConversation) => ({
-      ...currentConversation,
-      lastDataName: null,
-    }));
-    const resetMessage = {
-      id: Date.now(),
-      sender: "bot",
-      type: "context_reset",
-    };
-    updateConv((c) => ({ ...c, messages: [...c.messages, resetMessage] }));
+  const handleContextReset = async () => {
+    const prompt = "/다른 데이터";
+    setIsTyping(true);
+    try {
+      const { data } = await axios.post(
+        "http://localhost:8080/api/prompt",
+        {
+          prompt, 
+          sessionId: conv.sessionId,
+          lastDataName: conv.lastDataName,
+        },
+        { headers: authHeaders() }
+      );
+
+      const botContent = safeParseIfJson(data.response);
+      const botMessage = parseBotMessage(botContent, {
+        lastDataName: data.lastDataName,
+      });
+
+      updateConv((c) => ({
+        messages: [...c.messages, botMessage],
+        sessionId: data.sessionId,
+        lastDataName: data.lastDataName,
+      }));
+
+      if (conv.sessionId == null && data.sessionId) {
+        const newId = data.sessionId;
+        const oldId = activeContextId;
+        setContexts((cs) =>
+          cs.map((ctx) =>
+            ctx.id === oldId
+              ? { ...ctx, id: newId, title: data.sessionTitle }
+              : ctx
+          )
+        );
+        setConvs((prevConvs) => {
+          const nc = { ...prevConvs };
+          nc[newId] = nc[oldId];
+          delete nc[oldId];
+          return nc;
+        });
+        setActiveId(newId);
+      }
+    } catch (error) {
+      console.error("Error sending message:", error);
+      const errorMsg = parseBotMessage({
+        type: "error",
+        message:
+          "백엔드 통신 중 오류가 발생했습니다. 서버 로그를 확인해주세요.",
+      });
+      updateConv((c) => ({ ...c, messages: [...c.messages, errorMsg] }));
+    } finally {
+      setIsTyping(false);
+    }
   };
 
-  const handleInputChange = (value) => {
+  const handleInputChange = (value) => {
   setInput(value);
   if (value.startsWith("/")) {
     setShowCommands(true);
@@ -327,7 +370,6 @@ const handleCommandSelect = (command) => {
     const prompt = overridePrompt ?? inputValue.trim();
     if (!prompt) return;
 
-    // 사용자 메시지 먼저 출력
     const userMsg = { id: Date.now(), sender: "user", text: prompt };
     updateConv((c) => ({ ...c, messages: [...c.messages, userMsg] }));
     setInput("");
