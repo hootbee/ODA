@@ -40,6 +40,8 @@ $ wsl
 # (WSL 또는 Linux/macOS 환경에서 실행)
 $ git clone https://github.com/hootbee/ODA.git
 $ cd ODA
+$ git fetch origin
+$ git checkout -b front origin/front
 ```
 ## □ 3) 환경 변수 설정 (필수)
 프로젝트 루트(ODA/)에 .env 파일을 생성하고 아래 내용을 작성합니다.
