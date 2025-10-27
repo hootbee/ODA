@@ -21,7 +21,7 @@ const initialMessages = [
 ];
 
 const availableCommands = [
-  {
+  { 
     command: "/도움말",
     description: "현재 지원되는 모든 명령어와 그에 맞는 사용 예시를 제공합니다.",
   },
